@@ -1,0 +1,41 @@
+name: Dependency Check
+
+on:
+  schedule:
+    - cron: "30 2 * * *" # every day at 2:30 AM
+  workflow_dispatch: # allow manual triggering
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-check:
+    name: OWASP Dependency Check
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'bytecodealliance'
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: maven
+      - name: Build
+        run: mvn -B -Dquickly
+      - name: Run OWASP Dependency Check
+        run: |
+          mvn -B org.owasp:dependency-check-maven:check \
+            -DfailBuildOnCVSS=7 \
+            -DsuppressedPaths=./dependency-check-suppressions.xml \
+            -Dformats=HTML,JSON \
+            -Danalyzer.ossindexAnalyzerEnabled=true
+      - name: Upload report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.*
+          retention-days: 30
+          if-no-files-found: ignore

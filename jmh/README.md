@@ -1,6 +1,6 @@
 # jmh
 
-This module is used to run JMH performance tests on Chicory and make it easy to compare results.
+This module is used to run JMH performance tests on Endive and make it easy to compare results.
 
 ## Dependencies
 
@@ -50,5 +50,5 @@ If you run the JMH tests from a GH Action:
 Or using a container image:
 
 ```bash
-docker run --rm -it -p 3000:3000 docker.io/andreatp/chicory-show-jmh ci <link-to-baseline-results> <link-to-current-results>
+docker run --rm -it -p 3000:3000 docker.io/andreatp/endive-show-jmh ci <link-to-baseline-results> <link-to-current-results>
 ```

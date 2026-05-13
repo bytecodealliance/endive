@@ -1,8 +1,8 @@
-# Running Chicory tests on Android
+# Running Endive tests on Android
 
-This is an Android project designed to run Chicory tests on device.
+This is an Android project designed to run Endive tests on device.
 
-Since Chicory uses maven and Android doesn't have official maven
+Since Endive uses maven and Android doesn't have official maven
 support, we cannot make Android testing part of the main build.
 
 Instead, we use this project where it uses the outputs of the
@@ -10,10 +10,10 @@ main maven build to run those tests as Android instrumentation tests.
 
 Inside the `device-tests` folder, there is an Android library project
 setup. It doesn't have any code, except for declaring product flavors
-for each main chicory project and setting up its dependencies to run
+for each main endive project and setting up its dependencies to run
 tests.
 
-To run the tests on Android you need first to build a local `CHICORY_REPO`:
+To run the tests on Android you need first to build a local `ENDIVE_REPO`:
 
 ```bash
 mvn -Dandroid-prepare
@@ -30,12 +30,12 @@ Finally you can run the tests from the gradle project:
 ./android-tests/gradlew -p android-tests cC
 ```
 
-You can override the repository location by setting the `CHICORY_REPO` environment variable.
-It can either be an absolute path, or relative to the Chicory checkout directory.
+You can override the repository location by setting the `ENDIVE_REPO` environment variable.
+It can either be an absolute path, or relative to the Endive checkout directory.
 
 ```base
 # mv local-repo my-repo
-CHICORY_REPO=my-repo ./android-tests/gradlew -p android-tests cC
+ENDIVE_REPO=my-repo ./android-tests/gradlew -p android-tests cC
 ```
 
 ## Environment Setup

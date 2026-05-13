@@ -5,4 +5,4 @@ This library contains code for instantiating and running WASI modules.
 by many of the compilers out there. This library implements the widely-available version 0.1
 of the spec, also known as `wasip1`.
 
-For further details see the [corresponding docs](https://chicory.dev/docs/usage/wasi) section
+For further details see the [corresponding docs](https://endive.run/docs/usage/wasi) section

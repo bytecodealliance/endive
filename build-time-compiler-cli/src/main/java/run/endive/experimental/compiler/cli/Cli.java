@@ -10,7 +10,7 @@ import run.endive.compiler.InterpreterFallback;
 import run.endive.wasm.Version;
 
 @CommandLine.Command(
-        name = "chicory-compiler",
+        name = "endive-compiler",
         versionProvider = Cli.VersionProvider.class,
         mixinStandardHelpOptions = true,
         helpCommand = true,

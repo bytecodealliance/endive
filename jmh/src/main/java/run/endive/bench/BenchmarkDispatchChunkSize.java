@@ -21,7 +21,7 @@ import run.endive.wasm.Parser;
 
 // Measures dispatch overhead for large wasm modules (2000 functions).
 // Compare with/without the HugeMethodLimit-aware chunking:
-//   java -Dchicory.hugeMethodLimit=1000000 -jar benchmarks.jar BenchmarkDispatchChunkSize  (no
+//   java -Dendive.hugeMethodLimit=1000000 -jar benchmarks.jar BenchmarkDispatchChunkSize  (no
 // limit)
 //   java -jar benchmarks.jar BenchmarkDispatchChunkSize                                    (default
 // 8KB)

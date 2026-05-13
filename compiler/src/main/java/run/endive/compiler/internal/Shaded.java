@@ -136,7 +136,7 @@ public final class Shaded {
     private static final boolean memCopyWorkaround;
 
     static {
-        var prop = System.getProperty("chicory.memCopyWorkaround");
+        var prop = System.getProperty("endive.memCopyWorkaround");
 
         if (prop != null) {
             memCopyWorkaround = Boolean.valueOf(prop);

@@ -1,7 +1,7 @@
 package run.endive.log;
 
 public class SystemLogger implements Logger {
-    private static final System.Logger LOGGER = System.getLogger("chicory");
+    private static final System.Logger LOGGER = System.getLogger("endive");
 
     @Override
     public void log(Level level, String msg, Throwable throwable) {

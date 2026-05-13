@@ -36,11 +36,6 @@
       </dependency>
       <dependency>
         <groupId>run.endive</groupId>
-        <artifactId>endive-compiler-maven-plugin</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>run.endive</groupId>
         <artifactId>cli-experimental</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -57,6 +52,11 @@
       <dependency>
         <groupId>run.endive</groupId>
         <artifactId>dircache-experimental</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>run.endive</groupId>
+        <artifactId>endive-compiler-maven-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

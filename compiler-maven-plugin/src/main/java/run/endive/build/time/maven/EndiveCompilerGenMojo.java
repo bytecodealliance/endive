@@ -19,7 +19,7 @@ import run.endive.compiler.InterpreterFallback;
  * This plugin generates an invokable library from the compiled Wasm
  */
 @Mojo(name = "compile", defaultPhase = LifecyclePhase.GENERATE_SOURCES, threadSafe = true)
-public class ChicoryCompilerGenMojo extends AbstractMojo {
+public class EndiveCompilerGenMojo extends AbstractMojo {
 
     /**
      * the wasm module to be used
@@ -38,7 +38,7 @@ public class ChicoryCompilerGenMojo extends AbstractMojo {
      */
     @Parameter(
             required = true,
-            defaultValue = "${project.build.directory}/generated-resources/chicory-compiler")
+            defaultValue = "${project.build.directory}/generated-resources/endive-compiler")
     private File targetClassFolder;
 
     /**
@@ -46,7 +46,7 @@ public class ChicoryCompilerGenMojo extends AbstractMojo {
      */
     @Parameter(
             required = true,
-            defaultValue = "${project.build.directory}/generated-sources/chicory-compiler")
+            defaultValue = "${project.build.directory}/generated-sources/endive-compiler")
     private File targetSourceFolder;
 
     /**
@@ -54,7 +54,7 @@ public class ChicoryCompilerGenMojo extends AbstractMojo {
      */
     @Parameter(
             required = true,
-            defaultValue = "${project.build.directory}/generated-resources/chicory-compiler")
+            defaultValue = "${project.build.directory}/generated-resources/endive-compiler")
     private File targetWasmFolder;
 
     /**

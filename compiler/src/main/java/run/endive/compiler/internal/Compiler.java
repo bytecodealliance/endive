@@ -102,8 +102,7 @@ public final class Compiler {
 
     // C2 JIT's HugeMethodLimit (default 8KB) — methods exceeding this get degraded optimization.
     // Dispatch chunks are sized to stay under this limit for full C2 compilation.
-    private static final int HUGE_METHOD_LIMIT =
-            Integer.getInteger("chicory.hugeMethodLimit", 8000);
+    private static final int HUGE_METHOD_LIMIT = Integer.getInteger("endive.hugeMethodLimit", 8000);
     // Estimated upper bound: tableswitch offset (4) + label + invokestatic (~5) + areturn (1) +
     // overhead
     private static final int ESTIMATED_BYTES_PER_DISPATCH_ENTRY = 40;

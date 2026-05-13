@@ -22,7 +22,7 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
 
     static {
         if (Boolean.parseBoolean(
-                System.getProperty("chicory.compiler.printUseOfInterpretedFunctions"))) {
+                System.getProperty("endive.compiler.printUseOfInterpretedFunctions"))) {
             usedInterpretedFunctions = new HashSet<>();
         } else {
             usedInterpretedFunctions = null;

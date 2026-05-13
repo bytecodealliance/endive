@@ -3,11 +3,11 @@ package run.endive.fuzz;
 public class TestResult {
 
     private String oracleResult;
-    private String chicoryResult;
+    private String endiveResult;
 
-    public TestResult(String oracleResult, String chicoryResult) {
+    public TestResult(String oracleResult, String endiveResult) {
         this.oracleResult = oracleResult;
-        this.chicoryResult = chicoryResult;
+        this.endiveResult = endiveResult;
     }
 
     public String getOracleResult() {
@@ -15,6 +15,6 @@ public class TestResult {
     }
 
     public String getChicoryResult() {
-        return chicoryResult;
+        return endiveResult;
     }
 }

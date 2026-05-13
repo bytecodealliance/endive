@@ -24,7 +24,7 @@ Add the following dependency:
 
 ```xml
 <dependency>
-  <groupId>com.dylibso.chicory</groupId>
+  <groupId>run.endive</groupId>
   <artifactId>compiler</artifactId>
 </dependency>
 ```
@@ -36,19 +36,19 @@ of the default `InterpreterMachine`.
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:compiler:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:compiler:999-SNAPSHOT
 
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.runtime.Instance;
+import run.endive.wasm.Parser;
+import run.endive.runtime.Instance;
 docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "your.wasm");
 ```
 -->
 
 ```java
-import com.dylibso.chicory.compiler.MachineFactoryCompiler;
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.wasm.WasmModule;
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
 
 var module = Parser.parse(new File("your.wasm"));
 var instance = Instance.builder(module).
@@ -69,11 +69,11 @@ Warning: using interpreted mode for WASM function index: 232
 By default, the compiler uses `InterpreterFallback.WARN` behavior, which logs warning messages when falling back to the interpreter. If you are happy with these methods being interpreted, you can configure the compiler with `InterpreterFallback.SILENT` to silence those messages:
 
 ```java
-import com.dylibso.chicory.compiler.MachineFactoryCompiler;
-import com.dylibso.chicory.compiler.InterpreterFallback;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.wasm.WasmModule;
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.compiler.InterpreterFallback;
+import run.endive.runtime.Instance;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
 
 var module = Parser.parse(new File("your.wasm"));
 var instance = Instance.builder(module).
@@ -90,11 +90,11 @@ If you want to ensure the functions are never interpreted, you can modify the ab
 An even better way to silence the use of interpreted functions (this will speed up your compile times) is to explicitly list the function indexes that should be interpreted:
 
 ```java
-import com.dylibso.chicory.compiler.MachineFactoryCompiler;
-import com.dylibso.chicory.compiler.InterpreterFallback;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.wasm.WasmModule;
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.compiler.InterpreterFallback;
+import run.endive.runtime.Instance;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
 import java.io.File;
 import java.util.Set;
 

@@ -1,3 +1,3 @@
-module com.dylibso.chicory.annotations {
-    exports com.dylibso.chicory.annotations;
+module run.endive.annotations {
+    exports run.endive.annotations;
 }

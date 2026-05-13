@@ -1,9 +1,9 @@
-module com.dylibso.chicory.wabt {
-    requires com.dylibso.chicory.log;
-    requires com.dylibso.chicory.runtime;
-    requires com.dylibso.chicory.wasi;
-    requires com.dylibso.chicory.wasm;
+module run.endive.wabt {
+    requires run.endive.log;
+    requires run.endive.runtime;
+    requires run.endive.wasi;
+    requires run.endive.wasm;
     requires io.roastedroot.zerofs.ZeroFs;
 
-    exports com.dylibso.chicory.wabt;
+    exports run.endive.wabt;
 }

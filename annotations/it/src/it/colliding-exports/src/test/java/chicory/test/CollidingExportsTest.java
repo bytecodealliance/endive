@@ -2,11 +2,11 @@ package chicory.test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.dylibso.chicory.annotations.WasmModuleInterface;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.wasi.WasiOptions;
-import com.dylibso.chicory.wasi.WasiPreview1;
-import com.dylibso.chicory.wasm.Parser;
+import run.endive.annotations.WasmModuleInterface;
+import run.endive.runtime.Instance;
+import run.endive.wasi.WasiOptions;
+import run.endive.wasi.WasiPreview1;
+import run.endive.wasm.Parser;
 import java.io.ByteArrayOutputStream;
 import org.junit.jupiter.api.Test;
 

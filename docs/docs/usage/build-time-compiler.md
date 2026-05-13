@@ -41,7 +41,7 @@ Example configuration of the Maven plug-in:
 <build>
   <plugins>
     <plugin>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>chicory-compiler-maven-plugin</artifactId>
       <executions>
         <execution>
@@ -66,14 +66,14 @@ In the codebase you can use the generated module by configuring appropriately th
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:runtime:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:runtime:999-SNAPSHOT
 
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.wasm.WasmModule;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.runtime.Machine;
-import com.dylibso.chicory.runtime.InterpreterMachine;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Machine;
+import run.endive.runtime.InterpreterMachine;
 
 docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "your.wasm");
 
@@ -93,7 +93,7 @@ class Add {
 -->
 
 ```java
-import com.dylibso.chicory.runtime.Instance;
+import run.endive.runtime.Instance;
 
 // load the bundled module
 var module = Add.load();
@@ -124,14 +124,14 @@ You can then use them directly in your code without any annotation:
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:runtime:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:runtime:999-SNAPSHOT
 
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.wasm.WasmModule;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.runtime.Machine;
-import com.dylibso.chicory.runtime.InterpreterMachine;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Machine;
+import run.endive.runtime.InterpreterMachine;
 
 docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "demo.wasm");
 
@@ -164,13 +164,13 @@ var exports = new Demo_ModuleExports(instance);
 ### The `compile` Goal
 
 You can obtain the full description of the Maven Plugin with a command like:
-`mvn help:describe -DgroupId=com.dylibso.chicory -DartifactId=chicory-compiler-maven-plugin -Dversion=999-SNAPSHOT -Ddetail`
+`mvn help:describe -DgroupId=run.endive -DartifactId=chicory-compiler-maven-plugin -Dversion=999-SNAPSHOT -Ddetail`
 
 ```
 chicory:compile
   Description: This plugin generates an invokable library from the compiled
     Wasm
-  Implementation: com.dylibso.chicory.build.time.maven.ChicoryCompilerGenMojo
+  Implementation: run.endive.build.time.maven.ChicoryCompilerGenMojo
   Language: java
   Bound to phase: generate-sources
 

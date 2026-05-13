@@ -12,13 +12,13 @@ Let's look at an example where we have a module `count_vowels.wasm`, written in 
 in the string:
 
 ```bash
-curl https://raw.githubusercontent.com/dylibso/chicory/main/wasm-corpus/src/main/resources/compiled/count_vowels.rs.wasm > count_vowels.wasm
+curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/count_vowels.rs.wasm > count_vowels.wasm
 ```
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:runtime:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:runtime:999-SNAPSHOT
 
 docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "count_vowels.wasm");
 ```
@@ -27,9 +27,9 @@ docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "count_vowels.wasm");
 Build and instantiate this module:
 
 ```java
-import com.dylibso.chicory.runtime.ExportFunction;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.wasm.Parser;
+import run.endive.runtime.ExportFunction;
+import run.endive.runtime.Instance;
+import run.endive.wasm.Parser;
 
 Instance instance = Instance.builder(Parser.parse(new File("./count_vowels.wasm"))).build();
 ExportFunction countVowels = instance.export("count_vowels");
@@ -46,7 +46,7 @@ ExportFunction dealloc = instance.export("dealloc");
 Let's allocate Wasm memory for a string and write it into the instance memory:
 
 ```java
-import com.dylibso.chicory.runtime.Memory;
+import run.endive.runtime.Memory;
 
 Memory memory = instance.memory();
 String message = "Hello, World!";

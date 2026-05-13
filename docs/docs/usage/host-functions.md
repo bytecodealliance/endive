@@ -42,13 +42,13 @@ and determine what they do.
 Let's see it with another example. Download the following Wasm binary:
 
 ```bash
-curl https://raw.githubusercontent.com/dylibso/chicory/main/wasm-corpus/src/main/resources/compiled/host-function.wat.wasm > logger.wasm
+curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/host-function.wat.wasm > logger.wasm
 ```
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:runtime:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:runtime:999-SNAPSHOT
 
 docs.FileOps.copyFromWasmCorpus("host-function.wat.wasm", "logger.wasm");
 ```
@@ -68,10 +68,10 @@ System.setOut(new PrintStream(
 
 
 ```java
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.runtime.HostFunction;
-import com.dylibso.chicory.wasm.types.ValType;
-import com.dylibso.chicory.wasm.types.FunctionType;
+import run.endive.runtime.Instance;
+import run.endive.runtime.HostFunction;
+import run.endive.wasm.types.ValType;
+import run.endive.wasm.types.FunctionType;
 
 var func = new HostFunction(
     "console",
@@ -106,9 +106,9 @@ We now need to pass this host function when we instantiate the module.
 We can do so by using a `Store`:
 
 ```java
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.runtime.ImportValues;
-import com.dylibso.chicory.runtime.Store;
+import run.endive.wasm.Parser;
+import run.endive.runtime.ImportValues;
+import run.endive.runtime.Store;
 
 // instantiate the store
 var store = new Store();

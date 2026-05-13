@@ -1,7 +1,7 @@
-module com.dylibso.chicory.codegen {
+module run.endive.codegen {
     requires java.compiler;
-    requires com.dylibso.chicory.wasm;
+    requires run.endive.wasm;
     requires com.github.javaparser.core;
 
-    exports com.dylibso.chicory.codegen;
+    exports run.endive.codegen;
 }

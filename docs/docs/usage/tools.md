@@ -13,7 +13,7 @@ The relevant module can be added to the build with:
 
 ```xml
 <dependency>
-  <groupId>com.dylibso.chicory</groupId>
+  <groupId>run.endive</groupId>
   <artifactId>wabt</artifactId>
   <version>latest-release</version>
 </dependency>
@@ -26,7 +26,7 @@ The relevant module can be added to the build with:
 
 ```xml
 <dependency>
-  <groupId>com.dylibso.chicory</groupId>
+  <groupId>run.endive</groupId>
   <artifactId>wasm-tools</artifactId>
   <version>latest-release</version>
 </dependency>
@@ -34,12 +34,12 @@ The relevant module can be added to the build with:
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:wabt:999-SNAPSHOT
-//DEPS com.dylibso.chicory:wasm-tools:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:wabt:999-SNAPSHOT
+//DEPS run.endive:wasm-tools:999-SNAPSHOT
 
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.runtime.Instance;
+import run.endive.wasm.Parser;
+import run.endive.runtime.Instance;
 
 System.setOut(new PrintStream(
   new BufferedOutputStream(
@@ -53,9 +53,9 @@ In Chicory, we don't have a Wasm text format parser just yet.
 To overcome this limitation you can use `wat2wasm`, for example:
 
 ```java
-import com.dylibso.chicory.wabt.Wat2Wasm;
+import run.endive.wabt.Wat2Wasm;
 // or
-import com.dylibso.chicory.tools.wasm.Wat2Wasm;
+import run.endive.tools.wasm.Wat2Wasm;
 
 var wasm = Wat2Wasm.parse(
     "(module (func (export \"add\") (param $x i32) (param $y i32) (result i32)"

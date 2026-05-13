@@ -11,8 +11,8 @@ module using `Parser.parse`:
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:wasm-corpus:999-SNAPSHOT
-//DEPS com.dylibso.chicory:wasm:999-SNAPSHOT
+//DEPS run.endive:wasm-corpus:999-SNAPSHOT
+//DEPS run.endive:wasm:999-SNAPSHOT
 ```
 -->
 
@@ -32,7 +32,7 @@ public void writeResultFile(String name, String content) throws Exception {
 -->
 
 ```java
-import com.dylibso.chicory.wasm.Parser;
+import run.endive.wasm.Parser;
 
 var is = ClassLoader.getSystemClassLoader().getResourceAsStream("compiled/count_vowels.rs.wasm");
 var module = Parser.parse(is);
@@ -52,9 +52,9 @@ sections. This is useful for performance if you only want to parse a piece of th
 If you don't call this method once it will parse all sections.
 
 ```java
-import com.dylibso.chicory.wasm.ParserListener;
-import com.dylibso.chicory.wasm.types.CustomSection;
-import com.dylibso.chicory.wasm.types.SectionId;
+import run.endive.wasm.ParserListener;
+import run.endive.wasm.types.CustomSection;
+import run.endive.wasm.types.SectionId;
 
 var parser = new Parser();
 

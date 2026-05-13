@@ -6,10 +6,10 @@ chicory = "999-SNAPSHOT"
 
 [libraries]
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junitJupiterApi" }
-chicory-wasi = { module = "com.dylibso.chicory:wasi", version.ref = "chicory"}
-chicory-runtime = { module = "com.dylibso.chicory:runtime", version.ref = "chicory"}
-chicory-wasm = { module = "com.dylibso.chicory:wasm", version.ref = "chicory"}
-chicory-wasmCorpus = { module = "com.dylibso.chicory:wasm-corpus", version.ref = "chicory"}
+chicory-wasi = { module = "run.endive:wasi", version.ref = "chicory"}
+chicory-runtime = { module = "run.endive:runtime", version.ref = "chicory"}
+chicory-wasm = { module = "run.endive:wasm", version.ref = "chicory"}
+chicory-wasmCorpus = { module = "run.endive:wasm-corpus", version.ref = "chicory"}
 android-gradle-plugin-api = { module = "com.android.tools.build:gradle-api", version.ref = "agp"}
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

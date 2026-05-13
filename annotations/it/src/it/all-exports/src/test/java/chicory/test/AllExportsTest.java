@@ -3,10 +3,10 @@ package chicory.test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import com.dylibso.chicory.annotations.WasmModuleInterface;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.wasm.types.Value;
+import run.endive.annotations.WasmModuleInterface;
+import run.endive.runtime.Instance;
+import run.endive.wasm.Parser;
+import run.endive.wasm.types.Value;
 import org.junit.jupiter.api.Test;
 
 class AllExportsTest {

@@ -1,23 +1,23 @@
 package chicory.test;
 
-import static com.dylibso.chicory.wasm.types.Value.REF_NULL_VALUE;
+import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.dylibso.chicory.annotations.WasmModuleInterface;
-import com.dylibso.chicory.runtime.ByteBufferMemory;
-import com.dylibso.chicory.runtime.GlobalInstance;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.runtime.Memory;
-import com.dylibso.chicory.runtime.TableInstance;
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.wasm.types.MemoryLimits;
-import com.dylibso.chicory.wasm.types.Table;
-import com.dylibso.chicory.wasm.types.TableLimits;
-import com.dylibso.chicory.wasm.types.Value;
-import com.dylibso.chicory.wasm.types.ValueType;
+import run.endive.annotations.WasmModuleInterface;
+import run.endive.runtime.ByteBufferMemory;
+import run.endive.runtime.GlobalInstance;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Memory;
+import run.endive.runtime.TableInstance;
+import run.endive.wasm.Parser;
+import run.endive.wasm.types.MemoryLimits;
+import run.endive.wasm.types.Table;
+import run.endive.wasm.types.TableLimits;
+import run.endive.wasm.types.Value;
+import run.endive.wasm.types.ValueType;
 import org.junit.jupiter.api.Test;
 
 class AllImportsTest {

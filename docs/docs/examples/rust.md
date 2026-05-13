@@ -23,8 +23,8 @@ rustc --target=wasm32-wasi --crate-type=bin
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:runtime:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:runtime:999-SNAPSHOT
 
 docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "count_vowels.rs.wasm");
 
@@ -35,8 +35,8 @@ System.setOut(new PrintStream(
 -->
 
 ```java
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.runtime.Instance;
+import run.endive.wasm.Parser;
+import run.endive.runtime.Instance;
 
 var instance = Instance.builder(Parser.parse(new File("count_vowels.rs.wasm"))).build();
 

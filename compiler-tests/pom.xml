@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.dylibso.chicory</groupId>
+    <groupId>run.endive</groupId>
     <artifactId>chicory</artifactId>
     <version>999-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
@@ -21,32 +21,32 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>build-time-compiler</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>compiler</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>runtime</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>wabt</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>wasm</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>wasm-corpus</artifactId>
       <scope>test</scope>
     </dependency>
@@ -75,7 +75,7 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>test-gen-plugin</artifactId>
         <version>${project.version}</version>
         <configuration>

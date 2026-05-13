@@ -2,13 +2,13 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.dylibso.chicory</groupId>
+  <groupId>run.endive</groupId>
   <artifactId>chicory</artifactId>
   <version>999-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Chicory</name>
   <description>Native JVM WebAssembly runtime</description>
-  <url>https://github.com/dylibso/chicory</url>
+  <url>https://github.run/endive</url>
 
   <organization>
     <name>Dylibso, Inc.</name>
@@ -34,14 +34,14 @@
   </developers>
 
   <scm>
-    <connection>scm:git:git://github.com/dylibso/chicory.git</connection>
+    <connection>scm:git:git://github.run/endive.git</connection>
     <developerConnection>scm:git:ssh://github.com:dylibso/chicory.git</developerConnection>
-    <url>http://github.com/dylibso/chicory/tree/main</url>
+    <url>http://github.run/endive/tree/main</url>
   </scm>
 
   <issueManagement>
     <system>Github</system>
-    <url>https://github.com/dylibso/chicory/issues</url>
+    <url>https://github.run/endive/issues</url>
   </issueManagement>
 
   <properties>
@@ -112,89 +112,89 @@
         <scope>import</scope>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>annotations</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>annotations-processor</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>build-time-compiler</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>chicory-compiler-maven-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>cli-experimental</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>codegen</artifactId>
         <version>${project.version}</version>
       </dependency>
 
       <!-- Chicory project modules -->
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>compiler</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>dircache-experimental</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>log</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>runtime</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>simd</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>test-gen-lib</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>wabt</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>wasi</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>wasm</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>wasm-corpus</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>wasm-tools</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -370,7 +370,7 @@
           <version>${spotless-maven-plugin.version}</version>
         </plugin>
         <plugin>
-          <groupId>com.dylibso.chicory</groupId>
+          <groupId>run.endive</groupId>
           <artifactId>chicory-compiler-maven-plugin</artifactId>
           <version>${project.version}</version>
         </plugin>
@@ -618,8 +618,8 @@
           <failOnWarning>${maven.dependency.failOnWarning}</failOnWarning>
           <ignoreUnusedRuntime>true</ignoreUnusedRuntime>
           <ignoredUnusedDeclaredDependencies>
-            <dependency>com.dylibso.chicory:simd</dependency>
-            <dependency>com.dylibso.chicory:wasm-corpus</dependency>
+            <dependency>run.endive:simd</dependency>
+            <dependency>run.endive:wasm-corpus</dependency>
             <dependency>org.junit.jupiter:junit-jupiter-engine</dependency>
           </ignoredUnusedDeclaredDependencies>
         </configuration>

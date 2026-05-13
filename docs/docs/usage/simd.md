@@ -10,11 +10,11 @@ If you are using a version of Java that supports [JEP 448 - Vector API](https://
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:simd:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:simd:999-SNAPSHOT
 
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.runtime.Instance;
+import run.endive.wasm.Parser;
+import run.endive.runtime.Instance;
 
 docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "your.wasm");
 ```
@@ -22,7 +22,7 @@ docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "your.wasm");
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
 
 docs.FileOps.writeResult("docs/usage", "logging.md.result", "empty");
 ```
@@ -32,7 +32,7 @@ After adding the dependency:
 
 ```xml
 <dependency>
-  <groupId>com.dylibso.chicory</groupId>
+  <groupId>run.endive</groupId>
   <artifactId>simd</artifactId>
 </dependency>
 ```
@@ -40,7 +40,7 @@ After adding the dependency:
 You can instantiate a module with SIMD support by explicitly providing a `MachineFactory`:
 
 ```java
-import com.dylibso.chicory.simd.SimdInterpreterMachine;
+import run.endive.simd.SimdInterpreterMachine;
 
 var module = Parser.parse(new File("your.wasm"));
 var instance = Instance.builder(module).withMachineFactory(SimdInterpreterMachine::new).build();
@@ -50,7 +50,7 @@ var instance = Instance.builder(module).withMachineFactory(SimdInterpreterMachin
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
 
 docs.FileOps.writeResult("docs/usage", "simd.md.result", "empty");
 ```

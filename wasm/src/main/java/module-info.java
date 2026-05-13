@@ -1,5 +1,5 @@
-module com.dylibso.chicory.wasm {
-    exports com.dylibso.chicory.wasm;
-    exports com.dylibso.chicory.wasm.io;
-    exports com.dylibso.chicory.wasm.types;
+module run.endive.wasm {
+    exports run.endive.wasm;
+    exports run.endive.wasm.io;
+    exports run.endive.wasm.types;
 }

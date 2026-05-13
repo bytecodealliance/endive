@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.dylibso.chicory</groupId>
+    <groupId>run.endive</groupId>
     <artifactId>chicory</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
@@ -14,25 +14,25 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>runtime</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>wasm</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>compiler</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>wasi</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.dylibso.chicory</groupId>
+      <groupId>run.endive</groupId>
       <artifactId>wasm-corpus</artifactId>
       <scope>test</scope>
     </dependency>
@@ -56,7 +56,7 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>chicory-compiler-maven-plugin</artifactId>
         <executions>
           <execution>
@@ -65,7 +65,7 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <name>com.dylibso.chicory.testing.gen.QuickJS</name>
+              <name>run.endive.testing.gen.QuickJS</name>
               <wasmFile>${project.basedir}/../wasm-corpus/src/main/resources/compiled/quickjs-provider.javy-dynamic.wasm</wasmFile>
             </configuration>
           </execution>
@@ -75,7 +75,7 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <name>com.dylibso.chicory.testing.gen.DynamicHelloJS</name>
+              <name>run.endive.testing.gen.DynamicHelloJS</name>
               <wasmFile>${project.basedir}/../wasm-corpus/src/main/resources/compiled/hello-world.js.javy-dynamic.wasm</wasmFile>
             </configuration>
           </execution>
@@ -85,7 +85,7 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <name>com.dylibso.chicory.wabt.Wat2Wasm</name>
+              <name>run.endive.wabt.Wat2Wasm</name>
               <wasmFile>${project.basedir}/../wabt/src/main/resources/wat2wasm</wasmFile>
             </configuration>
           </execution>
@@ -95,7 +95,7 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <name>com.dylibso.chicory.testing.ThreadsExampleModule</name>
+              <name>run.endive.testing.ThreadsExampleModule</name>
               <wasmFile>${project.basedir}/../wasm-corpus/src/main/resources/compiled/threads-example.wat.wasm</wasmFile>
             </configuration>
           </execution>

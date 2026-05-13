@@ -17,7 +17,7 @@ This includes renaming artifactIDs, classes, methods, and reworking their usage 
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
 
 docs.FileOps.writeResult("docs/experimental", "why.md.result", "empty");
 ```

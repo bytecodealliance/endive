@@ -7,9 +7,9 @@ title: Wasi Preview 1
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:wasi:999-SNAPSHOT
+//DEPS run.endive:wasi:999-SNAPSHOT
 //DEPS com.google.jimfs:jimfs:1.3.0
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
 ```
 -->
 
@@ -30,7 +30,7 @@ Add the dependency to your build:
 
 ```xml
 <dependency>
-  <groupId>com.dylibso.chicory</groupId>
+  <groupId>run.endive</groupId>
   <artifactId>wasi</artifactId>
   <version>latest-release</version>
 </dependency>
@@ -51,7 +51,7 @@ In order to instantiate a WASI module you need an instance of `WasiPreview1`.
 For instance, download the following example from the link or with curl:
 
 ```bash
-curl https://raw.githubusercontent.com/dylibso/chicory/main/wasm-corpus/src/main/resources/compiled/hello-wasi.wat.wasm > hello-wasi.wasm
+curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/hello-wasi.wat.wasm > hello-wasi.wasm
 ```
 
 <!--
@@ -61,11 +61,11 @@ docs.FileOps.copyFromWasmCorpus("hello-wasi.wat.wasm", "hello-wasi.wasm");
 -->
 
 ```java
-import com.dylibso.chicory.log.SystemLogger;
-import com.dylibso.chicory.wasi.WasiOptions;
-import com.dylibso.chicory.wasi.WasiPreview1;
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.runtime.Store;
+import run.endive.log.SystemLogger;
+import run.endive.wasi.WasiOptions;
+import run.endive.wasi.WasiPreview1;
+import run.endive.wasm.Parser;
+import run.endive.runtime.Store;
 
 import java.io.File;
 
@@ -93,7 +93,7 @@ and stdout/stderr as an [OutputStream](https://docs.oracle.com/javase/8/docs/api
 Download from the link or with curl:
 
 ```bash
-curl https://raw.githubusercontent.com/dylibso/chicory/main/wasm-corpus/src/main/resources/compiled/greet-wasi.rs.wasm > greet-wasi.wasm
+curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/greet-wasi.rs.wasm > greet-wasi.wasm
 ```
 
 <!--
@@ -181,7 +181,7 @@ import com.google.common.jimfs.Jimfs;
 try (FileSystem fs = Jimfs.newFileSystem(Configuration.unix().toBuilder().setAttributeViews("unix").build())) {
     Path source = Path.of("my-source");
     Path target = fs.getPath("my-source");
-    com.dylibso.chicory.wasi.Files.copyDirectory(source, target);
+    run.endive.wasi.Files.copyDirectory(source, target);
 
     var wasi = WasiOptions.builder().withDirectory(target.toString(), target).build();
 
@@ -194,7 +194,7 @@ try (FileSystem fs = Jimfs.newFileSystem(Configuration.unix().toBuilder().setAtt
 
 If your module calls a wasi function that we don't support, or uses a feature that we don't support, we will throw a `WasmRuntimeException`.
 
-For the most up-to-date info, and to see what specific functions we support, see the [WasiPreview1.java](https://github.com/dylibso/chicory/blob/main/wasi/src/main/java/com/dylibso/chicory/wasi/WasiPreview1.java) and the following table:
+For the most up-to-date info, and to see what specific functions we support, see the [WasiPreview1.java](https://github.run/endive/blob/main/wasi/src/main/java/run/endive/wasi/WasiPreview1.java) and the following table:
 
 
 | WASI Function           | Supported  | Notes                                                                     |

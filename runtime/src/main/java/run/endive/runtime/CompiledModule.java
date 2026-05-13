@@ -1,0 +1,13 @@
+package run.endive.runtime;
+
+import run.endive.wasm.WasmModule;
+import java.util.function.Function;
+
+/**
+ * This interface is implemented by build time compiled wasm modules.
+ */
+public interface CompiledModule {
+    WasmModule wasmModule();
+
+    Function<Instance, Machine> machineFactory();
+}

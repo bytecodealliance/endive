@@ -1,7 +1,7 @@
-module com.dylibso.chicory.runtime {
-    requires transitive com.dylibso.chicory.wasm;
+module run.endive.runtime {
+    requires transitive run.endive.wasm;
 
-    exports com.dylibso.chicory.runtime;
-    exports com.dylibso.chicory.runtime.alloc;
-    exports com.dylibso.chicory.runtime.internal;
+    exports run.endive.runtime;
+    exports run.endive.runtime.alloc;
+    exports run.endive.runtime.internal;
 }

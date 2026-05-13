@@ -11,8 +11,8 @@ useful when you have many host functions.
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:runtime:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:runtime:999-SNAPSHOT
 ```
 -->
 
@@ -54,7 +54,7 @@ To use the host module, you need to instantiate the host module and fetch the ho
 
 <!--
 ```java
-import com.dylibso.chicory.runtime.HostFunction;
+import run.endive.runtime.HostFunction;
 
 // bug in JShell: https://github.com/jbangdev/jbang/issues/1854
 public class Demo {
@@ -68,7 +68,7 @@ public class Demo {
 -->
 
 ```java
-import com.dylibso.chicory.runtime.ImportValues;
+import run.endive.runtime.ImportValues;
 
 var demo = new Demo();
 var imports = ImportValues.builder().addFunction(demo.toHostFunctions()).build();
@@ -116,7 +116,7 @@ In order to use host modules, you need to import the relevant annotations, e.g. 
 
 ```xml
 <dependency>
-  <groupId>com.dylibso.chicory</groupId>
+  <groupId>run.endive</groupId>
   <artifactId>annotations</artifactId>
   <version>latest-release</version>
 </dependency>
@@ -132,7 +132,7 @@ Exactly how this is done depends on the build system you are using, for instance
   <configuration>
     <annotationProcessorPaths>
       <path>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>annotations-processor</artifactId>
         <version>latest-release</version>
       </path>

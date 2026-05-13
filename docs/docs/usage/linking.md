@@ -14,18 +14,18 @@ In the simplest case, it allows to register single host functions, globals, memo
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:runtime:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:runtime:999-SNAPSHOT
 ```
 -->
 
 ```java
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.runtime.HostFunction;
-import com.dylibso.chicory.runtime.Store;
-import com.dylibso.chicory.wasm.types.ValType;
-import com.dylibso.chicory.wasm.types.FunctionType;
+import run.endive.wasm.Parser;
+import run.endive.runtime.Instance;
+import run.endive.runtime.HostFunction;
+import run.endive.runtime.Store;
+import run.endive.wasm.types.ValType;
+import run.endive.wasm.types.FunctionType;
 
 var func = new HostFunction(
     "console",

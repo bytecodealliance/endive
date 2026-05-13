@@ -14,7 +14,7 @@ Import it in the `dependencyManagement` section of your `pom.xml`:
 <dependencyManagement>
     <dependencies>
         <dependency>
-            <groupId>com.dylibso.chicory</groupId>
+            <groupId>run.endive</groupId>
             <artifactId>bom</artifactId>
             <version>${chicory.version}</version>
             <type>pom</type>
@@ -28,14 +28,14 @@ and you can use any Chicory dependency without declaring the version number agai
 
 ```xml
 <dependency>
-  <groupId>com.dylibso.chicory</groupId>
+  <groupId>run.endive</groupId>
   <artifactId>runtime</artifactId>
 </dependency>
 ```
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
 
 docs.FileOps.writeResult("docs/usage", "bom.md.result", "empty");
 ```

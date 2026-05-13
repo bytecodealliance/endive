@@ -1,8 +1,8 @@
 package chicory.testing;
 
-import com.dylibso.chicory.annotations.HostModule;
-import com.dylibso.chicory.annotations.WasmExport;
-import com.dylibso.chicory.runtime.HostFunction;
+import run.endive.annotations.HostModule;
+import run.endive.annotations.WasmExport;
+import run.endive.runtime.HostFunction;
 
 @HostModule("math")
 public final class BasicMath {

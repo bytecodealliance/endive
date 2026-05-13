@@ -6,14 +6,14 @@ title: Quick start
 
 ### Install the dependency
 
-To use the runtime, you need to add the `com.dylibso.chicory:runtime` dependency
+To use the runtime, you need to add the `run.endive:runtime` dependency
 to your dependency management system.
 
 #### Maven
 
 ```xml
 <dependency>
-  <groupId>com.dylibso.chicory</groupId>
+  <groupId>run.endive</groupId>
   <artifactId>runtime</artifactId>
   <version>latest-release</version>
 </dependency>
@@ -22,26 +22,26 @@ to your dependency management system.
 #### Gradle
 
 ```groovy
-implementation 'com.dylibso.chicory:runtime:latest-release'
+implementation 'run.endive:runtime:latest-release'
 ```
 
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:runtime:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:runtime:999-SNAPSHOT
 ```
 -->
 
 ### Loading and Instantiating Wasm Modules
 
-First your Wasm module must be loaded from disk and then instantiated. Let's [download a test module](https://raw.githubusercontent.com/dylibso/chicory/main/wasm-corpus/src/main/resources/compiled/iterfact.wat.wasm) .
+First your Wasm module must be loaded from disk and then instantiated. Let's [download a test module](https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/iterfact.wat.wasm) .
 This module contains some code to compute factorial:
 
 Download from the link or with curl:
 
 ```bash
-curl https://raw.githubusercontent.com/dylibso/chicory/main/wasm-corpus/src/main/resources/compiled/iterfact.wat.wasm > factorial.wasm
+curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/iterfact.wat.wasm > factorial.wasm
 ```
 
 <!--
@@ -53,10 +53,10 @@ docs.FileOps.copyFromWasmCorpus("iterfact.wat.wasm", "factorial.wasm");
 Load this module and instantiate it:
 
 ```java
-import com.dylibso.chicory.runtime.ExportFunction;
-import com.dylibso.chicory.wasm.types.Value;
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.runtime.Instance;
+import run.endive.runtime.ExportFunction;
+import run.endive.wasm.types.Value;
+import run.endive.wasm.Parser;
+import run.endive.runtime.Instance;
 import java.io.File;
 
 // point this to your path on disk

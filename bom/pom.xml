@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.dylibso.chicory</groupId>
+    <groupId>run.endive</groupId>
     <artifactId>chicory</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
@@ -15,82 +15,82 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>annotations</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>annotations-processor</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>build-time-compiler</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>build-time-compiler-cli-experimental</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>chicory-compiler-maven-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>cli-experimental</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>codegen</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>compiler</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>dircache-experimental</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>log</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>runtime</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>simd</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>wabt</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>wasi</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>wasm</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dylibso.chicory</groupId>
+        <groupId>run.endive</groupId>
         <artifactId>wasm-tools</artifactId>
         <version>${project.version}</version>
       </dependency>

@@ -5,8 +5,8 @@ title: Advanced Wasm Memory Customization
 ---
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:runtime:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:runtime:999-SNAPSHOT
 
 docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "count_vowels.rs.wasm");
 
@@ -14,10 +14,10 @@ System.setOut(new PrintStream(
   new BufferedOutputStream(
     new FileOutputStream("docs/examples/rust.md.result"))));
 
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.runtime.ByteArrayMemory;
-import com.dylibso.chicory.runtime.ByteBufferMemory;
+import run.endive.wasm.Parser;
+import run.endive.runtime.Instance;
+import run.endive.runtime.ByteArrayMemory;
+import run.endive.runtime.ByteBufferMemory;
 
 var module = Parser.parse(new File("count_vowels.rs.wasm"));
 ```

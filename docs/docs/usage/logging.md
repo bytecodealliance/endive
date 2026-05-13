@@ -13,11 +13,11 @@ For more advanced configuration scenarios we encourage you to provide an alterna
 - [slf4j](https://www.slf4j.org/manual.html#jep264)
 - [log4j2](https://logging.apache.org/log4j/2.x/log4j-jpl.html)
 
-It's also possible to provide a custom `com.dylibso.chicory.log.Logger` implementation if JDK Platform Logging is not available or doesn't fit.
+It's also possible to provide a custom `run.endive.log.Logger` implementation if JDK Platform Logging is not available or doesn't fit.
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
 
 docs.FileOps.writeResult("docs/usage", "logging.md.result", "empty");
 ```

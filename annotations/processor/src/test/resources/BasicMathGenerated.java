@@ -1,15 +1,15 @@
 package chicory.testing;
 
-import com.dylibso.chicory.runtime.HostFunction;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.wasm.types.Value;
-import com.dylibso.chicory.wasm.types.FunctionType;
-import com.dylibso.chicory.wasm.types.ValType;
+import run.endive.runtime.HostFunction;
+import run.endive.runtime.Instance;
+import run.endive.wasm.types.Value;
+import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.ValType;
 
 import java.util.List;
 import javax.annotation.processing.Generated;
 
-@Generated("com.dylibso.chicory.annotations.processor.HostModuleProcessor")
+@Generated("run.endive.annotations.processor.HostModuleProcessor")
 public final class BasicMath_ModuleFactory {
 
     private BasicMath_ModuleFactory() {

@@ -1,5 +1,5 @@
-module com.dylibso.chicory.simd {
-    requires transitive com.dylibso.chicory.runtime;
-    requires com.dylibso.chicory.wasm;
+module run.endive.simd {
+    requires transitive run.endive.runtime;
+    requires run.endive.wasm;
     requires jdk.incubator.vector;
 }

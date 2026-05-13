@@ -8,7 +8,7 @@ title: Runtime Compiler Cache
 
 The runtime compiler cache lets the Chicory runtime compiler store the results of compiling WASM modules to Java bytecode. Subsequent executions can skip compilation and start faster.
 
-Use the experimental directory-based cache, or implement the simple `com.dylibso.chicory.compiler.Cache` interface:
+Use the experimental directory-based cache, or implement the simple `run.endive.compiler.Cache` interface:
 
 ```java
 public interface Cache {
@@ -46,7 +46,7 @@ Add the following dependency:
 
 ```xml
 <dependency>
-  <groupId>com.dylibso.chicory</groupId>
+  <groupId>run.endive</groupId>
   <artifactId>dircache-experimental</artifactId>
 </dependency>
 ```
@@ -57,14 +57,14 @@ Create the cache:
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
-//DEPS com.dylibso.chicory:compiler:999-SNAPSHOT
-//DEPS com.dylibso.chicory:dircache-experimental:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+//DEPS run.endive:compiler:999-SNAPSHOT
+//DEPS run.endive:dircache-experimental:999-SNAPSHOT
 ```
 -->
 ```java
 import java.nio.file.Path;
-import com.dylibso.chicory.experimental.dircache.DirectoryCache;
+import run.endive.experimental.dircache.DirectoryCache;
 
 var cache = new DirectoryCache(Path.of("cache"));
 ```
@@ -75,10 +75,10 @@ Configure the compiler to use the cache via `MachineFactoryCompiler.builder(...)
 ```java
 import java.io.File;
 import java.nio.file.Files;
-import com.dylibso.chicory.compiler.MachineFactoryCompiler;
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.wasm.WasmModule;
-import com.dylibso.chicory.runtime.Instance;
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
+import run.endive.runtime.Instance;
 docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "your.wasm");
 
 var cache = new DirectoryCache(Files.createTempDirectory("cache"));
@@ -96,7 +96,7 @@ var instance = Instance.builder(module).
 
 <!--
 ```java
-//DEPS com.dylibso.chicory:docs-lib:999-SNAPSHOT
+//DEPS run.endive:docs-lib:999-SNAPSHOT
 docs.FileOps.writeResult("docs/experimental", "runtime-compiler-cache.md.result", "empty");
 ```
 -->

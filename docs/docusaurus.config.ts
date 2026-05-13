@@ -89,7 +89,7 @@ const config: Config = {
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         {
-          href: 'https://github.com/dylibso/chicory',
+          href: 'https://github.run/endive',
           label: 'GitHub',
           position: 'right',
         },
@@ -125,7 +125,7 @@ const config: Config = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/dylibso/chicory',
+              href: 'https://github.run/endive',
             },
           ],
         },

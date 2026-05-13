@@ -1,9 +1,9 @@
-module com.dylibso.chicory.build.time.compiler {
-    requires transitive com.dylibso.chicory.compiler;
-    requires com.dylibso.chicory.codegen;
-    requires com.dylibso.chicory.runtime;
-    requires com.dylibso.chicory.wasm;
+module run.endive.build.time.compiler {
+    requires transitive run.endive.compiler;
+    requires run.endive.codegen;
+    requires run.endive.runtime;
+    requires run.endive.wasm;
     requires com.github.javaparser.core;
 
-    exports com.dylibso.chicory.build.time.compiler;
+    exports run.endive.build.time.compiler;
 }

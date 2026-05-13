@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.dylibso.runtimeTests"
+    namespace = "run.endive.runtimeTests"
     compileSdk = 35
 
     defaultConfig {
@@ -12,10 +12,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-    val chicoryDimension = "chicoryDimension"
-    flavorDimensions += chicoryDimension
+    val endiveDimension = "endiveDimension"
+    flavorDimensions += endiveDimension
     productFlavors {
-        create("runtime") { dimension = chicoryDimension }
+        create("runtime") { dimension = endiveDimension }
         // add future modules similar to the runtime configuration above.
     }
 

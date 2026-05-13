@@ -2,12 +2,12 @@ package chicory.test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.dylibso.chicory.annotations.WasmModuleInterface;
-import com.dylibso.chicory.runtime.ByteBufferMemory;
-import com.dylibso.chicory.runtime.Instance;
-import com.dylibso.chicory.runtime.Memory;
-import com.dylibso.chicory.wasm.Parser;
-import com.dylibso.chicory.wasm.types.MemoryLimits;
+import run.endive.annotations.WasmModuleInterface;
+import run.endive.runtime.ByteBufferMemory;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Memory;
+import run.endive.wasm.Parser;
+import run.endive.wasm.types.MemoryLimits;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 

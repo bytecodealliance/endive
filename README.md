@@ -27,7 +27,7 @@ Endive is a fork of [Chicory](https://github.com/dylibso/chicory) by Dylibso, In
 We thank Dylibso for the incubation period and their foundational work on this project.
 
 > *Reach out to us*: let us know what you are building with Endive.
-> [Join our Zulip chat with this invite link](https://bytecodealliance.zulipchat.com/#narrow/stream/endive).
+> [Join our Zulip chat](https://bytecodealliance.zulipchat.com/#narrow/stream/endive).
 
 Get started now with the [official documentation](https://endive.run/docs/)
 

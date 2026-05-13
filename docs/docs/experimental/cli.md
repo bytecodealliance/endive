@@ -5,7 +5,7 @@ title: CLI
 ---
 # Install and use the CLI
 
-The experimental Chicory CLI is available for download on Maven at the link:
+The experimental Endive CLI is available for download on Maven at the link:
 
 ```
 https://repo1.maven.org/maven2/run/endive/cli/<version>/cli-<version>.sh
@@ -14,10 +14,10 @@ https://repo1.maven.org/maven2/run/endive/cli/<version>/cli-<version>.sh
 you can download the latest version and use it locally by typing:
 
 ```bash
-export VERSION=$(curl -sS https://api.github.com/repos/dylibso/chicory/tags --header "Accept: application/json" | jq -r '.[0].name')
-curl -L -o chicory https://repo1.maven.org/maven2/run/endive/cli-experimental/${VERSION}/cli-experimental-${VERSION}.sh
-chmod a+x chicory
-./chicory
+export VERSION=$(curl -sS https://api.github.com/repos/bytecodealliance/endive/tags --header "Accept: application/json" | jq -r '.[0].name')
+curl -L -o endive https://repo1.maven.org/maven2/run/endive/cli-experimental/${VERSION}/cli-experimental-${VERSION}.sh
+chmod a+x endive
+./endive
 ```
 
 <!--

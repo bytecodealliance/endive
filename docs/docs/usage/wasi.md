@@ -103,8 +103,8 @@ docs.FileOps.copyFromWasmCorpus("greet-wasi.rs.wasm", "greet-wasi.wasm");
 -->
 
 ```java
-// Let's create a fake stdin stream with the bytes "Chicory"
-var fakeStdin = new ByteArrayInputStream("Chicory".getBytes());
+// Let's create a fake stdin stream with the bytes "Endive"
+var fakeStdin = new ByteArrayInputStream("Endive".getBytes());
 // We will create two output streams to capture stdout and stderr
 var fakeStdout = new ByteArrayOutputStream();
 var fakeStderr = new ByteArrayOutputStream();
@@ -120,7 +120,7 @@ store.instantiate("hello-wasi", Parser.parse(new File("greet-wasi.wasm")));
 
 
 // check that we output the greeting
-assert(fakeStdout.toString().equals("Hello, Chicory!"));
+assert(fakeStdout.toString().equals("Hello, Endive!"));
 // there should be no bytes in stderr!
 assert(fakeStderr.toString().equals(""));
 ```

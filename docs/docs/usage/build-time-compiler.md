@@ -42,7 +42,7 @@ Example configuration of the Maven plug-in:
   <plugins>
     <plugin>
       <groupId>run.endive</groupId>
-      <artifactId>chicory-compiler-maven-plugin</artifactId>
+      <artifactId>endive-compiler-maven-plugin</artifactId>
       <executions>
         <execution>
           <id>compiler-gen</id>
@@ -164,13 +164,13 @@ var exports = new Demo_ModuleExports(instance);
 ### The `compile` Goal
 
 You can obtain the full description of the Maven Plugin with a command like:
-`mvn help:describe -DgroupId=run.endive -DartifactId=chicory-compiler-maven-plugin -Dversion=999-SNAPSHOT -Ddetail`
+`mvn help:describe -DgroupId=run.endive -DartifactId=endive-compiler-maven-plugin -Dversion=999-SNAPSHOT -Ddetail`
 
 ```
-chicory:compile
+endive:compile
   Description: This plugin generates an invokable library from the compiled
     Wasm
-  Implementation: run.endive.build.time.maven.ChicoryCompilerGenMojo
+  Implementation: run.endive.build.time.maven.EndiveCompilerGenMojo
   Language: java
   Bound to phase: generate-sources
 
@@ -194,17 +194,17 @@ chicory:compile
       the base name to be used for the generated classes
 
     targetClassFolder (Default:
-    ${project.build.directory}/generated-resources/chicory-compiler)
+    ${project.build.directory}/generated-resources/endive-compiler)
       Required: true
       the target folder to generate classes
 
     targetSourceFolder (Default:
-    ${project.build.directory}/generated-sources/chicory-compiler)
+    ${project.build.directory}/generated-sources/endive-compiler)
       Required: true
       the target source folder to generate the Machine implementation
 
     targetWasmFolder (Default:
-    ${project.build.directory}/generated-resources/chicory-compiler)
+    ${project.build.directory}/generated-resources/endive-compiler)
       Required: true
       the target wasm folder to generate the stripped meta wasm module
 
@@ -231,7 +231,7 @@ To overcome this limitation you can use an additional Maven Plugin for a smoothe
         </goals>
         <configuration>
             <sources>
-                <source>${project.build.directory}/generated-sources/chicory-compiler</source>
+                <source>${project.build.directory}/generated-sources/endive-compiler</source>
             </sources>
         </configuration>
         </execution>

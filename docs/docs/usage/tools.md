@@ -7,7 +7,7 @@ title: WABT
 
 ## WebAssembly Binary Toolkit
 
-Since we use them in the build of the project, we publish a few [wabt](https://github.com/WebAssembly/wabt) tools compiled at build time with Chicory.
+Since we use them in the build of the project, we publish a few [wabt](https://github.com/WebAssembly/wabt) tools compiled at build time with Endive.
 Adding support for more tools is easy and we welcome contributions in this direction.
 The relevant module can be added to the build with:
 
@@ -21,7 +21,7 @@ The relevant module can be added to the build with:
 
 ## Wasm Tools
 
-As we need it to catch up with the latest development of the Wasm spec we publish a few [wasm-tools](https://github.com/bytecodealliance/wasm-tools) compiled at build time with Chicory.
+As we need it to catch up with the latest development of the Wasm spec we publish a few [wasm-tools](https://github.com/bytecodealliance/wasm-tools) compiled at build time with Endive.
 The relevant module can be added to the build with:
 
 ```xml
@@ -49,7 +49,7 @@ System.setOut(new PrintStream(
 
 ## wat2wasm
 
-In Chicory, we don't have a Wasm text format parser just yet.
+In Endive, we don't have a Wasm text format parser just yet.
 To overcome this limitation you can use `wat2wasm`, for example:
 
 ```java

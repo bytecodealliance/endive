@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 sidebar_label: Rust
-title: Using Rust with Chicory
+title: Using Rust with Endive
 ---
 ## Compile Rust to Wasm
 
@@ -19,7 +19,7 @@ rustc --target=wasm32-wasi --crate-type=bin
 
 > **NOTE:** For production usage, make sure to produce an optimized Wasm module by using the standard compiler options `-C opt-level = 3`(speed) or `-C opt-level = "z"`(size)
 
-## Using in Chicory
+## Using in Endive
 
 <!--
 ```java

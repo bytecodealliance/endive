@@ -14,7 +14,7 @@ const FeatureList: FeatureItem[] = [
     Svg: require('@site/static/img/zero-deps.svg').default,
     description: (
       <>
-        Using Chicory you don't need to rely on any system resource.
+        Using Endive you don't need to rely on any system resource.
         Everything runs in 100% pure Java on top of the standard library.
       </>
     ),
@@ -24,7 +24,7 @@ const FeatureList: FeatureItem[] = [
     Svg: require('@site/static/img/wrench.svg').default,
     description: (
       <>
-        Integrating Chicory in your project is smooth and only requires a few steps.
+        Integrating Endive in your project is smooth and only requires a few steps.
         Give your application a twist with a plugin system.
       </>
     ),

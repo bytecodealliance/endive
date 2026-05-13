@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.AnnotatedInstruction;
 import run.endive.wasm.types.CatchOpCode;
@@ -1595,7 +1595,7 @@ final class WasmAnalyzer {
                                 .build());
                 break;
             default:
-                throw new ChicoryException("Unhandled opcode: " + ins.opcode());
+                throw new WasmEngineException("Unhandled opcode: " + ins.opcode());
         }
         out.add(new CompilerInstruction(CompilerOpCode.of(ins.opcode()), ins.operands()));
     }

@@ -266,7 +266,7 @@ public final class Parser {
             }
             parse(maybeDigestedInputStream, (s) -> onSection(moduleBuilder, s));
         } catch (IOException | NoSuchAlgorithmException e) {
-            throw new ChicoryException(e);
+            throw new WasmEngineException(e);
         } catch (MalformedException e) {
             throw new MalformedException(
                     "section size mismatch, unexpected end of section or function, "
@@ -945,7 +945,7 @@ public final class Parser {
                                 .withTypeIdx(ValType.TypeIdxCode.FUNC.code())
                                 .build();
             } else {
-                throw new ChicoryException("Invalid element kind");
+                throw new WasmEngineException("Invalid element kind");
             }
         } else {
             assert hasRefType;
@@ -1244,7 +1244,8 @@ public final class Parser {
                 readBytes(buffer, data);
                 dataSection.addDataSegment(new ActiveDataSegment(memoryId, List.of(offset), data));
             } else {
-                throw new ChicoryException("Failed to parse data segment with data mode: " + mode);
+                throw new WasmEngineException(
+                        "Failed to parse data segment with data mode: " + mode);
             }
         }
 

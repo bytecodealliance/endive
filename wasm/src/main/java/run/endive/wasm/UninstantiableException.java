@@ -1,6 +1,7 @@
 package run.endive.wasm;
 
-public class UninstantiableException extends ChicoryException {
+/** Wasm spec: module cannot be instantiated (trap during initialization). */
+public class UninstantiableException extends WasmEngineException {
     public UninstantiableException(String msg) {
         super(msg);
     }

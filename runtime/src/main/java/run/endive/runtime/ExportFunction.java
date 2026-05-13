@@ -1,11 +1,11 @@
 package run.endive.runtime;
 
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 
 /**
  * This represents an Exported function from the Wasm module.
  */
 @FunctionalInterface
 public interface ExportFunction {
-    long[] apply(long... args) throws ChicoryException;
+    long[] apply(long... args) throws WasmEngineException;
 }

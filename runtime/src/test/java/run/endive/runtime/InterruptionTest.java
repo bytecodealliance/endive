@@ -9,8 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import run.endive.corpus.CorpusResources;
-import run.endive.wasm.ChicoryException;
 import run.endive.wasm.Parser;
+import run.endive.wasm.WasmEngineException;
 
 public class InterruptionTest {
     @Test
@@ -38,7 +38,7 @@ public class InterruptionTest {
         AtomicBoolean interrupted = new AtomicBoolean();
         Runnable runnable =
                 () -> {
-                    var e = assertThrows(ChicoryException.class, function::run);
+                    var e = assertThrows(WasmEngineException.class, function::run);
                     assertEquals("Thread interrupted", e.getMessage());
                     interrupted.set(true);
                 };

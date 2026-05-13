@@ -1,11 +1,9 @@
 package run.endive.runtime;
 
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 
-/*
- * Signal a successful stop of execution
- */
-public class ExecutionCompletedException extends ChicoryException {
+/** Signals successful completion of execution (used by WASI proc_exit with code 0). */
+public class ExecutionCompletedException extends WasmEngineException {
 
     public ExecutionCompletedException(String msg) {
         super(msg);

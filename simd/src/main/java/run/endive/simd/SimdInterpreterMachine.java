@@ -13,7 +13,7 @@ import run.endive.runtime.InterpreterMachine;
 import run.endive.runtime.MStack;
 import run.endive.runtime.OpcodeImpl;
 import run.endive.runtime.StackFrame;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.Instruction;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.Value;
@@ -31,7 +31,7 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
             Deque<StackFrame> callStack,
             Instruction instruction,
             Operands operands)
-            throws ChicoryException {
+            throws WasmEngineException {
         switch (instruction.opcode()) {
             case OpCode.V128_CONST:
                 V128_CONST(stack, operands);

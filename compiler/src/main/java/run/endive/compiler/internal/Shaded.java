@@ -4,7 +4,6 @@ import static run.endive.runtime.MemCopyWorkaround.shouldUseMemWorkaround;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
 import java.util.Arrays;
-import run.endive.runtime.ChicoryInterruptedException;
 import run.endive.runtime.ConstantEvaluators;
 import run.endive.runtime.Instance;
 import run.endive.runtime.MemCopyWorkaround;
@@ -15,10 +14,11 @@ import run.endive.runtime.TrapException;
 import run.endive.runtime.WasmArray;
 import run.endive.runtime.WasmException;
 import run.endive.runtime.WasmI31Ref;
+import run.endive.runtime.WasmInterruptedException;
 import run.endive.runtime.WasmRuntimeException;
 import run.endive.runtime.WasmStruct;
-import run.endive.wasm.ChicoryException;
 import run.endive.wasm.InvalidException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
@@ -58,7 +58,7 @@ public final class Shaded {
         int funcId = table.requiredRef(funcTableIdx);
         Instance refInstance = table.instance(funcTableIdx);
         if (refInstance != null && refInstance != instance) {
-            throw new ChicoryException(
+            throw new WasmEngineException(
                     "Indirect tail-call to a different Machine implementation is not supported");
         }
         int actualTypeIdx = instance.functionType(funcId);
@@ -341,11 +341,11 @@ public final class Shaded {
     }
 
     public static RuntimeException throwCallStackExhausted(StackOverflowError e) {
-        throw new ChicoryException("call stack exhausted", e);
+        throw new WasmEngineException("call stack exhausted", e);
     }
 
     public static RuntimeException throwIndirectCallTypeMismatch() {
-        return new ChicoryException("indirect call type mismatch");
+        return new WasmEngineException("indirect call type mismatch");
     }
 
     public static RuntimeException throwOutOfBoundsMemoryAccess() {
@@ -366,7 +366,7 @@ public final class Shaded {
 
     public static void checkInterruption() {
         if (Thread.currentThread().isInterrupted()) {
-            throw new ChicoryInterruptedException("Thread interrupted");
+            throw new WasmInterruptedException("Thread interrupted");
         }
     }
 

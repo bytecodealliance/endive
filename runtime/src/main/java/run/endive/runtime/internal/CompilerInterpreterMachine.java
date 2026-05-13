@@ -9,7 +9,7 @@ import run.endive.runtime.InterpreterMachine;
 import run.endive.runtime.MStack;
 import run.endive.runtime.StackFrame;
 import run.endive.runtime.WasmException;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.FunctionType;
 
 /**
@@ -46,7 +46,7 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
             long[] args,
             FunctionType callType,
             boolean popResults)
-            throws ChicoryException {
+            throws WasmEngineException {
         if (usedInterpretedFunctions != null && !usedInterpretedFunctions.contains(funcId)) {
             usedInterpretedFunctions.add(funcId);
             System.err.println("Chicory: calling interpreted function " + funcId);

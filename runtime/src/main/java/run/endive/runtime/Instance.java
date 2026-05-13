@@ -18,10 +18,10 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import run.endive.runtime.internal.GcRefStore;
-import run.endive.wasm.ChicoryException;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.UninstantiableException;
 import run.endive.wasm.UnlinkableException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ActiveDataSegment;
 import run.endive.wasm.types.ActiveElement;
@@ -678,7 +678,7 @@ public class Instance {
                 // for const, subtyping is allowed
                 typesMatch = ValType.matches(g.instance().getType(), i.type());
             } else {
-                throw new ChicoryException(
+                throw new WasmEngineException(
                         "internal error: mutability type is not var or const: "
                                 + i.mutabilityType());
             }

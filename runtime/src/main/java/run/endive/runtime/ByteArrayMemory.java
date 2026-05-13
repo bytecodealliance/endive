@@ -13,8 +13,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import run.endive.runtime.alloc.MemAllocStrategy;
-import run.endive.wasm.ChicoryException;
 import run.endive.wasm.UninstantiableException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.ActiveDataSegment;
 import run.endive.wasm.types.DataSegment;
 import run.endive.wasm.types.MemoryLimits;
@@ -131,7 +131,7 @@ public final class ByteArrayMemory implements Memory {
     // Wait IF condition is true
     private int waitOn(int address, BooleanSupplier condition, long timeout) {
         if (!shared()) {
-            throw new ChicoryException("Attempt to wait on a non-shared memory, not supported.");
+            throw new WasmEngineException("Attempt to wait on a non-shared memory, not supported.");
         }
 
         long deadline = (timeout < 0) ? Long.MAX_VALUE : System.nanoTime() + timeout;
@@ -159,7 +159,7 @@ public final class ByteArrayMemory implements Memory {
                         state.wait(millis, nanos);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        throw new ChicoryInterruptedException("Thread interrupted");
+                        throw new WasmInterruptedException("Thread interrupted");
                     }
                 }
                 return 0; // woken
@@ -313,13 +313,13 @@ public final class ByteArrayMemory implements Memory {
             } else if (s instanceof PassiveDataSegment) {
                 // Passive segment should be skipped
             } else {
-                throw new ChicoryException("Data segment should be active or passive: " + s);
+                throw new WasmEngineException("Data segment should be active or passive: " + s);
             }
         }
     }
 
     private static void checkBounds(
-            int addr, int size, int limit, Function<String, ChicoryException> exceptionFactory) {
+            int addr, int size, int limit, Function<String, WasmEngineException> exceptionFactory) {
         if (addr < 0 || size < 0 || addr > limit || (size > 0 && ((addr + size) > limit))) {
             var errorMsg =
                     "out of bounds memory access: attempted to access address: "

@@ -2,8 +2,8 @@ package run.endive.wasm.types;
 
 import java.util.List;
 import java.util.function.Function;
-import run.endive.wasm.ChicoryException;
 import run.endive.wasm.InvalidException;
+import run.endive.wasm.WasmEngineException;
 
 /**
  * The possible WASM value types.
@@ -675,7 +675,7 @@ public final class ValType {
         @Deprecated(since = "use .build.resolve(typeSection) instead")
         public ValType build(Function<Integer, FunctionType> context) {
             if (!isValidOpcode(opcode)) {
-                throw new ChicoryException("Invalid type opcode: " + opcode);
+                throw new WasmEngineException("Invalid type opcode: " + opcode);
             }
 
             var resolvedFunctionType = substitute(opcode, typeIdx, context);
@@ -694,7 +694,7 @@ public final class ValType {
 
         public ValType build() {
             if (!isValidOpcode(opcode)) {
-                throw new ChicoryException("Invalid type opcode: " + opcode);
+                throw new WasmEngineException("Invalid type opcode: " + opcode);
             }
 
             return new ValType(

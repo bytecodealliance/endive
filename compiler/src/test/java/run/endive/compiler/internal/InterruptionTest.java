@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.Instance;
-import run.endive.wasm.ChicoryException;
 import run.endive.wasm.Parser;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
 
 public class InterruptionTest {
@@ -55,7 +55,7 @@ public class InterruptionTest {
         AtomicBoolean interrupted = new AtomicBoolean();
         Runnable runnable =
                 () -> {
-                    var e = assertThrows(ChicoryException.class, function::run);
+                    var e = assertThrows(WasmEngineException.class, function::run);
                     assertEquals("Thread interrupted", e.getMessage());
                     interrupted.set(true);
                 };

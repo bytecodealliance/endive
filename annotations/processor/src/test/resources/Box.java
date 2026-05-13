@@ -4,7 +4,7 @@ import run.endive.annotations.HostModule;
 import run.endive.annotations.WasmExport;
 import run.endive.runtime.HostFunction;
 import run.endive.runtime.Memory;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 
 public class Box {
 
@@ -18,7 +18,7 @@ public class Box {
 
         @WasmExport
         public void exit() {
-            throw new ChicoryException("exit");
+            throw new WasmEngineException("exit");
         }
 
         public HostFunction[] toHostFunctions() {

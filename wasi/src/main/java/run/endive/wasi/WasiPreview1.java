@@ -64,7 +64,7 @@ import run.endive.wasi.Descriptors.Directory;
 import run.endive.wasi.Descriptors.InStream;
 import run.endive.wasi.Descriptors.OutStream;
 import run.endive.wasi.Descriptors.PreopenedDirectory;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 
 /**
  * <a href="https://github.com/WebAssembly/WASI/blob/v0.2.1/legacy/preview1/docs.md">WASI preview 1</a> implementation
@@ -1639,7 +1639,7 @@ public final class WasiPreview1 implements Closeable {
                 try {
                     NANOSECONDS.sleep(duration);
                 } catch (InterruptedException e) {
-                    throw new ChicoryException("Thread interrupted", e);
+                    throw new WasmEngineException("Thread interrupted", e);
                 }
             }
 
@@ -1685,7 +1685,7 @@ public final class WasiPreview1 implements Closeable {
         int written = 0;
         while (written < bufLen) {
             if (Thread.currentThread().isInterrupted()) {
-                throw new ChicoryException("Thread interrupted");
+                throw new WasmEngineException("Thread interrupted");
             }
             int size = min(data.length, bufLen - written);
             if (size < data.length) {

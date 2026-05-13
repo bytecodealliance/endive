@@ -3,7 +3,7 @@ package run.endive.experimental.aot;
 import run.endive.compiler.internal.MachineFactory;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 
 /**
  * Machine implementation that compiles WASM function bodies to JVM byte code.
@@ -30,7 +30,7 @@ public final class AotMachine implements Machine {
     }
 
     @Override
-    public long[] call(int funcId, long[] args) throws ChicoryException {
+    public long[] call(int funcId, long[] args) throws WasmEngineException {
         return machine.call(funcId, args);
     }
 }

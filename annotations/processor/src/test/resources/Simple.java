@@ -8,7 +8,7 @@ import run.endive.annotations.HostModule;
 import run.endive.annotations.WasmExport;
 import run.endive.runtime.Memory;
 import run.endive.runtime.HostFunction;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 import java.util.Random;
 
 @HostModule("simple")
@@ -39,7 +39,7 @@ public final class Simple {
 
     @WasmExport
     public void exit() {
-        throw new ChicoryException("exit");
+        throw new WasmEngineException("exit");
     }
 
     public HostFunction[] toHostFunctions() {

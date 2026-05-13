@@ -14,7 +14,7 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.CheckClassAdapter;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 
 /**
  * A {@link ClassCollector} that stores the classes in an ordered map.
@@ -103,7 +103,7 @@ public class ClassLoadingCollector implements ClassCollector {
             Function<Instance, Machine> function = asInterfaceInstance(Function.class, handle);
             return function;
         } catch (ReflectiveOperationException e) {
-            throw new ChicoryException(e);
+            throw new WasmEngineException(e);
         }
     }
 

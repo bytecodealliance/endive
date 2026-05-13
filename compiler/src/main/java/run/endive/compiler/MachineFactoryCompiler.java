@@ -16,7 +16,7 @@ import run.endive.compiler.internal.ClassLoadingCollector;
 import run.endive.compiler.internal.MachineFactory;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
 
 /**
@@ -145,7 +145,7 @@ public final class MachineFactoryCompiler {
 
                 return new MachineFactory(module, collector.machineFactory());
             } catch (IOException e) {
-                throw new ChicoryException(e);
+                throw new WasmEngineException(e);
             }
         }
     }

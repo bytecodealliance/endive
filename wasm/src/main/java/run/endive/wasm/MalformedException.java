@@ -1,6 +1,7 @@
 package run.endive.wasm;
 
-public class MalformedException extends ChicoryException {
+/** Wasm spec: binary format is malformed (parsing error). */
+public class MalformedException extends WasmEngineException {
     public MalformedException(String msg) {
         super(msg);
     }

@@ -1,8 +1,9 @@
 package run.endive.wasi;
 
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 
-public class WasiExitException extends ChicoryException {
+/** WASI proc_exit with a specific exit code. */
+public class WasiExitException extends WasmEngineException {
     private final int exitCode;
 
     public WasiExitException(int exitCode) {

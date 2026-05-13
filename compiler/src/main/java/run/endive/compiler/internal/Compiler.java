@@ -77,7 +77,7 @@ import run.endive.runtime.Machine;
 import run.endive.runtime.Memory;
 import run.endive.runtime.WasmException;
 import run.endive.runtime.internal.CompilerInterpreterMachine;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionBody;
@@ -336,7 +336,7 @@ public final class Compiler {
                                     "Warning: using interpreted mode for " + functionDescription);
                             break;
                         case FAIL:
-                            throw new ChicoryException(
+                            throw new WasmEngineException(
                                     "WASM function size exceeds the Java method size limits and"
                                         + " cannot be compiled to Java bytecode. It can only be run"
                                         + " in the interpreter. Either reduce the size of the"
@@ -622,7 +622,7 @@ public final class Compiler {
                 name += " (" + function + ")";
             }
         }
-        return new ChicoryException(
+        return new WasmEngineException(
                 String.format(
                         "JVM bytecode too large for WASM method: %s size=%d",
                         name, e.getCodeSize()),
@@ -1441,7 +1441,7 @@ public final class Compiler {
                     break;
                 case IFEQ:
                     if (visitedTargets.contains(ins.operand(0))) {
-                        throw new ChicoryException("Unexpected backward jump");
+                        throw new WasmEngineException("Unexpected backward jump");
                     }
                     asm.ifeq(labels.get(ins.operand(0)));
                     break;
@@ -1479,7 +1479,7 @@ public final class Compiler {
                 default:
                     var emitter = EMITTERS.get(ins.opcode());
                     if (emitter == null) {
-                        throw new ChicoryException("Unhandled opcode: " + ins.opcode());
+                        throw new WasmEngineException("Unhandled opcode: " + ins.opcode());
                     }
                     emitter.emit(ctx, ins, asm);
             }

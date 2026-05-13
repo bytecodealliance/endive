@@ -33,8 +33,8 @@ import run.endive.runtime.ImportValues;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.wabt.Wat2Wasm;
-import run.endive.wasm.ChicoryException;
 import run.endive.wasm.Parser;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.ValType;
@@ -83,7 +83,7 @@ public class InterpreterFallbackTest {
                         .build();
         var generator = new Generator(config);
 
-        var exception = assertThrows(ChicoryException.class, () -> generateAll(generator));
+        var exception = assertThrows(WasmEngineException.class, () -> generateAll(generator));
 
         assertTrue(
                 exception.getMessage().contains(expectedMessageContent),
@@ -196,7 +196,7 @@ public class InterpreterFallbackTest {
                         .build();
         var generator = new Generator(config);
 
-        var exception = assertThrows(ChicoryException.class, () -> generateAll(generator));
+        var exception = assertThrows(WasmEngineException.class, () -> generateAll(generator));
 
         assertTrue(
                 exception.getMessage().contains(expectedMessageContent),
@@ -245,7 +245,7 @@ public class InterpreterFallbackTest {
             Function<Instance, Machine> function = asInterfaceInstance(Function.class, handle);
             return function;
         } catch (ReflectiveOperationException e) {
-            throw new ChicoryException(e);
+            throw new WasmEngineException(e);
         }
     }
 

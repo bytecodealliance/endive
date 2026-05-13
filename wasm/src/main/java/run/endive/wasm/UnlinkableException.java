@@ -1,6 +1,7 @@
 package run.endive.wasm;
 
-public class UnlinkableException extends ChicoryException {
+/** Wasm spec: module cannot be linked (import/export type mismatches). */
+public class UnlinkableException extends WasmEngineException {
     public UnlinkableException(String msg) {
         super(msg);
     }

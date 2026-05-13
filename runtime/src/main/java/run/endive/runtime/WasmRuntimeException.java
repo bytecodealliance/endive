@@ -1,8 +1,9 @@
 package run.endive.runtime;
 
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 
-public class WasmRuntimeException extends ChicoryException {
+/** Engine-specific runtime error in compiled code paths (e.g., OOB memory access). */
+public class WasmRuntimeException extends WasmEngineException {
     public WasmRuntimeException(String msg) {
         super(msg);
     }

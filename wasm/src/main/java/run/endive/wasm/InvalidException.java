@@ -1,6 +1,7 @@
 package run.endive.wasm;
 
-public class InvalidException extends ChicoryException {
+/** Wasm spec: module fails validation (type errors, constraint violations). */
+public class InvalidException extends WasmEngineException {
     public InvalidException(String msg) {
         super(msg);
     }

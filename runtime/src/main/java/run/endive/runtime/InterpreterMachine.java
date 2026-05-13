@@ -7,8 +7,8 @@ import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
-import run.endive.wasm.ChicoryException;
 import run.endive.wasm.InvalidException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.AnnotatedInstruction;
 import run.endive.wasm.types.CatchOpCode;
 import run.endive.wasm.types.FunctionType;
@@ -56,12 +56,12 @@ public class InterpreterMachine implements Machine {
             Deque<StackFrame> callStack,
             Instruction instruction,
             Operands operands)
-            throws ChicoryException {
+            throws WasmEngineException {
         throw new RuntimeException("Machine doesn't recognize Instruction " + instruction);
     }
 
     @Override
-    public long[] call(int funcId, long[] args) throws ChicoryException {
+    public long[] call(int funcId, long[] args) throws WasmEngineException {
         return call(stack, instance, callStack, funcId, args, null, true);
     }
 
@@ -73,7 +73,7 @@ public class InterpreterMachine implements Machine {
             long[] args,
             FunctionType callType,
             boolean popResults)
-            throws ChicoryException {
+            throws WasmEngineException {
 
         checkInterruption();
         var typeId = instance.functionType(funcId);
@@ -99,7 +99,7 @@ public class InterpreterMachine implements Machine {
             try {
                 eval(stack, instance, callStack);
             } catch (StackOverflowError e) {
-                throw new ChicoryException("call stack exhausted", e);
+                throw new WasmEngineException("call stack exhausted", e);
             } finally {
                 if (!callStack.isEmpty() && callStack.peek() == stackFrame) {
                     callStack.pop();
@@ -158,7 +158,7 @@ public class InterpreterMachine implements Machine {
     }
 
     protected void eval(MStack stack, Instance instance, Deque<StackFrame> callStack)
-            throws ChicoryException {
+            throws WasmEngineException {
         var frame = callStack.peek();
         boolean shouldReturn = false;
 
@@ -2721,7 +2721,7 @@ public class InterpreterMachine implements Machine {
 
         var refMachine = refInstance.getMachine().getClass();
         if (!refInstance.equals(instance) && !refMachine.equals(instance.getMachine().getClass())) {
-            throw new ChicoryException(
+            throw new WasmEngineException(
                     "Indirect tail-call to a different Machine implementation is not supported: "
                             + refMachine.getName());
         }
@@ -3119,17 +3119,17 @@ public class InterpreterMachine implements Machine {
     }
 
     protected static void verifyIndirectCall(
-            FunctionType actual, FunctionType expected, TypeSection ts) throws ChicoryException {
+            FunctionType actual, FunctionType expected, TypeSection ts) throws WasmEngineException {
         if (!functionTypeMatch(actual, expected, ts)) {
-            throw new ChicoryException("indirect call type mismatch");
+            throw new WasmEngineException("indirect call type mismatch");
         }
     }
 
     protected static void verifyIndirectCallByTypeIdx(
-            int actualTypeIdx, int expectedTypeIdx, TypeSection ts) throws ChicoryException {
+            int actualTypeIdx, int expectedTypeIdx, TypeSection ts) throws WasmEngineException {
         if (actualTypeIdx != expectedTypeIdx
                 && !ValType.heapTypeSubtype(actualTypeIdx, expectedTypeIdx, ts)) {
-            throw new ChicoryException("indirect call type mismatch");
+            throw new WasmEngineException("indirect call type mismatch");
         }
     }
 
@@ -3141,7 +3141,7 @@ public class InterpreterMachine implements Machine {
      */
     private static void checkInterruption() {
         if (Thread.currentThread().isInterrupted()) {
-            throw new ChicoryInterruptedException("Thread interrupted");
+            throw new WasmInterruptedException("Thread interrupted");
         }
     }
 

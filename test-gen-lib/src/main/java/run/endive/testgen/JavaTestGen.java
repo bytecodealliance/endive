@@ -84,7 +84,7 @@ public class JavaTestGen {
         cu.addImport("run.endive.testing.ArgsAdapter");
 
         // runtime imports
-        cu.addImport("run.endive.wasm.ChicoryException");
+        cu.addImport("run.endive.wasm.WasmEngineException");
         cu.addImport("run.endive.runtime.WasmException");
         cu.addImport("run.endive.runtime.ExportFunction");
         cu.addImport("run.endive.runtime.Instance");
@@ -315,7 +315,7 @@ public class JavaTestGen {
                 return "UnlinkableException";
             case ASSERT_TRAP:
             case ASSERT_EXHAUSTION:
-                return "ChicoryException";
+                return "WasmEngineException";
             case ASSERT_EXCEPTION:
                 return "WasmException";
             default:

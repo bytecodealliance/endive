@@ -10,7 +10,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.Remapper;
-import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmEngineException;
 
 /**
  * The Shader class is responsible for creating a shaded version of the Shaded class.
@@ -75,7 +75,7 @@ final class Shader {
             }
             return in.readAllBytes();
         } catch (IOException e) {
-            throw new ChicoryException("Could not load bytecode for " + clazz, e);
+            throw new WasmEngineException("Could not load bytecode for " + clazz, e);
         }
     }
 }

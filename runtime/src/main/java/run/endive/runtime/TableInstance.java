@@ -3,8 +3,8 @@ package run.endive.runtime;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
 import java.util.Arrays;
-import run.endive.wasm.ChicoryException;
 import run.endive.wasm.UninstantiableException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.Table;
 import run.endive.wasm.types.TableLimits;
 import run.endive.wasm.types.ValType;
@@ -52,7 +52,7 @@ public class TableInstance {
 
     public int ref(int index) {
         if (index < 0 || index >= this.refs.length) {
-            throw new ChicoryException("undefined element");
+            throw new WasmEngineException("undefined element");
         }
         return this.refs[index];
     }
@@ -60,7 +60,7 @@ public class TableInstance {
     public int requiredRef(int index) {
         int ref = ref(index);
         if (ref == REF_NULL_VALUE) {
-            throw new ChicoryException("uninitialized element " + index);
+            throw new WasmEngineException("uninitialized element " + index);
         }
         return ref;
     }

@@ -3,9 +3,9 @@ package run.endive.fuzz;
 import java.io.File;
 import java.util.List;
 import java.util.function.Function;
-import run.endive.runtime.ChicoryInterruptedException;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
+import run.endive.runtime.WasmInterruptedException;
 import run.endive.wasm.Parser;
 
 public class ChicoryRunner implements WasmRunner {
@@ -23,7 +23,7 @@ public class ChicoryRunner implements WasmRunner {
     @Override
     public String run(File wasmFile, String functionName, List<String> params) throws Exception {
         if (Thread.currentThread().isInterrupted()) {
-            throw new ChicoryInterruptedException("Thread interrupted");
+            throw new WasmInterruptedException("Thread interrupted");
         }
         var module = Parser.parse(wasmFile);
         var builder = Instance.builder(module).withInitialize(true).withStart(false);

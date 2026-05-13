@@ -1,6 +1,6 @@
 # Working with this repository
 
-Chicory is a WebAssembly runtime written in Java. This document captures practical knowledge for working in the codebase.
+Endive is a WebAssembly runtime written in Java. This document captures practical knowledge for working in the codebase.
 
 ## Prerequisites
 

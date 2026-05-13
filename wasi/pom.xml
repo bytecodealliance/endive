@@ -4,14 +4,14 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>wasi</artifactId>
   <packaging>jar</packaging>
-  <name>Chicory - WASI</name>
-  <description>WASI Preview 1 implementation for Chicory</description>
+  <name>Endive - WASI</name>
+  <description>WASI Preview 1 implementation for Endive</description>
 
   <dependencies>
     <dependency>

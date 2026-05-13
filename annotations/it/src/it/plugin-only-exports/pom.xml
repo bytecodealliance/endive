@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>run.endive</groupId>
 
-  <artifactId>plugin-only-exports-chicory-it</artifactId>
+  <artifactId>plugin-only-exports-endive-it</artifactId>
   <version>0.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
@@ -75,7 +75,7 @@
       </plugin>
       <plugin>
         <groupId>run.endive</groupId>
-        <artifactId>chicory-compiler-maven-plugin</artifactId>
+        <artifactId>endive-compiler-maven-plugin</artifactId>
         <version>@project.version@</version>
         <executions>
           <execution>
@@ -84,9 +84,9 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <name>chicory.test.AllExportsModule</name>
+              <name>endive.test.AllExportsModule</name>
               <wasmFile>src/test/resources/all-exports.wat.wasm</wasmFile>
-              <moduleInterface>chicory.test.AllExportsWrapper</moduleInterface>
+              <moduleInterface>endive.test.AllExportsWrapper</moduleInterface>
             </configuration>
           </execution>
         </executions>

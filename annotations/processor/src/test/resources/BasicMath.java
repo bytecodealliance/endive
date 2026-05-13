@@ -1,4 +1,4 @@
-package chicory.testing;
+package endive.testing;
 
 import run.endive.annotations.HostModule;
 import run.endive.annotations.WasmExport;

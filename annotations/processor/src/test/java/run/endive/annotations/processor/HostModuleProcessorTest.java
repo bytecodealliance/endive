@@ -22,15 +22,15 @@ class HostModuleProcessorTest {
         assertThat(compilation).succeededWithoutWarnings();
 
         assertThat(compilation)
-                .generatedSourceFile("chicory.testing.BasicMath_ModuleFactory")
+                .generatedSourceFile("endive.testing.BasicMath_ModuleFactory")
                 .hasSourceEquivalentTo(JavaFileObjects.forResource("BasicMathGenerated.java"));
 
         assertThat(compilation)
-                .generatedSourceFile("chicory.testing.Simple_ModuleFactory")
+                .generatedSourceFile("endive.testing.Simple_ModuleFactory")
                 .hasSourceEquivalentTo(JavaFileObjects.forResource("SimpleGenerated.java"));
 
         assertThat(compilation)
-                .generatedSourceFile("chicory.testing.Nested_ModuleFactory")
+                .generatedSourceFile("endive.testing.Nested_ModuleFactory")
                 .hasSourceEquivalentTo(JavaFileObjects.forResource("NestedGenerated.java"));
 
         assertThat(compilation)

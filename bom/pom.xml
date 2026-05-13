@@ -4,12 +4,12 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
   <artifactId>bom</artifactId>
   <packaging>pom</packaging>
-  <name>Chicory - BOM</name>
+  <name>Endive - BOM</name>
   <description>Bill of Materials (BOM)</description>
 
   <dependencyManagement>
@@ -36,7 +36,7 @@
       </dependency>
       <dependency>
         <groupId>run.endive</groupId>
-        <artifactId>chicory-compiler-maven-plugin</artifactId>
+        <artifactId>endive-compiler-maven-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

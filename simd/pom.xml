@@ -4,14 +4,14 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>simd</artifactId>
   <packaging>jar</packaging>
-  <name>Chicory - SIMD</name>
-  <description>SIMD instructions support for Chicory</description>
+  <name>Endive - SIMD</name>
+  <description>SIMD instructions support for Endive</description>
 
   <properties>
     <maven.compiler.release>25</maven.compiler.release>

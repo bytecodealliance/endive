@@ -4,13 +4,13 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>docs-lib</artifactId>
   <packaging>jar</packaging>
-  <name>Chicory - Docs Lib</name>
+  <name>Endive - Docs Lib</name>
   <description>INTERNAL USAGE ONLY - utils to verify the docs</description>
 
 </project>

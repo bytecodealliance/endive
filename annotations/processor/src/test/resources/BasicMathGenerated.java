@@ -1,4 +1,4 @@
-package chicory.testing;
+package endive.testing;
 
 import run.endive.runtime.HostFunction;
 import run.endive.runtime.Instance;

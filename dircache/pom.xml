@@ -4,14 +4,14 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
   <artifactId>dircache-experimental</artifactId>
   <packaging>jar</packaging>
 
-  <name>Chicory - Dircache - Experimental</name>
-  <description>Chicory directory based Cache</description>
+  <name>Endive - Dircache - Experimental</name>
+  <description>Endive directory based Cache</description>
 
   <dependencies>
     <dependency>

@@ -3,11 +3,11 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
   <artifactId>wasm-corpus</artifactId>
-  <name>Chicory - WASM Corpus</name>
+  <name>Endive - WASM Corpus</name>
   <description>A Corpus of guest modules for testing</description>
 
   <dependencies>

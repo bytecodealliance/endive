@@ -4,13 +4,13 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
   <artifactId>machine-tests</artifactId>
   <packaging>jar</packaging>
 
-  <name>Chicory - Machines tests</name>
+  <name>Endive - Machines tests</name>
 
   <dependencies>
     <dependency>
@@ -57,7 +57,7 @@
     <plugins>
       <plugin>
         <groupId>run.endive</groupId>
-        <artifactId>chicory-compiler-maven-plugin</artifactId>
+        <artifactId>endive-compiler-maven-plugin</artifactId>
         <executions>
           <execution>
             <id>compile-quickjs</id>

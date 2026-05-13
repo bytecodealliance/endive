@@ -4,13 +4,13 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
-  <artifactId>chicory-compiler-maven-plugin</artifactId>
+  <artifactId>endive-compiler-maven-plugin</artifactId>
   <packaging>maven-plugin</packaging>
-  <name>Chicory - Compiler Maven Plugin</name>
+  <name>Endive - Compiler Maven Plugin</name>
   <description>A Maven Plugin to compile at build time WASM to Java bytecode</description>
 
   <dependencies>
@@ -51,7 +51,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-plugin-plugin</artifactId>
         <configuration>
-          <goalPrefix>chicory</goalPrefix>
+          <goalPrefix>endive</goalPrefix>
         </configuration>
         <executions>
           <execution>

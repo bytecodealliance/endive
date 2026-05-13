@@ -4,13 +4,13 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
   <artifactId>log</artifactId>
   <packaging>jar</packaging>
 
-  <name>Chicory - Log</name>
+  <name>Endive - Log</name>
   <description>WebAssembly Log Utilities</description>
 
   <dependencies>

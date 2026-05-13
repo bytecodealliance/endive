@@ -3,16 +3,16 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>run.endive</groupId>
-  <artifactId>chicory</artifactId>
+  <artifactId>endive</artifactId>
   <version>999-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <name>Chicory</name>
+  <name>Endive</name>
   <description>Native JVM WebAssembly runtime</description>
-  <url>https://github.run/endive</url>
+  <url>https://github.com/bytecodealliance/endive</url>
 
   <organization>
-    <name>Dylibso, Inc.</name>
-    <url>https://dylibso.com</url>
+    <name>Bytecode Alliance</name>
+    <url>https://bytecodealliance.org</url>
   </organization>
 
   <licenses>
@@ -26,22 +26,22 @@
 
   <developers>
     <developer>
-      <name>The Chicory Authors</name>
-      <email>oss@dylibso.com</email>
-      <organization>Dylibso, Inc.</organization>
-      <organizationUrl>https://dylibso.com</organizationUrl>
+      <name>The Endive Authors</name>
+      <email>endive@bytecodealliance.org</email>
+      <organization>Bytecode Alliance</organization>
+      <organizationUrl>https://bytecodealliance.org</organizationUrl>
     </developer>
   </developers>
 
   <scm>
-    <connection>scm:git:git://github.run/endive.git</connection>
-    <developerConnection>scm:git:ssh://github.com:dylibso/chicory.git</developerConnection>
-    <url>http://github.run/endive/tree/main</url>
+    <connection>scm:git:git://github.com/bytecodealliance/endive.git</connection>
+    <developerConnection>scm:git:ssh://github.com:bytecodealliance/endive.git</developerConnection>
+    <url>https://github.com/bytecodealliance/endive/tree/main</url>
   </scm>
 
   <issueManagement>
     <system>Github</system>
-    <url>https://github.run/endive/issues</url>
+    <url>https://github.com/bytecodealliance/endive/issues</url>
   </issueManagement>
 
   <properties>
@@ -213,7 +213,7 @@
       </dependency>
       <dependency>
         <groupId>run.endive</groupId>
-        <artifactId>chicory-compiler-maven-plugin</artifactId>
+        <artifactId>endive-compiler-maven-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -227,7 +227,7 @@
         <version>${project.version}</version>
       </dependency>
 
-      <!-- Chicory project modules -->
+      <!-- Endive project modules -->
       <dependency>
         <groupId>run.endive</groupId>
         <artifactId>compiler</artifactId>
@@ -481,7 +481,7 @@
         </plugin>
         <plugin>
           <groupId>run.endive</groupId>
-          <artifactId>chicory-compiler-maven-plugin</artifactId>
+          <artifactId>endive-compiler-maven-plugin</artifactId>
           <version>${project.version}</version>
         </plugin>
       </plugins>

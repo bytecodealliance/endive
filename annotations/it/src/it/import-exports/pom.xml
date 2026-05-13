@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>run.endive</groupId>
 
-  <artifactId>import-exports-chicory-it</artifactId>
+  <artifactId>import-exports-endive-it</artifactId>
   <version>0.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 

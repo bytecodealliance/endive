@@ -4,14 +4,14 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
   <artifactId>cli-experimental</artifactId>
   <packaging>jar</packaging>
 
-  <name>Chicory - Cli - Experimental</name>
-  <description>A Chicory CLI</description>
+  <name>Endive - Cli - Experimental</name>
+  <description>A Endive CLI</description>
 
   <dependencies>
     <dependency>
@@ -90,7 +90,7 @@
         <version>2.1.1</version>
         <configuration>
           <flags>-Xmx1G</flags>
-          <programFile>chicory</programFile>
+          <programFile>endive</programFile>
           <attachProgramFile>true</attachProgramFile>
         </configuration>
 

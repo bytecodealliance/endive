@@ -4,14 +4,14 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>compiler</artifactId>
   <packaging>jar</packaging>
 
-  <name>Chicory - Compiler</name>
+  <name>Endive - Compiler</name>
   <description>Wasm to Java bytecode compiler</description>
 
   <dependencies>

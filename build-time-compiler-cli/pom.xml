@@ -4,14 +4,14 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
   <artifactId>build-time-compiler-cli-experimental</artifactId>
   <packaging>jar</packaging>
 
-  <name>Chicory - Build Time Compiler Cli</name>
-  <description>Chicory Build Time Compiler CLI</description>
+  <name>Endive - Build Time Compiler Cli</name>
+  <description>Endive Build Time Compiler CLI</description>
 
   <dependencies>
     <dependency>
@@ -105,7 +105,7 @@
         <version>2.1.1</version>
         <configuration>
           <flags>-Xmx1G</flags>
-          <programFile>chicory-compiler</programFile>
+          <programFile>endive-compiler</programFile>
           <attachProgramFile>true</attachProgramFile>
         </configuration>
 

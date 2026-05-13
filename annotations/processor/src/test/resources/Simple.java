@@ -1,4 +1,4 @@
-package chicory.testing;
+package endive.testing;
 
 import static java.util.Objects.requireNonNull;
 

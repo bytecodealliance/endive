@@ -4,14 +4,14 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <artifactId>annotations-it</artifactId>
   <packaging>jar</packaging>
-  <name>Chicory - Annotations - IT</name>
-  <description>Integration tests for the Chicory annotations</description>
+  <name>Endive - Annotations - IT</name>
+  <description>Integration tests for the Endive annotations</description>
 
   <dependencies>
     <!-- Dummy dependencies to force reactor ordering -->
@@ -22,7 +22,7 @@
     <!-- Needed for reactor ordering: plugin-only-exports IT uses the compiler plugin -->
     <dependency>
       <groupId>run.endive</groupId>
-      <artifactId>chicory-compiler-maven-plugin</artifactId>
+      <artifactId>endive-compiler-maven-plugin</artifactId>
     </dependency>
     <dependency>
       <groupId>run.endive</groupId>
@@ -39,7 +39,7 @@
         <configuration>
           <ignoredUnusedDeclaredDependencies combine.children="append">
             <dependency>run.endive:annotations-processor</dependency>
-            <dependency>run.endive:chicory-compiler-maven-plugin</dependency>
+            <dependency>run.endive:endive-compiler-maven-plugin</dependency>
             <dependency>run.endive:wasi</dependency>
           </ignoredUnusedDeclaredDependencies>
         </configuration>
@@ -50,7 +50,7 @@
         <configuration>
           <systemPropertyVariables>
             <itDir>${project.basedir}</itDir>
-            <chicoryVersion>${project.version}</chicoryVersion>
+            <endiveVersion>${project.version}</endiveVersion>
           </systemPropertyVariables>
         </configuration>
         <executions>

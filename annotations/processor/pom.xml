@@ -4,13 +4,13 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <artifactId>annotations-processor</artifactId>
   <packaging>jar</packaging>
-  <name>Chicory - Annotations Processor</name>
+  <name>Endive - Annotations Processor</name>
   <description>Annotation processors for easy interoperability with Wasm modules</description>
 
   <dependencies>

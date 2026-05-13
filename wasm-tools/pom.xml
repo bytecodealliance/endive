@@ -4,14 +4,14 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
   <artifactId>wasm-tools</artifactId>
   <packaging>jar</packaging>
 
-  <name>Chicory - wasm-tools</name>
-  <description>wasm tools compiled to pure Java with Chicory</description>
+  <name>Endive - wasm-tools</name>
+  <description>wasm tools compiled to pure Java with Endive</description>
 
   <properties>
     <wasm-tools.version>1.240.0</wasm-tools.version>
@@ -90,7 +90,7 @@
       </plugin>
       <plugin>
         <groupId>run.endive</groupId>
-        <artifactId>chicory-compiler-maven-plugin</artifactId>
+        <artifactId>endive-compiler-maven-plugin</artifactId>
         <executions>
           <execution>
             <id>wasmtools</id>

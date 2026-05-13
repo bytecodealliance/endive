@@ -4,14 +4,14 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>compiler-tests</artifactId>
   <packaging>jar</packaging>
 
-  <name>Chicory - Compiler tests</name>
+  <name>Endive - Compiler tests</name>
   <description>Spec tests for the compiler</description>
 
   <dependencies>
@@ -80,7 +80,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
-            <chicory.compiler.printUseOfInterpretedFunctions>true</chicory.compiler.printUseOfInterpretedFunctions>
+            <endive.compiler.printUseOfInterpretedFunctions>true</endive.compiler.printUseOfInterpretedFunctions>
           </systemPropertyVariables>
         </configuration>
       </plugin>

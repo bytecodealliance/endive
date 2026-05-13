@@ -4,14 +4,14 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
   </parent>
   <artifactId>fuzz</artifactId>
   <packaging>jar</packaging>
 
-  <name>Chicory - Fuzz</name>
-  <description>Fuzz testing Chicory</description>
+  <name>Endive - Fuzz</name>
+  <description>Fuzz testing Endive</description>
 
   <properties>
     <skipTests>true</skipTests>

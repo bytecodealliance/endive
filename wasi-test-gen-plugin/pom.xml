@@ -4,13 +4,13 @@
 
   <parent>
     <groupId>run.endive</groupId>
-    <artifactId>chicory</artifactId>
+    <artifactId>endive</artifactId>
     <version>999-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>wasi-test-gen-plugin</artifactId>
   <packaging>maven-plugin</packaging>
-  <name>Chicory - WASI Test Gen Maven Plugin</name>
+  <name>Endive - WASI Test Gen Maven Plugin</name>
   <description>A Maven Plugin to generate tests from the WebAssembly wasi-testsuite</description>
 
   <dependencies>

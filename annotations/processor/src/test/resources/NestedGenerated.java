@@ -1,6 +1,6 @@
-package chicory.testing;
+package endive.testing;
 
-import chicory.testing.Box.Nested;
+import endive.testing.Box.Nested;
 import run.endive.runtime.HostFunction;
 import run.endive.runtime.Instance;
 import run.endive.wasm.types.Value;

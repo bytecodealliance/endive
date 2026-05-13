@@ -72,7 +72,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-      - name: Build Chicory
+      - name: Build Endive
         run: ./mvnw -B -Dquickly
       - name: Test Docs
         working-directory: docs

@@ -3,8 +3,6 @@ package run.endive.testgen;
 import static run.endive.testgen.Constants.SPEC_JSON;
 import static run.endive.testgen.StringUtils.escapedCamelCase;
 
-import run.endive.testgen.wast.Wast;
-import run.endive.tools.wasm.Wast2Json;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.javaparser.utils.SourceRoot;
 import java.io.File;
@@ -18,6 +16,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
+import run.endive.testgen.wast.Wast;
+import run.endive.tools.wasm.Wast2Json;
 
 /**
  * This plugin should generate the testsuite out of wast files

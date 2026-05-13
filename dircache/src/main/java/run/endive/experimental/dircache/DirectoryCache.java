@@ -2,8 +2,6 @@ package run.endive.experimental.dircache;
 
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 
-import run.endive.compiler.Cache;
-import run.endive.experimental.dircache.internal.PathUtils;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.FileSystemException;
@@ -12,6 +10,8 @@ import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
+import run.endive.compiler.Cache;
+import run.endive.experimental.dircache.internal.PathUtils;
 
 /**
  * Disk-backed sharded file cache.

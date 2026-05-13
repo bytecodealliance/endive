@@ -16,14 +16,6 @@
 
   <dependencies>
     <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>runtime</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>wasm</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm</artifactId>
     </dependency>
@@ -36,13 +28,16 @@
       <artifactId>asm-util</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.approvaltests</groupId>
-      <artifactId>approvaltests</artifactId>
-      <scope>test</scope>
+      <groupId>run.endive</groupId>
+      <artifactId>runtime</artifactId>
     </dependency>
     <dependency>
       <groupId>run.endive</groupId>
-      <artifactId>wasm-corpus</artifactId>
+      <artifactId>wasm</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.approvaltests</groupId>
+      <artifactId>approvaltests</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -58,6 +53,11 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>wasm-corpus</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

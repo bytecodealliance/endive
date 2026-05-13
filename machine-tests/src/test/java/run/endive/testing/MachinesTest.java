@@ -1,12 +1,24 @@
 package run.endive.testing;
 
-import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.copy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
+import io.roastedroot.zerofs.Configuration;
+import io.roastedroot.zerofs.ZeroFs;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.FileSystem;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.HostFunction;
@@ -29,18 +41,6 @@ import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.Table;
 import run.endive.wasm.types.TableLimits;
 import run.endive.wasm.types.ValType;
-import io.roastedroot.zerofs.Configuration;
-import io.roastedroot.zerofs.ZeroFs;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.nio.file.FileSystem;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.Test;
 
 public final class MachinesTest {
 

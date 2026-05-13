@@ -15,11 +15,6 @@
 
   <dependencies>
     <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>wasm-corpus</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
       <scope>test</scope>
@@ -27,6 +22,11 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>wasm-corpus</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

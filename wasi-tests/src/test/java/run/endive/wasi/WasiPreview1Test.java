@@ -1,6 +1,5 @@
 package run.endive.wasi;
 
-import static run.endive.wasi.Files.copyDirectory;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.createDirectory;
 import static java.nio.file.Files.createSymbolicLink;
@@ -9,9 +8,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static run.endive.wasi.Files.copyDirectory;
 
-import run.endive.runtime.ByteBufferMemory;
-import run.endive.wasm.types.MemoryLimits;
 import io.roastedroot.zerofs.Configuration;
 import io.roastedroot.zerofs.ZeroFs;
 import java.io.ByteArrayInputStream;
@@ -22,6 +20,8 @@ import java.nio.file.Path;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import run.endive.runtime.ByteBufferMemory;
+import run.endive.wasm.types.MemoryLimits;
 
 @Timeout(10)
 public class WasiPreview1Test {

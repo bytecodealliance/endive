@@ -1,12 +1,12 @@
 package run.endive.fuzz;
 
+import java.io.File;
+import java.util.List;
+import java.util.function.Function;
 import run.endive.runtime.ChicoryInterruptedException;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.wasm.Parser;
-import java.io.File;
-import java.util.List;
-import java.util.function.Function;
 
 public class ChicoryRunner implements WasmRunner {
 

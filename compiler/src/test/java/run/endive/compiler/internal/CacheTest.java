@@ -3,15 +3,15 @@ package run.endive.compiler.internal;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
 import run.endive.compiler.Cache;
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.Instance;
 import run.endive.wasm.Parser;
-import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.Test;
 
 public class CacheTest {
 

@@ -4,6 +4,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.HostFunction;
 import run.endive.runtime.ImportValues;
@@ -16,12 +22,6 @@ import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.ValType;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 @Timeout(10)
 public class WasiPreview1Test {

@@ -1,15 +1,8 @@
 package run.endive.runtime;
 
-import static run.endive.runtime.ConstantEvaluators.computeConstantValue;
 import static java.lang.Math.min;
+import static run.endive.runtime.ConstantEvaluators.computeConstantValue;
 
-import run.endive.runtime.alloc.MemAllocStrategy;
-import run.endive.wasm.ChicoryException;
-import run.endive.wasm.UninstantiableException;
-import run.endive.wasm.types.ActiveDataSegment;
-import run.endive.wasm.types.DataSegment;
-import run.endive.wasm.types.MemoryLimits;
-import run.endive.wasm.types.PassiveDataSegment;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.invoke.VarHandle.AccessMode;
@@ -19,6 +12,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import run.endive.runtime.alloc.MemAllocStrategy;
+import run.endive.wasm.ChicoryException;
+import run.endive.wasm.UninstantiableException;
+import run.endive.wasm.types.ActiveDataSegment;
+import run.endive.wasm.types.DataSegment;
+import run.endive.wasm.types.MemoryLimits;
+import run.endive.wasm.types.PassiveDataSegment;
 
 /**
  * Represents the linear memory in the Wasm program. Can be shared

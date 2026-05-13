@@ -1,16 +1,16 @@
 package run.endive.testing;
 
-import static run.endive.corpus.WatGenerator.bigWat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static run.endive.corpus.WatGenerator.bigWat;
 
+import org.junit.jupiter.api.Test;
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.compiler.internal.Compiler;
 import run.endive.runtime.ExportFunction;
 import run.endive.runtime.Instance;
 import run.endive.wabt.Wat2Wasm;
 import run.endive.wasm.Parser;
-import org.junit.jupiter.api.Test;
 
 public class ClassTooLargeTest {
 

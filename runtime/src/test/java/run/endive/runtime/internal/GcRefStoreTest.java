@@ -5,11 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import org.junit.jupiter.api.Test;
 import run.endive.runtime.Instance;
 import run.endive.runtime.WasmGcRef;
 import run.endive.wasm.Parser;
-import java.io.ByteArrayInputStream;
-import org.junit.jupiter.api.Test;
 
 public class GcRefStoreTest {
 

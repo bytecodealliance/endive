@@ -2,9 +2,9 @@ package run.endive.testing;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import org.junit.jupiter.api.Test;
 import run.endive.runtime.CompiledModule;
 import run.endive.wabt.Wat2WasmModule;
-import org.junit.jupiter.api.Test;
 
 public class ImplementsCompiledModuleTest {
 

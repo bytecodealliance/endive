@@ -2,7 +2,6 @@ package run.endive.maven;
 
 import static org.apache.maven.plugins.annotations.LifecyclePhase.GENERATE_TEST_SOURCES;
 
-import run.endive.testgen.TestGen;
 import java.io.File;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -12,6 +11,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import run.endive.testgen.TestGen;
 
 /**
  * This plugin should generate the testsuite out of wast files

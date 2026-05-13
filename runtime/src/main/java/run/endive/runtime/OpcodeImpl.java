@@ -4,11 +4,11 @@ import static run.endive.runtime.BitOps.FALSE;
 import static run.endive.runtime.BitOps.TRUE;
 import static run.endive.runtime.ConstantEvaluators.computeConstantValue;
 
+import java.lang.reflect.InvocationTargetException;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.PassiveElement;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
-import java.lang.reflect.InvocationTargetException;
 
 /**
  * Note: Some opcodes are easy or trivial to implement as compiler intrinsics (local.get, i32.add, etc).

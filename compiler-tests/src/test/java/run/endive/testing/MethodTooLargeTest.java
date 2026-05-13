@@ -1,13 +1,9 @@
 package run.endive.testing;
 
-import static run.endive.corpus.WatGenerator.methodTooLarge;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.objectweb.asm.Type.getInternalName;
+import static run.endive.corpus.WatGenerator.methodTooLarge;
 
-import run.endive.compiler.internal.Compiler;
-import run.endive.compiler.internal.Shaded;
-import run.endive.wabt.Wat2Wasm;
-import run.endive.wasm.Parser;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Map;
@@ -18,6 +14,10 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.util.TraceClassVisitor;
+import run.endive.compiler.internal.Compiler;
+import run.endive.compiler.internal.Shaded;
+import run.endive.wabt.Wat2Wasm;
+import run.endive.wasm.Parser;
 
 public class MethodTooLargeTest {
 

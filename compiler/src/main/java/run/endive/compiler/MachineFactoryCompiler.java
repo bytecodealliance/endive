@@ -1,11 +1,5 @@
 package run.endive.compiler;
 
-import run.endive.compiler.internal.ClassLoadingCollector;
-import run.endive.compiler.internal.MachineFactory;
-import run.endive.runtime.Instance;
-import run.endive.runtime.Machine;
-import run.endive.wasm.ChicoryException;
-import run.endive.wasm.WasmModule;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -18,6 +12,12 @@ import java.util.function.Function;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
+import run.endive.compiler.internal.ClassLoadingCollector;
+import run.endive.compiler.internal.MachineFactory;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Machine;
+import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmModule;
 
 /**
  * Compiles WASM function bodies to JVM byte code that can be used as a machine factory for {@link Instance}'s.

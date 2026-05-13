@@ -1,9 +1,5 @@
 package run.endive.bench;
 
-import run.endive.compiler.MachineFactoryCompiler;
-import run.endive.runtime.ExportFunction;
-import run.endive.runtime.Instance;
-import run.endive.wasm.Parser;
 import java.io.File;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -18,6 +14,10 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.runtime.ExportFunction;
+import run.endive.runtime.Instance;
+import run.endive.wasm.Parser;
 
 @State(Scope.Benchmark)
 @Warmup(iterations = 2)

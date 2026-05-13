@@ -3,12 +3,6 @@ package run.endive.codegen;
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 import static com.github.javaparser.StaticJavaParser.parseType;
 
-import run.endive.wasm.WasmModule;
-import run.endive.wasm.types.ExternalType;
-import run.endive.wasm.types.FunctionImport;
-import run.endive.wasm.types.Import;
-import run.endive.wasm.types.ValType;
-import run.endive.wasm.types.Value;
 import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
@@ -40,6 +34,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.processing.Generated;
+import run.endive.wasm.WasmModule;
+import run.endive.wasm.types.ExternalType;
+import run.endive.wasm.types.FunctionImport;
+import run.endive.wasm.types.Import;
+import run.endive.wasm.types.ValType;
+import run.endive.wasm.types.Value;
 
 public final class ModuleInterfaceCodegen {
 

@@ -2,13 +2,13 @@ package run.endive.fuzz;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
-import run.endive.compiler.MachineFactoryCompiler;
-import run.endive.runtime.Instance;
-import run.endive.wasm.Parser;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.runtime.Instance;
+import run.endive.wasm.Parser;
 
 public class SingleReproTest extends TestModule {
     private static final String CHICORY_FUZZ_SEED_KEY = "CHICORY_FUZZ_SEED";

@@ -2,10 +2,10 @@ package run.endive.runtime;
 
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
+import java.util.Map;
 import run.endive.wasm.types.Table;
 import run.endive.wasm.types.TableLimits;
 import run.endive.wasm.types.ValType;
-import java.util.Map;
 
 public class ImportTable implements ImportValue {
     private final String module;

@@ -1,6 +1,5 @@
 package run.endive.annotations.processor;
 
-import run.endive.codegen.CodegenUtils;
 import com.github.javaparser.printer.DefaultPrettyPrinter;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
@@ -10,6 +9,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
+import run.endive.codegen.CodegenUtils;
 
 public abstract class AbstractModuleProcessor extends AbstractProcessor {
 

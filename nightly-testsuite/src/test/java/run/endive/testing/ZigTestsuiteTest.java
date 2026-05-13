@@ -1,17 +1,17 @@
 package run.endive.testing;
 
-import run.endive.log.SystemLogger;
-import run.endive.runtime.ImportValues;
-import run.endive.runtime.Instance;
-import run.endive.wasi.WasiExitException;
-import run.endive.wasi.WasiOptions;
-import run.endive.wasi.WasiPreview1;
 import io.roastedroot.zerofs.Configuration;
 import io.roastedroot.zerofs.ZeroFs;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import run.endive.log.SystemLogger;
+import run.endive.runtime.ImportValues;
+import run.endive.runtime.Instance;
+import run.endive.wasi.WasiExitException;
+import run.endive.wasi.WasiOptions;
+import run.endive.wasi.WasiPreview1;
 
 public class ZigTestsuiteTest {
 

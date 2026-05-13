@@ -2,14 +2,14 @@ package run.endive.runtime;
 
 import static run.endive.wasm.types.ValType.sizeOf;
 
-import run.endive.wasm.types.AnnotatedInstruction;
-import run.endive.wasm.types.OpCode;
-import run.endive.wasm.types.ValType;
-import run.endive.wasm.types.Value;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import run.endive.wasm.types.AnnotatedInstruction;
+import run.endive.wasm.types.OpCode;
+import run.endive.wasm.types.ValType;
+import run.endive.wasm.types.Value;
 
 /**
  * Represents a frame, doesn't hold the stack, just local variables and the `pc` which

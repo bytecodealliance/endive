@@ -15,6 +15,10 @@
 
   <dependencies>
     <dependency>
+      <groupId>com.github.javaparser</groupId>
+      <artifactId>javaparser-core</artifactId>
+    </dependency>
+    <dependency>
       <groupId>run.endive</groupId>
       <artifactId>annotations</artifactId>
     </dependency>
@@ -25,15 +29,6 @@
     <dependency>
       <groupId>run.endive</groupId>
       <artifactId>wasm</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.github.javaparser</groupId>
-      <artifactId>javaparser-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>runtime</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.google.testing.compile</groupId>
@@ -48,6 +43,11 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>runtime</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

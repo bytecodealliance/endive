@@ -2,12 +2,12 @@ package run.endive.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import run.endive.wasm.types.FunctionType;
-import run.endive.wasm.types.Value;
 import java.util.Arrays;
 import java.util.Collections;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.Value;
 
 class ImportValuesTest {
 

@@ -1,14 +1,5 @@
 package run.endive.tools.wasm;
 
-import run.endive.log.Logger;
-import run.endive.log.SystemLogger;
-import run.endive.runtime.ByteArrayMemory;
-import run.endive.runtime.ImportValues;
-import run.endive.runtime.Instance;
-import run.endive.wasi.WasiExitException;
-import run.endive.wasi.WasiOptions;
-import run.endive.wasi.WasiPreview1;
-import run.endive.wasm.WasmModule;
 import io.roastedroot.zerofs.Configuration;
 import io.roastedroot.zerofs.ZeroFs;
 import java.io.ByteArrayInputStream;
@@ -20,6 +11,15 @@ import java.nio.file.FileSystem;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import run.endive.log.Logger;
+import run.endive.log.SystemLogger;
+import run.endive.runtime.ByteArrayMemory;
+import run.endive.runtime.ImportValues;
+import run.endive.runtime.Instance;
+import run.endive.wasi.WasiExitException;
+import run.endive.wasi.WasiOptions;
+import run.endive.wasi.WasiPreview1;
+import run.endive.wasm.WasmModule;
 
 public final class WasmSmith {
 

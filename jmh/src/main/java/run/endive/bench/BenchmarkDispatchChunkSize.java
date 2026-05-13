@@ -1,10 +1,5 @@
 package run.endive.bench;
 
-import run.endive.compiler.MachineFactoryCompiler;
-import run.endive.runtime.ExportFunction;
-import run.endive.runtime.Instance;
-import run.endive.wabt.Wat2Wasm;
-import run.endive.wasm.Parser;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -18,6 +13,11 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.runtime.ExportFunction;
+import run.endive.runtime.Instance;
+import run.endive.wabt.Wat2Wasm;
+import run.endive.wasm.Parser;
 
 // Measures dispatch overhead for large wasm modules (2000 functions).
 // Compare with/without the HugeMethodLimit-aware chunking:

@@ -1,9 +1,9 @@
 package run.endive.build.time.compiler;
 
-import run.endive.compiler.InterpreterFallback;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.StringJoiner;
+import run.endive.compiler.InterpreterFallback;
 
 public final class Config {
     /**

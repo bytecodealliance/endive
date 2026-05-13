@@ -1,7 +1,7 @@
 package run.endive.runtime;
 
-import run.endive.wasm.types.FunctionType;
 import java.util.List;
+import run.endive.wasm.types.FunctionType;
 
 /**
  * A HostFunction is an ExternalFunction that has been defined by the host.

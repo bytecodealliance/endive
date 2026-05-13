@@ -1,20 +1,20 @@
 package run.endive.compiler.internal;
 
-import static run.endive.compiler.internal.CompilerUtil.methodNameForFunc;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static run.endive.compiler.internal.CompilerUtil.methodNameForFunc;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.Test;
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.Instance;
 import run.endive.wasm.ChicoryException;
 import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
-import java.util.concurrent.atomic.AtomicBoolean;
-import org.junit.jupiter.api.Test;
 
 public class InterruptionTest {
     @Test

@@ -2,12 +2,12 @@ package run.endive.runtime;
 
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
+import java.util.Arrays;
 import run.endive.wasm.ChicoryException;
 import run.endive.wasm.UninstantiableException;
 import run.endive.wasm.types.Table;
 import run.endive.wasm.types.TableLimits;
 import run.endive.wasm.types.ValType;
-import java.util.Arrays;
 
 public class TableInstance {
 

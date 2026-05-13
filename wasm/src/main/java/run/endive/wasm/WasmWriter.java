@@ -1,11 +1,11 @@
 package run.endive.wasm;
 
+import static java.lang.Integer.toUnsignedLong;
 import static run.endive.wasm.Parser.MAGIC_BYTES;
 import static run.endive.wasm.Parser.VERSION_BYTES;
-import static java.lang.Integer.toUnsignedLong;
 
-import run.endive.wasm.types.RawSection;
 import java.io.ByteArrayOutputStream;
+import run.endive.wasm.types.RawSection;
 
 public final class WasmWriter {
 

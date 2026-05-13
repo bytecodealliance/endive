@@ -1,10 +1,10 @@
 package run.endive.wasm;
 
-import run.endive.wasm.types.AnnotatedInstruction;
-import run.endive.wasm.types.OpCode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import run.endive.wasm.types.AnnotatedInstruction;
+import run.endive.wasm.types.OpCode;
 
 /**
  * The purpose of this class is to provide a control structure to, in-line, label branches in a list of instructions.

@@ -4,10 +4,6 @@ import static java.lang.String.format;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.NOTE;
 
-import run.endive.annotations.WasmModuleInterface;
-import run.endive.codegen.ModuleInterfaceCodegen;
-import run.endive.wasm.Parser;
-import run.endive.wasm.WasmModule;
 import com.github.javaparser.ast.CompilationUnit;
 import java.io.IOException;
 import java.io.Writer;
@@ -20,6 +16,10 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
+import run.endive.annotations.WasmModuleInterface;
+import run.endive.codegen.ModuleInterfaceCodegen;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
 
 public final class WasmModuleProcessor extends AbstractModuleProcessor {
 

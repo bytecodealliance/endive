@@ -2,6 +2,7 @@ package run.endive.testing;
 
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
+import java.util.List;
 import run.endive.runtime.ByteBufferMemory;
 import run.endive.runtime.GlobalInstance;
 import run.endive.runtime.HostFunction;
@@ -18,7 +19,6 @@ import run.endive.wasm.types.Table;
 import run.endive.wasm.types.TableLimits;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
-import java.util.List;
 
 // https://github.com/WebAssembly/spec/blob/ee82c8e50c5106e0cedada0a083d4cc4129034a2/interpreter/host/spectest.ml
 public final class Spectest {

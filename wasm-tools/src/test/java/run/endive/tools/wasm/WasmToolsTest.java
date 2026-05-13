@@ -5,13 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import run.endive.runtime.Instance;
-import run.endive.wasi.WasiExitException;
-import run.endive.wasm.Parser;
 import java.io.File;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import run.endive.runtime.Instance;
+import run.endive.wasi.WasiExitException;
+import run.endive.wasm.Parser;
 
 public class WasmToolsTest {
 

@@ -19,6 +19,16 @@
       <artifactId>runtime</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>run.endive</groupId>
       <artifactId>wasm</artifactId>
       <scope>test</scope>
@@ -33,20 +43,23 @@
       <artifactId>wasm-tools</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <build>
     <plugins>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>templating-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>filter-src</id>
+            <goals>
+              <goal>filter-sources</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>run.endive</groupId>
         <artifactId>test-gen-plugin</artifactId>
@@ -450,19 +463,6 @@
           </execution>
         </executions>
       </plugin>
-
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>templating-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>filter-src</id>
-            <goals>
-              <goal>filter-sources</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
 
@@ -486,6 +486,50 @@
       </dependencies>
       <build>
         <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <compilerArgs>
+                <arg>--add-modules</arg>
+                <arg>jdk.incubator.vector</arg>
+              </compilerArgs>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <configuration>
+              <!-- TODO: find a better way to do this -->
+              <!-- Workaround: "MavenReportException: Error while generating Javadoc:" -->
+              <failOnError>false</failOnError>
+              <failOnWarnings>false</failOnWarnings>
+              <additionalJOption>-Xdoclint:none</additionalJOption>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <argLine>--add-modules=jdk.incubator.vector</argLine>
+            </configuration>
+          </plugin>
+
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>templating-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>filter-src</id>
+                <goals>
+                  <goal>filter-sources</goal>
+                </goals>
+                <configuration>
+                  <sourceDirectory>${basedir}/src/main/java-templates-21</sourceDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
           <plugin>
             <groupId>run.endive</groupId>
             <artifactId>test-gen-plugin</artifactId>
@@ -887,50 +931,6 @@
                 <goals>
                   <goal>wasm-test-gen</goal>
                 </goals>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-              <compilerArgs>
-                <arg>--add-modules</arg>
-                <arg>jdk.incubator.vector</arg>
-              </compilerArgs>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <configuration>
-              <!-- TODO: find a better way to do this -->
-              <!-- Workaround: "MavenReportException: Error while generating Javadoc:" -->
-              <failOnError>false</failOnError>
-              <failOnWarnings>false</failOnWarnings>
-              <additionalJOption>-Xdoclint:none</additionalJOption>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <argLine>--add-modules=jdk.incubator.vector</argLine>
-            </configuration>
-          </plugin>
-
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>templating-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>filter-src</id>
-                <goals>
-                  <goal>filter-sources</goal>
-                </goals>
-                <configuration>
-                  <sourceDirectory>${basedir}/src/main/java-templates-21</sourceDirectory>
-                </configuration>
               </execution>
             </executions>
           </plugin>

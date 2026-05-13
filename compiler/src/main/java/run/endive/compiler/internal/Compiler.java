@@ -1,5 +1,19 @@
 package run.endive.compiler.internal;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+import static java.lang.invoke.MethodType.methodType;
+import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
+import static java.util.stream.Collectors.toSet;
+import static org.objectweb.asm.Type.INT_TYPE;
+import static org.objectweb.asm.Type.LONG_TYPE;
+import static org.objectweb.asm.Type.VOID_TYPE;
+import static org.objectweb.asm.Type.getDescriptor;
+import static org.objectweb.asm.Type.getInternalName;
+import static org.objectweb.asm.Type.getMethodDescriptor;
+import static org.objectweb.asm.Type.getType;
+import static org.objectweb.asm.commons.InstructionAdapter.OBJECT_TYPE;
 import static run.endive.compiler.internal.CompilerUtil.asmType;
 import static run.endive.compiler.internal.CompilerUtil.callDispatchMethodName;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodName;
@@ -38,34 +52,7 @@ import static run.endive.compiler.internal.ShadedRefs.THROW_INDIRECT_CALL_TYPE_M
 import static run.endive.compiler.internal.ShadedRefs.THROW_UNKNOWN_FUNCTION;
 import static run.endive.compiler.internal.Shader.createShadedClass;
 import static run.endive.compiler.internal.Shader.shadedClassRemapper;
-import static java.lang.Math.max;
-import static java.lang.Math.min;
-import static java.lang.invoke.MethodType.methodType;
-import static java.util.Objects.requireNonNull;
-import static java.util.Objects.requireNonNullElse;
-import static java.util.stream.Collectors.toSet;
-import static org.objectweb.asm.Type.INT_TYPE;
-import static org.objectweb.asm.Type.LONG_TYPE;
-import static org.objectweb.asm.Type.VOID_TYPE;
-import static org.objectweb.asm.Type.getDescriptor;
-import static org.objectweb.asm.Type.getInternalName;
-import static org.objectweb.asm.Type.getMethodDescriptor;
-import static org.objectweb.asm.Type.getType;
-import static org.objectweb.asm.commons.InstructionAdapter.OBJECT_TYPE;
 
-import run.endive.compiler.InterpreterFallback;
-import run.endive.runtime.Instance;
-import run.endive.runtime.Machine;
-import run.endive.runtime.Memory;
-import run.endive.runtime.WasmException;
-import run.endive.runtime.internal.CompilerInterpreterMachine;
-import run.endive.wasm.ChicoryException;
-import run.endive.wasm.WasmModule;
-import run.endive.wasm.types.ExternalType;
-import run.endive.wasm.types.FunctionBody;
-import run.endive.wasm.types.FunctionType;
-import run.endive.wasm.types.OpCode;
-import run.endive.wasm.types.ValType;
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -84,6 +71,19 @@ import org.objectweb.asm.MethodTooLargeException;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.InstructionAdapter;
+import run.endive.compiler.InterpreterFallback;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Machine;
+import run.endive.runtime.Memory;
+import run.endive.runtime.WasmException;
+import run.endive.runtime.internal.CompilerInterpreterMachine;
+import run.endive.wasm.ChicoryException;
+import run.endive.wasm.WasmModule;
+import run.endive.wasm.types.ExternalType;
+import run.endive.wasm.types.FunctionBody;
+import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.OpCode;
+import run.endive.wasm.types.ValType;
 
 public final class Compiler {
 

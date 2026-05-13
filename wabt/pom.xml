@@ -15,6 +15,10 @@
 
   <dependencies>
     <dependency>
+      <groupId>io.roastedroot</groupId>
+      <artifactId>zerofs</artifactId>
+    </dependency>
+    <dependency>
       <groupId>run.endive</groupId>
       <artifactId>log</artifactId>
     </dependency>
@@ -31,17 +35,13 @@
       <artifactId>wasm</artifactId>
     </dependency>
     <dependency>
-      <groupId>io.roastedroot</groupId>
-      <artifactId>zerofs</artifactId>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>run.endive</groupId>
       <artifactId>wasm-corpus</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
       <scope>test</scope>
     </dependency>
 

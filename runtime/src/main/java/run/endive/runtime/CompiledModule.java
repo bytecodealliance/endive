@@ -1,7 +1,7 @@
 package run.endive.runtime;
 
-import run.endive.wasm.WasmModule;
 import java.util.function.Function;
+import run.endive.wasm.WasmModule;
 
 /**
  * This interface is implemented by build time compiled wasm modules.

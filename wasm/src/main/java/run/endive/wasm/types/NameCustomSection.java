@@ -1,8 +1,8 @@
 package run.endive.wasm.types;
 
+import static java.util.Objects.requireNonNull;
 import static run.endive.wasm.Encoding.readName;
 import static run.endive.wasm.Encoding.readVarUInt32;
-import static java.util.Objects.requireNonNull;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;

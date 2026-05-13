@@ -1,5 +1,7 @@
 package run.endive.runtime;
 
+import static java.util.Objects.requireNonNullElse;
+import static java.util.Objects.requireNonNullElseGet;
 import static run.endive.runtime.ConstantEvaluators.computeConstantInstance;
 import static run.endive.runtime.ConstantEvaluators.computeConstantValue;
 import static run.endive.wasm.types.ExternalType.FUNCTION;
@@ -7,9 +9,14 @@ import static run.endive.wasm.types.ExternalType.GLOBAL;
 import static run.endive.wasm.types.ExternalType.MEMORY;
 import static run.endive.wasm.types.ExternalType.TABLE;
 import static run.endive.wasm.types.ExternalType.TAG;
-import static java.util.Objects.requireNonNullElse;
-import static java.util.Objects.requireNonNullElseGet;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import run.endive.runtime.internal.GcRefStore;
 import run.endive.wasm.ChicoryException;
 import run.endive.wasm.InvalidException;
@@ -43,13 +50,6 @@ import run.endive.wasm.types.TagType;
 import run.endive.wasm.types.TypeSection;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class Instance {
     public static final String START_FUNCTION_NAME = "_start";

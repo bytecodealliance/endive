@@ -1,9 +1,9 @@
 package run.endive.wasm.types;
 
-import run.endive.wasm.ChicoryException;
-import run.endive.wasm.InvalidException;
 import java.util.List;
 import java.util.function.Function;
+import run.endive.wasm.ChicoryException;
+import run.endive.wasm.InvalidException;
 
 /**
  * The possible WASM value types.

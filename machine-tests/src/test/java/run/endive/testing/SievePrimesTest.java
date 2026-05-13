@@ -2,6 +2,10 @@ package run.endive.testing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.ByteArrayMemory;
 import run.endive.runtime.ImportMemory;
@@ -11,10 +15,6 @@ import run.endive.runtime.Memory;
 import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.MemoryLimits;
-import java.util.ArrayList;
-import java.util.List;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 public class SievePrimesTest {
 

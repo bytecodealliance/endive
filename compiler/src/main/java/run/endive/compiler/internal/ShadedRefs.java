@@ -1,12 +1,12 @@
 package run.endive.compiler.internal;
 
+import java.lang.reflect.Method;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Memory;
 import run.endive.runtime.TableInstance;
 import run.endive.runtime.WasmException;
 import run.endive.runtime.internal.CompilerInterpreterMachine;
 import run.endive.wasm.types.Element;
-import java.lang.reflect.Method;
 
 public final class ShadedRefs {
 

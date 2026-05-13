@@ -1,23 +1,10 @@
 package run.endive.build.time.compiler;
 
-import static run.endive.wasm.Encoding.readVarUInt32;
-import static run.endive.wasm.WasmWriter.writeVarUInt32;
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 import static com.github.javaparser.StaticJavaParser.parseType;
+import static run.endive.wasm.Encoding.readVarUInt32;
+import static run.endive.wasm.WasmWriter.writeVarUInt32;
 
-import run.endive.codegen.CodegenUtils;
-import run.endive.codegen.ModuleInterfaceCodegen;
-import run.endive.compiler.internal.ByteClassCollector;
-import run.endive.compiler.internal.Compiler;
-import run.endive.runtime.CompiledModule;
-import run.endive.runtime.Instance;
-import run.endive.runtime.Machine;
-import run.endive.wasm.Parser;
-import run.endive.wasm.WasmModule;
-import run.endive.wasm.WasmWriter;
-import run.endive.wasm.types.OpCode;
-import run.endive.wasm.types.RawSection;
-import run.endive.wasm.types.SectionId;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
@@ -46,6 +33,19 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import run.endive.codegen.CodegenUtils;
+import run.endive.codegen.ModuleInterfaceCodegen;
+import run.endive.compiler.internal.ByteClassCollector;
+import run.endive.compiler.internal.Compiler;
+import run.endive.runtime.CompiledModule;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Machine;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
+import run.endive.wasm.WasmWriter;
+import run.endive.wasm.types.OpCode;
+import run.endive.wasm.types.RawSection;
+import run.endive.wasm.types.SectionId;
 
 public class Generator {
 

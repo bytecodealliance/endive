@@ -1,13 +1,13 @@
 package run.endive.wasm;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static run.endive.wasm.Parser.parseWithoutDecoding;
 import static run.endive.wasm.ParserTest.wasmCorpusFiles;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
-import run.endive.wasm.types.RawSection;
 import java.io.IOException;
 import java.nio.file.Files;
 import org.junit.jupiter.api.Test;
+import run.endive.wasm.types.RawSection;
 
 public class WasmWriterTest {
 

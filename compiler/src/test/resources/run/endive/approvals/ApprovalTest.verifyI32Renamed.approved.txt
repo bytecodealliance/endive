@@ -1,43 +1,43 @@
-public final class FOO implements com/dylibso/chicory/runtime/Machine {
+public final class FOO implements run/endive/runtime/Machine {
 
-  private final Lcom/dylibso/chicory/runtime/Instance; instance
+  private final Lrun/endive/runtime/Instance; instance
 
-  public <init>(Lcom/dylibso/chicory/runtime/Instance;)V
+  public <init>(Lrun/endive/runtime/Instance;)V
     ALOAD 0
     INVOKESPECIAL java/lang/Object.<init> ()V
     ALOAD 0
     ALOAD 1
-    PUTFIELD FOO.instance : Lcom/dylibso/chicory/runtime/Instance;
+    PUTFIELD FOO.instance : Lrun/endive/runtime/Instance;
     RETURN
 
   public call(I[J)[J
     TRYCATCHBLOCK L0 L1 L1 java/lang/StackOverflowError
    L0
     ALOAD 0
-    GETFIELD FOO.instance : Lcom/dylibso/chicory/runtime/Instance;
+    GETFIELD FOO.instance : Lrun/endive/runtime/Instance;
     DUP
-    INVOKEVIRTUAL com/dylibso/chicory/runtime/Instance.memory ()Lcom/dylibso/chicory/runtime/Memory;
+    INVOKEVIRTUAL run/endive/runtime/Instance.memory ()Lrun/endive/runtime/Memory;
     ILOAD 1
     ALOAD 2
-    INVOKESTATIC FOOMachineCall.call (Lcom/dylibso/chicory/runtime/Instance;Lcom/dylibso/chicory/runtime/Memory;I[J)[J
+    INVOKESTATIC FOOMachineCall.call (Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;I[J)[J
     ARETURN
    L1
     INVOKESTATIC FOOShaded.throwCallStackExhausted (Ljava/lang/StackOverflowError;)Ljava/lang/RuntimeException;
     ATHROW
 
-  public static call_indirect_0(IILcom/dylibso/chicory/runtime/Memory;Lcom/dylibso/chicory/runtime/Instance;)V
+  public static call_indirect_0(IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)V
     INVOKESTATIC FOOShaded.checkInterruption ()V
     ALOAD 3
     ILOAD 1
-    INVOKEVIRTUAL com/dylibso/chicory/runtime/Instance.table (I)Lcom/dylibso/chicory/runtime/TableInstance;
+    INVOKEVIRTUAL run/endive/runtime/Instance.table (I)Lrun/endive/runtime/TableInstance;
     ASTORE 4
     ALOAD 4
     ILOAD 0
-    INVOKEVIRTUAL com/dylibso/chicory/runtime/TableInstance.requiredRef (I)I
+    INVOKEVIRTUAL run/endive/runtime/TableInstance.requiredRef (I)I
     ISTORE 5
     ALOAD 4
     ILOAD 0
-    INVOKEVIRTUAL com/dylibso/chicory/runtime/TableInstance.instance (I)Lcom/dylibso/chicory/runtime/Instance;
+    INVOKEVIRTUAL run/endive/runtime/TableInstance.instance (I)Lrun/endive/runtime/Instance;
     ASTORE 6
     ALOAD 6
     IFNULL L0
@@ -52,7 +52,7 @@ public final class FOO implements com/dylibso/chicory/runtime/Machine {
       0: L2
       default: L3
    L2
-    INVOKESTATIC FOOFuncGroup_0.func_0 (Lcom/dylibso/chicory/runtime/Memory;Lcom/dylibso/chicory/runtime/Instance;)V
+    INVOKESTATIC FOOFuncGroup_0.func_0 (Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)V
     RETURN
    L3
     INVOKESTATIC FOOShaded.throwIndirectCallTypeMismatch ()Ljava/lang/RuntimeException;
@@ -63,6 +63,6 @@ public final class FOO implements com/dylibso/chicory/runtime/Machine {
     ICONST_0
     ILOAD 5
     ALOAD 6
-    INVOKESTATIC FOOShaded.callIndirect ([JIILcom/dylibso/chicory/runtime/Instance;)[J
+    INVOKESTATIC FOOShaded.callIndirect ([JIILrun/endive/runtime/Instance;)[J
     RETURN
 }

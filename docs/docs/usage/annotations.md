@@ -6,7 +6,7 @@ title: Annotations
 ## Host Modules
 
 Instead of writing host functions by hand, you can write a class containing annotated methods
-and let the Chicory annotation processor generate the host functions for you. This is especially
+and let the Endive annotation processor generate the host functions for you. This is especially
 useful when you have many host functions.
 
 <!--
@@ -122,7 +122,7 @@ In order to use host modules, you need to import the relevant annotations, e.g. 
 </dependency>
 ```
 
-and configure the Java compiler to include the Chicory `annotations-processor` as an annotation processor.
+and configure the Java compiler to include the Endive `annotations-processor` as an annotation processor.
 Exactly how this is done depends on the build system you are using, for instance, with Maven:
 
 ```xml

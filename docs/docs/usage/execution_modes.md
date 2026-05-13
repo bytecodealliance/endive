@@ -14,7 +14,7 @@ title: Execution modes
 
 ## Summary
 
-- **Interpreter**: Executes WebAssembly (Wasm) modules directly without prior compilation. It's the default mode in Chicory, offering maximum portability and simplicity. However, it has slower execution speed compared to compiled modes.
+- **Interpreter**: Executes WebAssembly (Wasm) modules directly without prior compilation. It's the default mode in Endive, offering maximum portability and simplicity. However, it has slower execution speed compared to compiled modes.
 
 - **Runtime Compilation**: Compiles Wasm modules to Java bytecode at runtime for fast execution. This mode requires one additional dependency on [ASM](https://asm.ow2.io/), it uses reflection, and it loads bytecode dynamically. It fully supports loading new Wasm modules on-the-fly, but it might not be supported on some platforms (such as Android, or GraalVM's native-image). 
 

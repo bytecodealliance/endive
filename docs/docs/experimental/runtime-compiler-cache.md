@@ -6,7 +6,7 @@ title: Runtime Compiler Cache
 
 # Overview of the Runtime Compiler Cache
 
-The runtime compiler cache lets the Chicory runtime compiler store the results of compiling WASM modules to Java bytecode. Subsequent executions can skip compilation and start faster.
+The runtime compiler cache lets the Endive runtime compiler store the results of compiling WASM modules to Java bytecode. Subsequent executions can skip compilation and start faster.
 
 Use the experimental directory-based cache, or implement the simple `run.endive.compiler.Cache` interface:
 

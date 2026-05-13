@@ -7,11 +7,11 @@ title: CPU
 
 Often, when running untrusted user code in our infrastructure, we want to have strong guarantees around the termination of the program.
 
-To achieve this result there are, currently, two mechanisms in Chicory:
+To achieve this result there are, currently, two mechanisms in Endive:
 
 ## Interrupts
 
-Wasm modules executed using Chicory honour the carrier thread interruption mechanism, thus you can leverage it to implement absolute timeouts:
+Wasm modules executed using Endive honour the carrier thread interruption mechanism, thus you can leverage it to implement absolute timeouts:
 
 ```bash
 curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/infinite-loop.c.wasm > infinite-loop.wasm
@@ -69,7 +69,7 @@ try {
 
 ## [unsafe] Execution Listener
 
-The Chicory interpreter exposes an unsafe listener to granularly control the Wasm Modules execution.
+The Endive interpreter exposes an unsafe listener to granularly control the Wasm Modules execution.
 Using it is extremely risky as the code will be evaluated for each and every Wasm instruction, use it with extreme caution.
 
 ```java

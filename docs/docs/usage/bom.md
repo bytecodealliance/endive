@@ -5,7 +5,7 @@ title: BOM
 ---
 # Bill of Materials
 
-To keep the versions of different Chicory artifacts aligned in your project you can use the provided
+To keep the versions of different Endive artifacts aligned in your project you can use the provided
 [Maven BOM file](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#bill-of-materials-bom-poms).
 
 Import it in the `dependencyManagement` section of your `pom.xml`:
@@ -16,7 +16,7 @@ Import it in the `dependencyManagement` section of your `pom.xml`:
         <dependency>
             <groupId>run.endive</groupId>
             <artifactId>bom</artifactId>
-            <version>${chicory.version}</version>
+            <version>${endive.version}</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -24,7 +24,7 @@ Import it in the `dependencyManagement` section of your `pom.xml`:
 </dependencyManagement>
 ```
 
-and you can use any Chicory dependency without declaring the version number again in the build:
+and you can use any Endive dependency without declaring the version number again in the build:
 
 ```xml
 <dependency>

@@ -7,7 +7,7 @@ title: Memory
 
 Wasm only understands basic integer and float primitives.
 Passing more complex types across the boundaries involves passing low level pointers.
-To read, write, or allocate memory in a module, Chicory provides the `Memory` class.
+To read, write, or allocate memory in a module, Endive provides the `Memory` class.
 Let's look at an example where we have a module `count_vowels.wasm`, written in Rust, that takes a string input and counts the number of vowels
 in the string:
 

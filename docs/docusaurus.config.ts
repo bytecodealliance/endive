@@ -3,20 +3,20 @@ import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'Chicory',
-  tagline: 'Chicory, a JVM native WebAssembly runtime',
+  title: 'Endive',
+  tagline: 'Endive, a JVM native WebAssembly runtime',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://chicory.dev',
+  url: 'https://endive.run',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'dylibso', // Usually your GitHub org/user name.
-  projectName: 'chicory', // Usually your repo name.
+  organizationName: 'bytecodealliance', // Usually your GitHub org/user name.
+  projectName: 'endive', // Usually your repo name.
 
   onBrokenLinks: 'warn', // TODO: fixme when everything is ready: 'throw',
   onBrokenMarkdownLinks: 'warn',
@@ -73,12 +73,12 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/chicory1.png',
+    image: 'img/endive.png',
     navbar: {
-      title: 'Chicory',
+      title: 'Endive',
       logo: {
-        alt: 'Chicory Logo',
-        src: 'img/chicory1.png',
+        alt: 'Endive Logo',
+        src: 'img/endive.png',
       },
       items: [
         {
@@ -89,7 +89,7 @@ const config: Config = {
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         {
-          href: 'https://github.run/endive',
+          href: 'https://github.com/bytecodealliance/endive',
           label: 'GitHub',
           position: 'right',
         },
@@ -125,12 +125,12 @@ const config: Config = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.run/endive',
+              href: 'https://github.com/bytecodealliance/endive',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Dylibso, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Bytecode Alliance. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

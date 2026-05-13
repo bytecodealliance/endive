@@ -112,7 +112,7 @@ const config: Config = {
           items: [
             {
               label: 'Zulip',
-              href: 'https://chicory.zulipchat.com/',
+              href: 'https://bytecodealliance.zulipchat.com/#narrow/stream/endive',
             },
           ],
         },

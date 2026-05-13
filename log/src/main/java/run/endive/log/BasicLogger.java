@@ -2,7 +2,7 @@ package run.endive.log;
 
 public class BasicLogger implements Logger {
     private static final java.util.logging.Logger LOGGER =
-            java.util.logging.Logger.getLogger("chicory");
+            java.util.logging.Logger.getLogger("endive");
 
     @Override
     public void log(Level level, String msg, Throwable throwable) {

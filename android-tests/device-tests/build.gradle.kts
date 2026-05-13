@@ -42,11 +42,11 @@ dependencies {
     // if you need to add a dependency on a specific module, you can use
     // "androidTest<productFlavorName>Implementation"(<your dependency>)
     // e.g.
-    // "androidTestRuntimeImplementation"(libs.chicory.runtime)
-    androidTestImplementation(libs.chicory.wasi)
-    androidTestImplementation(libs.chicory.runtime)
-    androidTestImplementation(libs.chicory.wasm)
-    androidTestImplementation(libs.chicory.wasmCorpus)
+    // "androidTestRuntimeImplementation"(libs.endive.runtime)
+    androidTestImplementation(libs.endive.wasi)
+    androidTestImplementation(libs.endive.runtime)
+    androidTestImplementation(libs.endive.wasm)
+    androidTestImplementation(libs.endive.wasmCorpus)
     androidTestImplementation(libs.junit.jupiter.api)
 }
 
@@ -57,7 +57,7 @@ dependencies {
  * the target maven project. See the pom file for runtime project for a sample setup.
  *
  * @param configurationName Target Gradle configuration name
- * @param libraryPath Library path relative to the main chicory maven project
+ * @param libraryPath Library path relative to the main endive maven project
  */
 fun addLibraryTests(configurationName: String, libraryPath: String) {
     // Add the jar task's output as a dependency.

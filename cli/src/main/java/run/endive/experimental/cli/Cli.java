@@ -13,7 +13,7 @@ import run.endive.wasi.WasiPreview1;
 import run.endive.wasm.Parser;
 
 @CommandLine.Command(
-        name = "chicory",
+        name = "endive",
         mixinStandardHelpOptions = true,
         helpCommand = true,
         header = "A pure Java WASM runtime available as a CLI.")

@@ -2,14 +2,14 @@
 agp = "9.1.0"
 junitJupiterApi = "5.14.3"
 kotlin = "2.3.20"
-chicory = "999-SNAPSHOT"
+endive = "999-SNAPSHOT"
 
 [libraries]
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junitJupiterApi" }
-chicory-wasi = { module = "run.endive:wasi", version.ref = "chicory"}
-chicory-runtime = { module = "run.endive:runtime", version.ref = "chicory"}
-chicory-wasm = { module = "run.endive:wasm", version.ref = "chicory"}
-chicory-wasmCorpus = { module = "run.endive:wasm-corpus", version.ref = "chicory"}
+endive-wasi = { module = "run.endive:wasi", version.ref = "endive"}
+endive-runtime = { module = "run.endive:runtime", version.ref = "endive"}
+endive-wasm = { module = "run.endive:wasm", version.ref = "endive"}
+endive-wasmCorpus = { module = "run.endive:wasm-corpus", version.ref = "endive"}
 android-gradle-plugin-api = { module = "com.android.tools.build:gradle-api", version.ref = "agp"}
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

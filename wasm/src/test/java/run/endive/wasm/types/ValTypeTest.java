@@ -2,9 +2,9 @@ package run.endive.wasm.types;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import org.junit.jupiter.api.Test;
 import run.endive.corpus.CorpusResources;
 import run.endive.wasm.Parser;
-import org.junit.jupiter.api.Test;
 
 public class ValTypeTest {
 

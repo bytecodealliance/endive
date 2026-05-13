@@ -1,5 +1,12 @@
 package run.endive.simd;
 
+import java.util.Arrays;
+import java.util.Deque;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import jdk.incubator.vector.LongVector;
+import jdk.incubator.vector.Vector;
 import run.endive.runtime.BitOps;
 import run.endive.runtime.Instance;
 import run.endive.runtime.InterpreterMachine;
@@ -10,13 +17,6 @@ import run.endive.wasm.ChicoryException;
 import run.endive.wasm.types.Instruction;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.Value;
-import java.util.Arrays;
-import java.util.Deque;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import jdk.incubator.vector.LongVector;
-import jdk.incubator.vector.Vector;
 
 public final class SimdInterpreterMachine extends InterpreterMachine {
 

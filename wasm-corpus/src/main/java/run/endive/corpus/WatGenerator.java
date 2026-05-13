@@ -41,8 +41,7 @@ public final class WatGenerator {
         }
 
         return render(
-                "/run/endive/corpus/method_too_large.wat",
-                Map.of("instructions", instructions));
+                "/run/endive/corpus/method_too_large.wat", Map.of("instructions", instructions));
     }
 
     private static String render(String template, Map<String, Object> map) {

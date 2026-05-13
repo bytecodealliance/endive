@@ -1,26 +1,13 @@
 package run.endive.testing;
 
-import static run.endive.corpus.WatGenerator.methodTooLarge;
 import static java.lang.invoke.MethodHandleProxies.asInterfaceInstance;
 import static java.lang.invoke.MethodHandles.publicLookup;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static run.endive.corpus.WatGenerator.methodTooLarge;
 
-import run.endive.build.time.compiler.Config;
-import run.endive.build.time.compiler.Generator;
-import run.endive.compiler.InterpreterFallback;
-import run.endive.runtime.HostFunction;
-import run.endive.runtime.ImportValues;
-import run.endive.runtime.Instance;
-import run.endive.runtime.Machine;
-import run.endive.wabt.Wat2Wasm;
-import run.endive.wasm.ChicoryException;
-import run.endive.wasm.Parser;
-import run.endive.wasm.WasmModule;
-import run.endive.wasm.types.FunctionType;
-import run.endive.wasm.types.ValType;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +25,19 @@ import org.approvaltests.Approvals;
 import org.approvaltests.core.Options;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import run.endive.build.time.compiler.Config;
+import run.endive.build.time.compiler.Generator;
+import run.endive.compiler.InterpreterFallback;
+import run.endive.runtime.HostFunction;
+import run.endive.runtime.ImportValues;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Machine;
+import run.endive.wabt.Wat2Wasm;
+import run.endive.wasm.ChicoryException;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
+import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.ValType;
 
 public class InterpreterFallbackTest {
 

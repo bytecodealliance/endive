@@ -1,12 +1,9 @@
 package run.endive.approvals;
 
-import static run.endive.wasm.Parser.parse;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.objectweb.asm.Type.getInternalName;
+import static run.endive.wasm.Parser.parse;
 
-import run.endive.compiler.internal.Compiler;
-import run.endive.compiler.internal.Shaded;
-import run.endive.corpus.CorpusResources;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
@@ -24,6 +21,9 @@ import org.approvaltests.Approvals;
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.TraceClassVisitor;
+import run.endive.compiler.internal.Compiler;
+import run.endive.compiler.internal.Shaded;
+import run.endive.corpus.CorpusResources;
 
 // To approve everything use the env var: `APPROVAL_TESTS_USE_REPORTER=AutoApproveReporter`
 public class ApprovalTest {

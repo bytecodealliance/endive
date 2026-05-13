@@ -1,13 +1,24 @@
 package run.endive.compiler.internal;
 
+import static java.util.Collections.reverse;
+import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.Collectors.toUnmodifiableList;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.localType;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
 import static run.endive.compiler.internal.TypeStack.FUNCTION_SCOPE;
-import static java.util.Collections.reverse;
-import static java.util.stream.Collectors.toCollection;
-import static java.util.stream.Collectors.toUnmodifiableList;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 import run.endive.wasm.ChicoryException;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.AnnotatedInstruction;
@@ -24,17 +35,6 @@ import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.Table;
 import run.endive.wasm.types.TableImport;
 import run.endive.wasm.types.ValType;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
-import java.util.stream.Stream;
 
 final class WasmAnalyzer {
 

@@ -3,8 +3,8 @@ package run.endive.wasm;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import run.endive.corpus.CorpusResources;
 import org.junit.jupiter.api.Test;
+import run.endive.corpus.CorpusResources;
 
 public class WasmModuleTest {
 

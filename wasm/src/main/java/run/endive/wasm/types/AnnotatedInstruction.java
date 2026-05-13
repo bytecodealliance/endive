@@ -1,9 +1,9 @@
 package run.endive.wasm.types;
 
-import run.endive.wasm.InvalidException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import run.endive.wasm.InvalidException;
 
 /*
  * An instruction with additional metadata for control flow.

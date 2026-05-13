@@ -2,14 +2,6 @@ package run.endive.wabt;
 
 import static java.nio.file.Files.copy;
 
-import run.endive.log.Logger;
-import run.endive.log.SystemLogger;
-import run.endive.runtime.ImportValues;
-import run.endive.runtime.Instance;
-import run.endive.wasi.WasiExitException;
-import run.endive.wasi.WasiOptions;
-import run.endive.wasi.WasiPreview1;
-import run.endive.wasm.WasmModule;
 import io.roastedroot.zerofs.Configuration;
 import io.roastedroot.zerofs.ZeroFs;
 import java.io.ByteArrayInputStream;
@@ -24,6 +16,14 @@ import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import run.endive.log.Logger;
+import run.endive.log.SystemLogger;
+import run.endive.runtime.ImportValues;
+import run.endive.runtime.Instance;
+import run.endive.wasi.WasiExitException;
+import run.endive.wasi.WasiOptions;
+import run.endive.wasi.WasiPreview1;
+import run.endive.wasm.WasmModule;
 
 public final class Wat2Wasm {
     private static final Logger logger = new SystemLogger();

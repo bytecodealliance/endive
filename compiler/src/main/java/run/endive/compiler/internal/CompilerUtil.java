@@ -1,6 +1,5 @@
 package run.endive.compiler.internal;
 
-import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 import static java.lang.invoke.MethodType.methodType;
 import static java.util.stream.Collectors.joining;
 import static org.objectweb.asm.Type.DOUBLE_TYPE;
@@ -9,13 +8,8 @@ import static org.objectweb.asm.Type.INT_TYPE;
 import static org.objectweb.asm.Type.LONG_TYPE;
 import static org.objectweb.asm.Type.getInternalName;
 import static org.objectweb.asm.Type.getMethodDescriptor;
+import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
-import run.endive.runtime.Instance;
-import run.endive.runtime.Memory;
-import run.endive.wasm.types.FunctionBody;
-import run.endive.wasm.types.FunctionType;
-import run.endive.wasm.types.ValType;
-import run.endive.wasm.types.Value;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -24,6 +18,12 @@ import java.util.Locale;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Memory;
+import run.endive.wasm.types.FunctionBody;
+import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.ValType;
+import run.endive.wasm.types.Value;
 
 final class CompilerUtil {
 

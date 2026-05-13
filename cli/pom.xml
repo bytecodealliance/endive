@@ -15,6 +15,10 @@
 
   <dependencies>
     <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+    </dependency>
+    <dependency>
       <groupId>run.endive</groupId>
       <artifactId>runtime</artifactId>
     </dependency>
@@ -25,10 +29,6 @@
     <dependency>
       <groupId>run.endive</groupId>
       <artifactId>wasm</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
     </dependency>
   </dependencies>
 

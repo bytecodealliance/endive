@@ -1,12 +1,8 @@
 package run.endive.wasi;
 
-import static run.endive.wasi.Files.copyDirectory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static run.endive.wasi.Files.copyDirectory;
 
-import run.endive.log.SystemLogger;
-import run.endive.runtime.ImportValues;
-import run.endive.runtime.Instance;
-import run.endive.wasm.Parser;
 import io.roastedroot.zerofs.Configuration;
 import io.roastedroot.zerofs.ZeroFs;
 import java.io.File;
@@ -18,6 +14,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import run.endive.log.SystemLogger;
+import run.endive.runtime.ImportValues;
+import run.endive.runtime.Instance;
+import run.endive.wasm.Parser;
 
 public final class WasiTestRunner {
     private static final SystemLogger LOGGER = new SystemLogger();

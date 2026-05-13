@@ -1,5 +1,6 @@
 package run.endive.testing;
 
+import java.io.IOException;
 import run.endive.runtime.ByteArrayMemory;
 import run.endive.runtime.ImportValues;
 import run.endive.runtime.Instance;
@@ -8,7 +9,6 @@ import run.endive.tools.wasm.Wat2Wasm;
 import run.endive.wasm.MalformedException;
 import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
-import java.io.IOException;
 
 public class TestModule {
 

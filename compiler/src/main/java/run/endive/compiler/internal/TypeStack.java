@@ -2,15 +2,15 @@ package run.endive.compiler.internal;
 
 import static run.endive.wasm.types.Instruction.EMPTY_OPERANDS;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.Map;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.Instruction;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.TypeSection;
 import run.endive.wasm.types.ValType;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.Map;
 
 final class TypeStack {
 

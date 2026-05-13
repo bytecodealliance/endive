@@ -1,10 +1,10 @@
 package run.endive.compiler.internal;
 
+import java.util.function.Function;
 import run.endive.runtime.CompiledModule;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.wasm.WasmModule;
-import java.util.function.Function;
 
 /**
  * Machine factory implementation that AOT compiles function bodies.

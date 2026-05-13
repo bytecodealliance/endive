@@ -2,14 +2,14 @@ package run.endive.fuzz;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import run.endive.log.Logger;
-import run.endive.log.SystemLogger;
-import run.endive.tools.wasm.WasmSmith;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import org.apache.commons.lang3.RandomStringUtils;
+import run.endive.log.Logger;
+import run.endive.log.SystemLogger;
+import run.endive.tools.wasm.WasmSmith;
 
 public class WasmSmithWrapper {
 

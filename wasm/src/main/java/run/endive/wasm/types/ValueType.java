@@ -1,7 +1,7 @@
 package run.endive.wasm.types;
 
-import run.endive.wasm.MalformedException;
 import java.util.List;
+import run.endive.wasm.MalformedException;
 
 /**
  * @deprecated use {@link run.endive.wasm.types.ValType}

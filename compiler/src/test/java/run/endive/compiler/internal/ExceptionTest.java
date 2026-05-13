@@ -2,14 +2,14 @@ package run.endive.compiler.internal;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
+import java.util.HashMap;
+import java.util.Set;
+import org.junit.jupiter.api.Test;
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.Instance;
 import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
-import java.util.HashMap;
-import java.util.Set;
-import org.junit.jupiter.api.Test;
 
 public class ExceptionTest {
 

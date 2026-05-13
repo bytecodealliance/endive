@@ -1,7 +1,5 @@
 package run.endive.bench;
 
-import run.endive.corpus.WatGenerator;
-import run.endive.wabt.Wat2Wasm;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -15,6 +13,8 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
+import run.endive.corpus.WatGenerator;
+import run.endive.wabt.Wat2Wasm;
 
 @State(Scope.Benchmark)
 @Warmup(iterations = 2)

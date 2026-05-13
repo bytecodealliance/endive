@@ -1,11 +1,12 @@
 package chicory.test;
 
-import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
+import org.junit.jupiter.api.Test;
 import run.endive.annotations.WasmModuleInterface;
 import run.endive.runtime.ByteBufferMemory;
 import run.endive.runtime.GlobalInstance;
@@ -18,7 +19,6 @@ import run.endive.wasm.types.Table;
 import run.endive.wasm.types.TableLimits;
 import run.endive.wasm.types.Value;
 import run.endive.wasm.types.ValueType;
-import org.junit.jupiter.api.Test;
 
 class AllImportsTest {
 

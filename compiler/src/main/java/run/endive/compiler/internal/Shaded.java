@@ -3,6 +3,7 @@ package run.endive.compiler.internal;
 import static run.endive.runtime.MemCopyWorkaround.shouldUseMemWorkaround;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
+import java.util.Arrays;
 import run.endive.runtime.ChicoryInterruptedException;
 import run.endive.runtime.ConstantEvaluators;
 import run.endive.runtime.Instance;
@@ -20,7 +21,6 @@ import run.endive.wasm.ChicoryException;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
-import java.util.Arrays;
 
 /**
  * This class will get shaded into the compiled code.

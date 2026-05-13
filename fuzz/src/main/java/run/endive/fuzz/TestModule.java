@@ -1,11 +1,5 @@
 package run.endive.fuzz;
 
-import run.endive.log.Logger;
-import run.endive.log.SystemLogger;
-import run.endive.runtime.Instance;
-import run.endive.wasm.WasmModule;
-import run.endive.wasm.types.ExternalType;
-import run.endive.wasm.types.FunctionType;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -18,6 +12,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.RandomStringUtils;
+import run.endive.log.Logger;
+import run.endive.log.SystemLogger;
+import run.endive.runtime.Instance;
+import run.endive.wasm.WasmModule;
+import run.endive.wasm.types.ExternalType;
+import run.endive.wasm.types.FunctionType;
 
 public class TestModule {
     private static final Logger logger = new SystemLogger();

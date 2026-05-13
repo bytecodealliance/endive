@@ -19,21 +19,6 @@
       <artifactId>compiler</artifactId>
     </dependency>
     <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>runtime</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>wasm</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>wasm-corpus</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>io.roastedroot</groupId>
       <artifactId>zerofs</artifactId>
       <scope>test</scope>
@@ -46,6 +31,21 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>runtime</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>wasm</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>wasm-corpus</artifactId>
       <scope>test</scope>
     </dependency>
 

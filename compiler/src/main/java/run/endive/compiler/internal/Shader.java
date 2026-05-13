@@ -1,9 +1,8 @@
 package run.endive.compiler.internal;
 
-import static run.endive.compiler.internal.CompilerUtil.internalClassName;
 import static org.objectweb.asm.Type.getInternalName;
+import static run.endive.compiler.internal.CompilerUtil.internalClassName;
 
-import run.endive.wasm.ChicoryException;
 import java.io.IOException;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -11,6 +10,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.Remapper;
+import run.endive.wasm.ChicoryException;
 
 /**
  * The Shader class is responsible for creating a shaded version of the Shaded class.

@@ -2,6 +2,12 @@ package run.endive.fuzz;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.log.Logger;
 import run.endive.log.SystemLogger;
@@ -9,12 +15,6 @@ import run.endive.runtime.Instance;
 import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ExternalType;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 
 public class FuzzTest extends TestModule {
     private static final Logger logger = new SystemLogger();

@@ -1,9 +1,12 @@
 package run.endive.runtime;
 
+import static java.util.Objects.requireNonNullElse;
 import static run.endive.wasm.types.ValType.sizeOf;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
-import static java.util.Objects.requireNonNullElse;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.List;
 import run.endive.wasm.ChicoryException;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.types.AnnotatedInstruction;
@@ -14,9 +17,6 @@ import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.TypeSection;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.List;
 
 /**
  * This is responsible for holding and interpreting the Wasm code.

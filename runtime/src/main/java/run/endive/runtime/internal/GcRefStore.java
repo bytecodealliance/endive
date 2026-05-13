@@ -1,14 +1,14 @@
 package run.endive.runtime.internal;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import run.endive.runtime.Instance;
 import run.endive.runtime.WasmArray;
 import run.endive.runtime.WasmGcRef;
 import run.endive.runtime.WasmStruct;
 import run.endive.wasm.types.Value;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Store for GC-managed references keyed by auto-assigned integers.

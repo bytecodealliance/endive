@@ -29,12 +29,6 @@
       <version>@project.version@</version>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>wasm-corpus</artifactId>
-      <version>@project.version@</version>
-      <scope>test</scope>
-    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -46,6 +40,12 @@
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
       <version>@junit.version@</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>wasm-corpus</artifactId>
+      <version>@project.version@</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

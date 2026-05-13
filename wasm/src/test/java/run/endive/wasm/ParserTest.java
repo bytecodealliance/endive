@@ -7,13 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import run.endive.corpus.CorpusResources;
-import run.endive.wasm.types.ActiveDataSegment;
-import run.endive.wasm.types.CustomSection;
-import run.endive.wasm.types.ExternalType;
-import run.endive.wasm.types.OpCode;
-import run.endive.wasm.types.SectionId;
-import run.endive.wasm.types.ValType;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -25,6 +18,13 @@ import java.util.Locale;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import run.endive.corpus.CorpusResources;
+import run.endive.wasm.types.ActiveDataSegment;
+import run.endive.wasm.types.CustomSection;
+import run.endive.wasm.types.ExternalType;
+import run.endive.wasm.types.OpCode;
+import run.endive.wasm.types.SectionId;
+import run.endive.wasm.types.ValType;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ParserTest {

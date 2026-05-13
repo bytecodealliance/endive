@@ -2,10 +2,10 @@ package run.endive.simd;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import org.junit.jupiter.api.Test;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.Instance;
 import run.endive.wasm.Parser;
-import org.junit.jupiter.api.Test;
 
 public class BasicSimdTest {
 

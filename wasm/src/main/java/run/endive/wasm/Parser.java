@@ -1,5 +1,6 @@
 package run.endive.wasm;
 
+import static java.util.Objects.requireNonNull;
 import static run.endive.wasm.Encoding.readByte;
 import static run.endive.wasm.Encoding.readBytes;
 import static run.endive.wasm.Encoding.readFloat32;
@@ -10,8 +11,30 @@ import static run.endive.wasm.Encoding.readVarSInt64;
 import static run.endive.wasm.Encoding.readVarUInt32;
 import static run.endive.wasm.WasmLimits.MAX_FUNCTION_LOCALS;
 import static run.endive.wasm.types.Instruction.EMPTY_OPERANDS;
-import static java.util.Objects.requireNonNull;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.BitSet;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import run.endive.wasm.io.InputStreams;
 import run.endive.wasm.types.ActiveDataSegment;
 import run.endive.wasm.types.ActiveElement;
@@ -68,29 +91,6 @@ import run.endive.wasm.types.TypeSection;
 import run.endive.wasm.types.UnknownCustomSection;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 /**
  * Parser for Web Assembly binaries.

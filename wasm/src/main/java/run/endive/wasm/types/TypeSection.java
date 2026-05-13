@@ -1,10 +1,10 @@
 package run.endive.wasm.types;
 
-import run.endive.wasm.InvalidException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import run.endive.wasm.InvalidException;
 
 public final class TypeSection extends Section {
     private final List<RecType> types;

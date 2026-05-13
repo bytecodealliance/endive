@@ -2,14 +2,14 @@ package run.endive.runtime;
 
 import static run.endive.wasm.types.OpCode.GLOBAL_GET;
 
+import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.List;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.MalformedException;
 import run.endive.wasm.types.Instruction;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
-import java.util.ArrayDeque;
-import java.util.Arrays;
-import java.util.List;
 
 public final class ConstantEvaluators {
     private ConstantEvaluators() {}

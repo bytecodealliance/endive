@@ -1,8 +1,8 @@
 package run.endive.runtime;
 
-import run.endive.wasm.types.DataSegment;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import run.endive.wasm.types.DataSegment;
 
 public interface Memory {
 

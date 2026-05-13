@@ -1,5 +1,9 @@
 package run.endive.runtime.internal;
 
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 import run.endive.runtime.Instance;
 import run.endive.runtime.InterpreterMachine;
 import run.endive.runtime.MStack;
@@ -7,10 +11,6 @@ import run.endive.runtime.StackFrame;
 import run.endive.runtime.WasmException;
 import run.endive.wasm.ChicoryException;
 import run.endive.wasm.types.FunctionType;
-import java.util.Deque;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * This class is used by compiler generated classes. It MUST remain backwards compatible

@@ -2,14 +2,6 @@ package run.endive.tools.wasm;
 
 import static java.nio.file.Files.createDirectories;
 
-import run.endive.log.Logger;
-import run.endive.log.SystemLogger;
-import run.endive.runtime.ByteArrayMemory;
-import run.endive.runtime.ImportValues;
-import run.endive.runtime.Instance;
-import run.endive.wasi.WasiOptions;
-import run.endive.wasi.WasiPreview1;
-import run.endive.wasm.WasmModule;
 import io.roastedroot.zerofs.Configuration;
 import io.roastedroot.zerofs.ZeroFs;
 import java.io.File;
@@ -22,6 +14,14 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import run.endive.log.Logger;
+import run.endive.log.SystemLogger;
+import run.endive.runtime.ByteArrayMemory;
+import run.endive.runtime.ImportValues;
+import run.endive.runtime.Instance;
+import run.endive.wasi.WasiOptions;
+import run.endive.wasi.WasiPreview1;
+import run.endive.wasm.WasmModule;
 
 public final class Wast2Json {
     private static final Logger logger =

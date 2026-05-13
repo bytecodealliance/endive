@@ -1,10 +1,10 @@
 package run.endive.runtime;
 
+import java.util.ArrayList;
+import java.util.List;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.ValueType;
-import java.util.ArrayList;
-import java.util.List;
 
 public class ImportFunction implements ImportValue {
     private final String module;

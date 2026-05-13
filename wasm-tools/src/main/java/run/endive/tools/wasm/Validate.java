@@ -1,14 +1,5 @@
 package run.endive.tools.wasm;
 
-import run.endive.log.Logger;
-import run.endive.log.SystemLogger;
-import run.endive.runtime.ByteArrayMemory;
-import run.endive.runtime.ImportValues;
-import run.endive.runtime.Instance;
-import run.endive.wasi.WasiExitException;
-import run.endive.wasi.WasiOptions;
-import run.endive.wasi.WasiPreview1;
-import run.endive.wasm.WasmModule;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -18,6 +9,15 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import run.endive.log.Logger;
+import run.endive.log.SystemLogger;
+import run.endive.runtime.ByteArrayMemory;
+import run.endive.runtime.ImportValues;
+import run.endive.runtime.Instance;
+import run.endive.wasi.WasiExitException;
+import run.endive.wasi.WasiOptions;
+import run.endive.wasi.WasiPreview1;
+import run.endive.wasm.WasmModule;
 
 public final class Validate {
 

@@ -1,8 +1,5 @@
 package run.endive.build.time.maven;
 
-import run.endive.build.time.compiler.Config;
-import run.endive.build.time.compiler.Generator;
-import run.endive.compiler.InterpreterFallback;
 import java.io.File;
 import java.io.IOException;
 import java.util.Set;
@@ -14,6 +11,9 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import run.endive.build.time.compiler.Config;
+import run.endive.build.time.compiler.Generator;
+import run.endive.compiler.InterpreterFallback;
 
 /**
  * This plugin generates an invokable library from the compiled Wasm

@@ -1,9 +1,9 @@
 package run.endive.compiler.internal;
 
-import run.endive.wasm.types.OpCode;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Optional;
+import run.endive.wasm.types.OpCode;
 
 enum CompilerOpCode {
     LABEL,

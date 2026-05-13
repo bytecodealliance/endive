@@ -1,11 +1,5 @@
 package run.endive.testgen;
 
-import run.endive.testgen.wast.ActionType;
-import run.endive.testgen.wast.Command;
-import run.endive.testgen.wast.CommandType;
-import run.endive.testgen.wast.WasmValue;
-import run.endive.testgen.wast.WasmValueType;
-import run.endive.testgen.wast.Wast;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -28,6 +22,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import run.endive.testgen.wast.ActionType;
+import run.endive.testgen.wast.Command;
+import run.endive.testgen.wast.CommandType;
+import run.endive.testgen.wast.WasmValue;
+import run.endive.testgen.wast.WasmValueType;
+import run.endive.testgen.wast.Wast;
 
 public class JavaTestGen {
 

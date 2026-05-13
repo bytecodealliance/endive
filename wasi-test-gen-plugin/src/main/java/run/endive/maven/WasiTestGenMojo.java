@@ -1,11 +1,11 @@
 package run.endive.maven;
 
-import static run.endive.maven.StringUtils.capitalize;
-import static run.endive.maven.StringUtils.escapedCamelCase;
 import static com.github.javaparser.utils.StringEscapeUtils.escapeJava;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.apache.maven.plugins.annotations.LifecyclePhase.GENERATE_TEST_SOURCES;
+import static run.endive.maven.StringUtils.capitalize;
+import static run.endive.maven.StringUtils.escapedCamelCase;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.javaparser.ast.CompilationUnit;

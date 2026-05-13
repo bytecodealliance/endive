@@ -2,13 +2,13 @@ package chicory.test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.ByteArrayOutputStream;
+import org.junit.jupiter.api.Test;
 import run.endive.annotations.WasmModuleInterface;
 import run.endive.runtime.Instance;
 import run.endive.wasi.WasiOptions;
 import run.endive.wasi.WasiPreview1;
 import run.endive.wasm.Parser;
-import java.io.ByteArrayOutputStream;
-import org.junit.jupiter.api.Test;
 
 class CollidingExportsTest {
 

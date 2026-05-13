@@ -1,13 +1,13 @@
 package run.endive.experimental.compiler.cli;
 
-import run.endive.build.time.compiler.Config;
-import run.endive.build.time.compiler.Generator;
-import run.endive.compiler.InterpreterFallback;
-import run.endive.wasm.Version;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Set;
 import picocli.CommandLine;
+import run.endive.build.time.compiler.Config;
+import run.endive.build.time.compiler.Generator;
+import run.endive.compiler.InterpreterFallback;
+import run.endive.wasm.Version;
 
 @CommandLine.Command(
         name = "chicory-compiler",

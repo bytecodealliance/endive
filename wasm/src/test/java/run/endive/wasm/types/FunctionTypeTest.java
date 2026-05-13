@@ -1,10 +1,10 @@
 package run.endive.wasm.types;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static run.endive.wasm.types.ValType.F32;
 import static run.endive.wasm.types.ValType.I32;
 import static run.endive.wasm.types.ValType.I64;
 import static run.endive.wasm.types.ValType.V128;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;

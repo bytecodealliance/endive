@@ -1,10 +1,5 @@
 package run.endive.wasi;
 
-import static run.endive.wasi.Descriptors.DataReader;
-import static run.endive.wasi.Descriptors.DataWriter;
-import static run.endive.wasi.Descriptors.Descriptor;
-import static run.endive.wasi.Descriptors.OpenDirectory;
-import static run.endive.wasi.Descriptors.OpenFile;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -13,22 +8,12 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toList;
+import static run.endive.wasi.Descriptors.DataReader;
+import static run.endive.wasi.Descriptors.DataWriter;
+import static run.endive.wasi.Descriptors.Descriptor;
+import static run.endive.wasi.Descriptors.OpenDirectory;
+import static run.endive.wasi.Descriptors.OpenFile;
 
-import run.endive.annotations.Buffer;
-import run.endive.annotations.HostModule;
-import run.endive.annotations.WasmExport;
-import run.endive.log.BasicLogger;
-import run.endive.log.Logger;
-import run.endive.log.SystemLogger;
-import run.endive.runtime.ExecutionCompletedException;
-import run.endive.runtime.HostFunction;
-import run.endive.runtime.Memory;
-import run.endive.runtime.WasmRuntimeException;
-import run.endive.wasi.Descriptors.Directory;
-import run.endive.wasi.Descriptors.InStream;
-import run.endive.wasi.Descriptors.OutStream;
-import run.endive.wasi.Descriptors.PreopenedDirectory;
-import run.endive.wasm.ChicoryException;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -65,6 +50,21 @@ import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Stream;
+import run.endive.annotations.Buffer;
+import run.endive.annotations.HostModule;
+import run.endive.annotations.WasmExport;
+import run.endive.log.BasicLogger;
+import run.endive.log.Logger;
+import run.endive.log.SystemLogger;
+import run.endive.runtime.ExecutionCompletedException;
+import run.endive.runtime.HostFunction;
+import run.endive.runtime.Memory;
+import run.endive.runtime.WasmRuntimeException;
+import run.endive.wasi.Descriptors.Directory;
+import run.endive.wasi.Descriptors.InStream;
+import run.endive.wasi.Descriptors.OutStream;
+import run.endive.wasi.Descriptors.PreopenedDirectory;
+import run.endive.wasm.ChicoryException;
 
 /**
  * <a href="https://github.com/WebAssembly/WASI/blob/v0.2.1/legacy/preview1/docs.md">WASI preview 1</a> implementation

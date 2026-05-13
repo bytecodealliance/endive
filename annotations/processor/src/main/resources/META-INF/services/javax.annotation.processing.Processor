@@ -1,2 +1,2 @@
-com.dylibso.chicory.annotations.processor.HostModuleProcessor
-com.dylibso.chicory.annotations.processor.WasmModuleProcessor
+run.endive.annotations.processor.HostModuleProcessor
+run.endive.annotations.processor.WasmModuleProcessor

@@ -3,6 +3,10 @@ package run.endive.compiler.internal;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.IntFunction;
+import java.util.stream.Collectors;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionBody;
@@ -10,10 +14,6 @@ import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.TagImport;
 import run.endive.wasm.types.TypeSection;
 import run.endive.wasm.types.ValType;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.IntFunction;
-import java.util.stream.Collectors;
 
 /**
  * Class for tracking context relevant to compiling a single function

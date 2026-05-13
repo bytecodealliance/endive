@@ -1,11 +1,11 @@
 package run.endive.runtime;
 
-import run.endive.wasm.WasmModule;
-import run.endive.wasm.types.Export;
-import run.endive.wasm.types.ExportSection;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.function.Function;
+import run.endive.wasm.WasmModule;
+import run.endive.wasm.types.Export;
+import run.endive.wasm.types.ExportSection;
 
 /**
  * The runtime storage for all function, global, memory, table instances.

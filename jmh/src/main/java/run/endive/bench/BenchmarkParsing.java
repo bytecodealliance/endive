@@ -1,6 +1,5 @@
 package run.endive.bench;
 
-import run.endive.wasm.Parser;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -17,6 +16,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
+import run.endive.wasm.Parser;
 
 @State(Scope.Benchmark)
 @Warmup(iterations = 2)

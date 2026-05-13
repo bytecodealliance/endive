@@ -2,6 +2,12 @@ package run.endive.wasm;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import run.endive.wasm.types.CodeSection;
 import run.endive.wasm.types.CustomSection;
 import run.endive.wasm.types.DataCountSection;
@@ -17,12 +23,6 @@ import run.endive.wasm.types.StartSection;
 import run.endive.wasm.types.TableSection;
 import run.endive.wasm.types.TagSection;
 import run.endive.wasm.types.TypeSection;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 
 public final class WasmModule {
     private final Map<String, CustomSection> customSections;

@@ -1,23 +1,23 @@
-final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
+final class run/endive/$gen/CompiledMachineFuncGroup_0 {
 
-  public static func_0(ILcom/dylibso/chicory/runtime/Memory;Lcom/dylibso/chicory/runtime/Instance;)I
-    TRYCATCHBLOCK L0 L1 L2 com/dylibso/chicory/runtime/WasmException
-    TRYCATCHBLOCK L3 L4 L2 com/dylibso/chicory/runtime/WasmException
-    TRYCATCHBLOCK L5 L6 L2 com/dylibso/chicory/runtime/WasmException
-    TRYCATCHBLOCK L0 L1 L7 com/dylibso/chicory/runtime/WasmException
-    TRYCATCHBLOCK L3 L4 L7 com/dylibso/chicory/runtime/WasmException
-    TRYCATCHBLOCK L5 L6 L7 com/dylibso/chicory/runtime/WasmException
-    TRYCATCHBLOCK L2 L8 L7 com/dylibso/chicory/runtime/WasmException
-    TRYCATCHBLOCK L9 L10 L7 com/dylibso/chicory/runtime/WasmException
+  public static func_0(ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    TRYCATCHBLOCK L0 L1 L2 run/endive/runtime/WasmException
+    TRYCATCHBLOCK L3 L4 L2 run/endive/runtime/WasmException
+    TRYCATCHBLOCK L5 L6 L2 run/endive/runtime/WasmException
+    TRYCATCHBLOCK L0 L1 L7 run/endive/runtime/WasmException
+    TRYCATCHBLOCK L3 L4 L7 run/endive/runtime/WasmException
+    TRYCATCHBLOCK L5 L6 L7 run/endive/runtime/WasmException
+    TRYCATCHBLOCK L2 L8 L7 run/endive/runtime/WasmException
+    TRYCATCHBLOCK L9 L10 L7 run/endive/runtime/WasmException
    L0
     ILOAD 0
-    INVOKESTATIC com/dylibso/chicory/runtime/OpcodeImpl.I32_EQZ (I)I
+    INVOKESTATIC run/endive/runtime/OpcodeImpl.I32_EQZ (I)I
     IFEQ L3
     ICONST_0
     NEWARRAY T_LONG
     ICONST_0
     ALOAD 2
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineShaded.createWasmException ([JILcom/dylibso/chicory/runtime/Instance;)Lcom/dylibso/chicory/runtime/WasmException;
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.createWasmException ([JILrun/endive/runtime/Instance;)Lrun/endive/runtime/WasmException;
     ATHROW
    L1
     NOP
@@ -26,13 +26,13 @@ final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
    L3
     ILOAD 0
     ICONST_1
-    INVOKESTATIC com/dylibso/chicory/runtime/OpcodeImpl.I32_EQ (II)I
+    INVOKESTATIC run/endive/runtime/OpcodeImpl.I32_EQ (II)I
     IFEQ L5
     ICONST_0
     NEWARRAY T_LONG
     ICONST_1
     ALOAD 2
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineShaded.createWasmException ([JILcom/dylibso/chicory/runtime/Instance;)Lcom/dylibso/chicory/runtime/WasmException;
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.createWasmException ([JILrun/endive/runtime/Instance;)Lrun/endive/runtime/WasmException;
     ATHROW
    L4
     NOP
@@ -43,7 +43,7 @@ final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
     NEWARRAY T_LONG
     ICONST_2
     ALOAD 2
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineShaded.createWasmException ([JILcom/dylibso/chicory/runtime/Instance;)Lcom/dylibso/chicory/runtime/WasmException;
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.createWasmException ([JILrun/endive/runtime/Instance;)Lrun/endive/runtime/WasmException;
     ATHROW
    L6
     ATHROW
@@ -56,7 +56,7 @@ final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
     ALOAD 3
     ICONST_0
     ALOAD 2
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineShaded.exceptionMatches (Lcom/dylibso/chicory/runtime/WasmException;ILcom/dylibso/chicory/runtime/Instance;)Z
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.exceptionMatches (Lrun/endive/runtime/WasmException;ILrun/endive/runtime/Instance;)Z
     IFEQ L12
     GOTO L9
    L12
@@ -75,7 +75,7 @@ final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
     ALOAD 3
     ICONST_1
     ALOAD 2
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineShaded.exceptionMatches (Lcom/dylibso/chicory/runtime/WasmException;ILcom/dylibso/chicory/runtime/Instance;)Z
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.exceptionMatches (Lrun/endive/runtime/WasmException;ILrun/endive/runtime/Instance;)Z
     IFEQ L14
     GOTO L15
    L14
@@ -87,14 +87,14 @@ final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
     ICONST_4
     IRETURN
 
-  public static call_0(Lcom/dylibso/chicory/runtime/Instance;Lcom/dylibso/chicory/runtime/Memory;[J)[J
+  public static call_0(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
     ALOAD 2
     ICONST_0
     LALOAD
     L2I
     ALOAD 1
     ALOAD 0
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0.func_0 (ILcom/dylibso/chicory/runtime/Memory;Lcom/dylibso/chicory/runtime/Instance;)I
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_0 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
     LSTORE 3
     ICONST_1
@@ -105,29 +105,29 @@ final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
     LASTORE
     ARETURN
 
-  public static func_1(ILcom/dylibso/chicory/runtime/Memory;Lcom/dylibso/chicory/runtime/Instance;)I
+  public static func_1(ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     ILOAD 0
     ICONST_0
-    INVOKESTATIC com/dylibso/chicory/runtime/OpcodeImpl.I32_NE (II)I
+    INVOKESTATIC run/endive/runtime/OpcodeImpl.I32_NE (II)I
     IFEQ L0
     ICONST_0
     NEWARRAY T_LONG
     ICONST_0
     ALOAD 2
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineShaded.createWasmException ([JILcom/dylibso/chicory/runtime/Instance;)Lcom/dylibso/chicory/runtime/WasmException;
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.createWasmException ([JILrun/endive/runtime/Instance;)Lrun/endive/runtime/WasmException;
     ATHROW
    L0
     ICONST_0
     IRETURN
 
-  public static call_1(Lcom/dylibso/chicory/runtime/Instance;Lcom/dylibso/chicory/runtime/Memory;[J)[J
+  public static call_1(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
     ALOAD 2
     ICONST_0
     LALOAD
     L2I
     ALOAD 1
     ALOAD 0
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0.func_1 (ILcom/dylibso/chicory/runtime/Memory;Lcom/dylibso/chicory/runtime/Instance;)I
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_1 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
     LSTORE 3
     ICONST_1
@@ -138,15 +138,15 @@ final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
     LASTORE
     ARETURN
 
-  public static func_2(ILcom/dylibso/chicory/runtime/Memory;Lcom/dylibso/chicory/runtime/Instance;)I
-    TRYCATCHBLOCK L0 L1 L2 com/dylibso/chicory/runtime/WasmException
-    TRYCATCHBLOCK L0 L3 L4 com/dylibso/chicory/runtime/WasmException
+  public static func_2(ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    TRYCATCHBLOCK L0 L1 L2 run/endive/runtime/WasmException
+    TRYCATCHBLOCK L0 L3 L4 run/endive/runtime/WasmException
    L0
     ILOAD 0
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineShaded.checkInterruption ()V
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.checkInterruption ()V
     ALOAD 1
     ALOAD 2
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0.func_1 (ILcom/dylibso/chicory/runtime/Memory;Lcom/dylibso/chicory/runtime/Instance;)I
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_1 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
    L1
     GOTO L3
    L2
@@ -160,7 +160,7 @@ final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
     ALOAD 3
     ICONST_0
     ALOAD 2
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineShaded.exceptionMatches (Lcom/dylibso/chicory/runtime/WasmException;ILcom/dylibso/chicory/runtime/Instance;)Z
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.exceptionMatches (Lrun/endive/runtime/WasmException;ILrun/endive/runtime/Instance;)Z
     IFEQ L6
     GOTO L7
    L6
@@ -172,14 +172,14 @@ final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
     ICONST_1
     IRETURN
 
-  public static call_2(Lcom/dylibso/chicory/runtime/Instance;Lcom/dylibso/chicory/runtime/Memory;[J)[J
+  public static call_2(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
     ALOAD 2
     ICONST_0
     LALOAD
     L2I
     ALOAD 1
     ALOAD 0
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0.func_2 (ILcom/dylibso/chicory/runtime/Memory;Lcom/dylibso/chicory/runtime/Instance;)I
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_2 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
     LSTORE 3
     ICONST_1

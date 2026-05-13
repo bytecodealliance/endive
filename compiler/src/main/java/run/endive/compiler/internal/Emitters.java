@@ -1,5 +1,13 @@
 package run.endive.compiler.internal;
 
+import static java.lang.Double.longBitsToDouble;
+import static java.lang.Float.intBitsToFloat;
+import static org.objectweb.asm.Type.INT_TYPE;
+import static org.objectweb.asm.Type.LONG_TYPE;
+import static org.objectweb.asm.Type.getInternalName;
+import static org.objectweb.asm.Type.getMethodDescriptor;
+import static org.objectweb.asm.Type.getType;
+import static org.objectweb.asm.commons.InstructionAdapter.OBJECT_TYPE;
 import static run.endive.compiler.internal.CompilerUtil.asmType;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodName;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodType;
@@ -17,20 +25,7 @@ import static run.endive.compiler.internal.CompilerUtil.valueMethodName;
 import static run.endive.compiler.internal.CompilerUtil.valueMethodType;
 import static run.endive.compiler.internal.ShadedRefs.EXCEPTION_MATCHES;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
-import static java.lang.Double.longBitsToDouble;
-import static java.lang.Float.intBitsToFloat;
-import static org.objectweb.asm.Type.INT_TYPE;
-import static org.objectweb.asm.Type.LONG_TYPE;
-import static org.objectweb.asm.Type.getInternalName;
-import static org.objectweb.asm.Type.getMethodDescriptor;
-import static org.objectweb.asm.Type.getType;
-import static org.objectweb.asm.commons.InstructionAdapter.OBJECT_TYPE;
 
-import run.endive.runtime.Instance;
-import run.endive.runtime.OpCodeIdentifier;
-import run.endive.runtime.WasmException;
-import run.endive.wasm.types.FunctionType;
-import run.endive.wasm.types.ValType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.EnumMap;
@@ -40,6 +35,11 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.InstructionAdapter;
+import run.endive.runtime.Instance;
+import run.endive.runtime.OpCodeIdentifier;
+import run.endive.runtime.WasmException;
+import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.ValType;
 
 final class Emitters {
 

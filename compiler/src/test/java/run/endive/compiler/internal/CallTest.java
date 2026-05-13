@@ -2,11 +2,11 @@ package run.endive.compiler.internal;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
+import org.junit.jupiter.api.Test;
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.Instance;
 import run.endive.wasm.Parser;
-import org.junit.jupiter.api.Test;
 
 public class CallTest {
 

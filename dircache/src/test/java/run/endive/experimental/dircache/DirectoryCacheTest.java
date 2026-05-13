@@ -4,10 +4,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import run.endive.compiler.Cache;
-import run.endive.compiler.MachineFactoryCompiler;
-import run.endive.runtime.Instance;
-import run.endive.wasm.Parser;
 import io.roastedroot.zerofs.Configuration;
 import io.roastedroot.zerofs.ZeroFs;
 import java.io.IOException;
@@ -20,6 +16,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import run.endive.compiler.Cache;
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.runtime.Instance;
+import run.endive.wasm.Parser;
 
 public class DirectoryCacheTest {
 

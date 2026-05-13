@@ -1,14 +1,14 @@
-private final Lcom/dylibso/chicory/runtime/Instance; instance
+private final Lrun/endive/runtime/Instance; instance
 
-  private final Lcom/dylibso/chicory/runtime/internal/CompilerInterpreterMachine; compilerInterpreterMachine
+  private final Lrun/endive/runtime/internal/CompilerInterpreterMachine; compilerInterpreterMachine
 }
 
   private final static Z memCopyWorkaround
 }
 
-final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
+final class run/endive/$gen/CompiledMachineFuncGroup_0 {
 
-  public static func_2(ILcom/dylibso/chicory/runtime/Memory;Lcom/dylibso/chicory/runtime/Instance;)I
+  public static func_2(ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     ICONST_1
     NEWARRAY T_LONG
     DUP
@@ -18,7 +18,7 @@ final class com/dylibso/chicory/$gen/CompiledMachineFuncGroup_0 {
     LASTORE
     ICONST_2
     ALOAD 2
-    INVOKESTATIC com/dylibso/chicory/$gen/CompiledMachineShaded.callIndirect ([JILcom/dylibso/chicory/runtime/Instance;)[J
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirect ([JILrun/endive/runtime/Instance;)[J
     ICONST_0
     LALOAD
     L2I

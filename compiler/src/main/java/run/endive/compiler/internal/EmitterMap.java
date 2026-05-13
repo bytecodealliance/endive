@@ -1,7 +1,7 @@
 package run.endive.compiler.internal;
 
-import run.endive.runtime.OpcodeImpl;
 import java.util.Map;
+import run.endive.runtime.OpcodeImpl;
 
 final class EmitterMap {
 

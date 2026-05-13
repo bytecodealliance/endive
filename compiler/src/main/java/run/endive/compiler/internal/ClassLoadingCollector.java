@@ -3,9 +3,6 @@ package run.endive.compiler.internal;
 import static java.lang.invoke.MethodHandleProxies.asInterfaceInstance;
 import static java.lang.invoke.MethodHandles.publicLookup;
 
-import run.endive.runtime.Instance;
-import run.endive.runtime.Machine;
-import run.endive.wasm.ChicoryException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
@@ -15,6 +12,9 @@ import java.util.Objects;
 import java.util.function.Function;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.util.CheckClassAdapter;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Machine;
+import run.endive.wasm.ChicoryException;
 
 /**
  * A {@link ClassCollector} that stores the classes in an ordered map.

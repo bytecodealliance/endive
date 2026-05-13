@@ -1,16 +1,5 @@
 package run.endive.bench;
 
-import run.endive.compiler.MachineFactoryCompiler;
-import run.endive.runtime.ByteArrayMemory;
-import run.endive.runtime.ByteBufferMemory;
-import run.endive.runtime.ExportFunction;
-import run.endive.runtime.ImportMemory;
-import run.endive.runtime.ImportValues;
-import run.endive.runtime.Instance;
-import run.endive.runtime.Memory;
-import run.endive.wasm.Parser;
-import run.endive.wasm.WasmModule;
-import run.endive.wasm.types.MemoryLimits;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +18,17 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.runtime.ByteArrayMemory;
+import run.endive.runtime.ByteBufferMemory;
+import run.endive.runtime.ExportFunction;
+import run.endive.runtime.ImportMemory;
+import run.endive.runtime.ImportValues;
+import run.endive.runtime.Instance;
+import run.endive.runtime.Memory;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
+import run.endive.wasm.types.MemoryLimits;
 
 @State(Scope.Benchmark)
 @Warmup(iterations = 2)

@@ -2,10 +2,10 @@ package chicory.test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import org.junit.jupiter.api.Test;
 import run.endive.annotations.WasmModuleInterface;
 import run.endive.runtime.Instance;
 import run.endive.wasm.Parser;
-import org.junit.jupiter.api.Test;
 
 class ExternRefExampleTest {
 

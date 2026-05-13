@@ -5,10 +5,6 @@ import static java.lang.String.format;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.NOTE;
 
-import run.endive.annotations.Buffer;
-import run.endive.annotations.CString;
-import run.endive.annotations.HostModule;
-import run.endive.annotations.WasmExport;
 import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.NodeList;
@@ -43,6 +39,10 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
+import run.endive.annotations.Buffer;
+import run.endive.annotations.CString;
+import run.endive.annotations.HostModule;
+import run.endive.annotations.WasmExport;
 
 public final class HostModuleProcessor extends AbstractModuleProcessor {
 

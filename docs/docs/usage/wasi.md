@@ -81,12 +81,12 @@ store.instantiate("hello-wasi", Parser.parse(new File("hello-wasi.wasm")));
 ```
 
 > **Note**: Notice that we don't explicitly execute the module. The module will run when you instantiate it. This
-> is part of the WASI spec. A WASI module will implicitly call [`_start`](https://webassembly.github.io/spec/core/syntax/modules.html#start-function). To learn more [read this blog post](https://dylibso.com/blog/wasi-command-reactor/).
+> is part of the WASI spec. A WASI module will implicitly call [`_start`](https://webassembly.github.io/spec/core/syntax/modules.html#start-function). To learn more [read this blog post](https://endive.run/historical-blog/wasi-command-reactor).
 
 ### stdin, stdout, and stderr
 
 To start with, you want to orchestrate stdin, stdout, and stderr of the module.
-Often, this is the way you communicate with basic WASI-enabled modules by way of the [command pattern](https://dylibso.com/blog/wasi-command-reactor/).
+Often, this is the way you communicate with basic WASI-enabled modules by way of the [command pattern](https://endive.run/historical-blog/wasi-command-reactor).
 In order to make it easy to manipulate these streams, we expose stdin as an [InputStream](https://docs.oracle.com/javase/8/docs/api/java/io/InputStream.html)
 and stdout/stderr as an [OutputStream](https://docs.oracle.com/javase/8/docs/api/java/io/OutputStream.html).
 

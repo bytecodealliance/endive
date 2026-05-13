@@ -15,8 +15,8 @@ public class SingleReproTest extends TestModule {
     private static final String CHICORY_FUZZ_TYPES_KEY = "CHICORY_FUZZ_TYPES";
 
     private final WasmSmithWrapper smith = new WasmSmithWrapper();
-    private final WasmRunner interpreterRunner = new ChicoryRunner();
-    private final WasmRunner compilerRunner = new ChicoryRunner(MachineFactoryCompiler::compile);
+    private final WasmRunner interpreterRunner = new DefaultRunner();
+    private final WasmRunner compilerRunner = new DefaultRunner(MachineFactoryCompiler::compile);
 
     boolean enableSingleReproducer() {
         return System.getenv(CHICORY_FUZZ_SEED_KEY) != null

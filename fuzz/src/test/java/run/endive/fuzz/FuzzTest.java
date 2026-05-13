@@ -21,8 +21,8 @@ public class FuzzTest extends TestModule {
     private static final int ITERATIONS = Integer.getInteger("fuzz.test.iterations", 10);
 
     private final WasmSmithWrapper smith = new WasmSmithWrapper();
-    private final WasmRunner interpreterRunner = new ChicoryRunner();
-    private final WasmRunner compilerRunner = new ChicoryRunner(MachineFactoryCompiler::compile);
+    private final WasmRunner interpreterRunner = new DefaultRunner();
+    private final WasmRunner compilerRunner = new DefaultRunner(MachineFactoryCompiler::compile);
 
     @AfterEach
     void tearDown() {
@@ -104,15 +104,15 @@ public class FuzzTest extends TestModule {
                             true);
 
             for (var res : results) {
-                if (res.getChicoryResult() == null) {
+                if (res.getEngineResult() == null) {
                     // Compiler crashed — reproducer already saved by testModule
                     failures.add("compiler crash (subject returned null)");
-                } else if (!res.getOracleResult().equals(res.getChicoryResult())) {
+                } else if (!res.getOracleResult().equals(res.getEngineResult())) {
                     failures.add(
                             "mismatch: oracle="
                                     + res.getOracleResult()
                                     + " subject="
-                                    + res.getChicoryResult());
+                                    + res.getEngineResult());
                 }
             }
         }

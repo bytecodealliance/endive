@@ -3,18 +3,18 @@ package run.endive.fuzz;
 public class TestResult {
 
     private String oracleResult;
-    private String endiveResult;
+    private String engineResult;
 
-    public TestResult(String oracleResult, String endiveResult) {
+    public TestResult(String oracleResult, String engineResult) {
         this.oracleResult = oracleResult;
-        this.endiveResult = endiveResult;
+        this.engineResult = engineResult;
     }
 
     public String getOracleResult() {
         return oracleResult;
     }
 
-    public String getChicoryResult() {
-        return endiveResult;
+    public String getEngineResult() {
+        return engineResult;
     }
 }

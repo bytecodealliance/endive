@@ -19,7 +19,7 @@ But first, read this page (including the small print at the end).
 
 ## Coding Philosophy
 
-Writing a runtime is a big challenge. We want Chicory to always be a solid foundation
+Writing a runtime is a big challenge. We want Endive to always be a solid foundation
 for running Wasm in Java. In order to accomplish this, it's going to take a large team
 of diverse contributors. That's why our goal up front is to aim for writing
 simple code that's easy to understand and is as backwards compatible as possible.
@@ -92,7 +92,7 @@ Our priority is to focus on implementing [proposals](https://github.com/WebAssem
 
 ### Continuous Integration
 
-Because we are all humans, and to ensure Chicory evolves in the right direction, all changes must pass continuous integration before being merged. The CI is based on GitHub Actions, which means that pull requests will receive automatic feedback.  Please watch out for the results of these workflows to see if your PR passes all tests.
+Because we are all humans, and to ensure Endive evolves in the right direction, all changes must pass continuous integration before being merged. The CI is based on GitHub Actions, which means that pull requests will receive automatic feedback.  Please watch out for the results of these workflows to see if your PR passes all tests.
 
 ### IntelliJ default limits
 
@@ -125,7 +125,7 @@ If you believe you found a bug, and it's likely possible, please indicate a way 
 
 ## Legal
 
-All original contributions to Chicory projects are licensed under the
+All original contributions to Endive projects are licensed under the
 [ASL - Apache License](https://www.apache.org/licenses/LICENSE-2.0),
 version 2.0 or later, or, if another license is specified as governing the file or directory being
 modified, such other license.

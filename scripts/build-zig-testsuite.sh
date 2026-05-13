@@ -20,7 +20,7 @@ if [ ! -d "$ZIG_INSTALL" ]; then
     mkdir -p ${ZIG_INSTALL}
 
     ARCHIVE=zig-linux-x86_64-${ZIG_VERSION}.tar.xz
-    curl -sSL "${ZIG_MIRROR}/${ARCHIVE}?source=github-chicory-nightly" -o "${ARCHIVE}"
+    curl -sSL "${ZIG_MIRROR}/${ARCHIVE}?source=github-endive-nightly" -o "${ARCHIVE}"
     echo "473ec26806133cf4d1918caf1a410f8403a13d979726a9045b421b685031a982 ${ARCHIVE}" | sha256sum -c -
     tar -xJ --strip-components=1 -C "${ZIG_INSTALL}" -f "${ARCHIVE}"
 fi
@@ -30,7 +30,7 @@ if [ ! -d "$ZIG_SOURCE" ]; then
     mkdir -p ${ZIG_SOURCE}
 
     ARCHIVE=zig-${ZIG_VERSION}.tar.xz
-    curl -sSL "${ZIG_MIRROR}/${ARCHIVE}?source=github-chicory-nightly" -o "${ARCHIVE}"
+    curl -sSL "${ZIG_MIRROR}/${ARCHIVE}?source=github-endive-nightly" -o "${ARCHIVE}"
     echo "c76638c03eb204c4432ae092f6fa07c208567e110fbd4d862d131a7332584046 ${ARCHIVE}" | sha256sum -c -
     tar -xJ --strip-components=1 -C "${ZIG_SOURCE}" -f "${ARCHIVE}"
 fi

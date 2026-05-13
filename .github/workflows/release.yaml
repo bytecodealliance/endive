@@ -47,8 +47,8 @@ jobs:
 
       - name: Setup Git
         run: |
-          git config user.name "Chicory BOT"
-          git config user.email "chicory@dylibso.com"
+          git config user.name "Endive BOT"
+          git config user.email "endive@bytecodealliance.org"
 
       - name: Set the version
         run: |

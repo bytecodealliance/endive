@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 
-CONTAINER_IMAGE="docker.io/andreatp/chicory-compilation-support"
+CONTAINER_IMAGE="docker.io/andreatp/endive-compilation-support"
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 declare -a arr=("wasm" "runtime" "wasi")

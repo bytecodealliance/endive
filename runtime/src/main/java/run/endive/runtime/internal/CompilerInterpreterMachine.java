@@ -49,7 +49,7 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
             throws WasmEngineException {
         if (usedInterpretedFunctions != null && !usedInterpretedFunctions.contains(funcId)) {
             usedInterpretedFunctions.add(funcId);
-            System.err.println("Chicory: calling interpreted function " + funcId);
+            System.err.println("Endive: calling interpreted function " + funcId);
         }
         return super.call(stack, instance, callStack, funcId, args, callType, popResults);
     }

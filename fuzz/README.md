@@ -1,6 +1,6 @@
 # fuzz
 
-Differential fuzz testing module — compares Chicory's interpreter against its compiler using randomly generated WebAssembly modules.
+Differential fuzz testing module — compares Endive's interpreter against its compiler using randomly generated WebAssembly modules.
 
 ## How it works
 
@@ -8,7 +8,7 @@ Differential fuzz testing module — compares Chicory's interpreter against its 
 2. Each module's exported functions are called with random parameters through both the **interpreter** (oracle) and the **compiler** (subject)
 3. Results are compared — any difference is a bug
 
-No external tools are required. Everything runs in-process using Chicory itself.
+No external tools are required. Everything runs in-process using Endive itself.
 
 ## Running
 

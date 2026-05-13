@@ -17,7 +17,7 @@
 [![Compiler Test Results](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-compiler.svg)](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-compiler.svg)
 [![WASI Test Results](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-wasi.svg)](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-wasi.svg)
 
-[![Zulip](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://chicory.zulipchat.com/join/g4gqsxoys6orfxlrk6hn4cyp/)
+[![Zulip](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://bytecodealliance.zulipchat.com/#narrow/stream/endive)
 
 Endive is a JVM native WebAssembly runtime. It allows you to run WebAssembly programs with
 zero native dependencies or JNI. Endive can run Wasm anywhere that the JVM can go. It is designed with
@@ -27,7 +27,7 @@ Endive is a fork of [Chicory](https://github.com/dylibso/chicory) by Dylibso, In
 We thank Dylibso for the incubation period and their foundational work on this project.
 
 > *Reach out to us*: let us know what you are building with Endive.
-> [Join our Zulip chat with this invite link](https://chicory.zulipchat.com/join/g4gqsxoys6orfxlrk6hn4cyp/).
+> [Join our Zulip chat with this invite link](https://bytecodealliance.zulipchat.com/#narrow/stream/endive).
 
 Get started now with the [official documentation](https://endive.run/docs/)
 

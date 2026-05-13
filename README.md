@@ -1,16 +1,17 @@
-# Chicory
+# Endive
 
 <p align="center">
   <picture>
-    <img width="200" src="chicory1.png">
+    <img width="200" src="endive.png">
   </picture>
   <br>
-  <a href="https://chicory.dev/">Website</a> |
-  <a href="https://chicory.dev/docs/#getting-started">Getting started</a> |
-  <a href="https://chicory.dev/blog">Blog</a> |
+  <strong>A <a href="https://bytecodealliance.org/">Bytecode Alliance</a> hosted project</strong>
+  <br><br>
+  <a href="https://endive.run/">Website</a> |
+  <a href="https://endive.run/docs/#getting-started">Getting started</a> |
+  <a href="https://endive.run/blog">Blog</a> |
   <a href="/CONTRIBUTING.md">Contributing</a>
 </p>
-
 
 [![Interpreter Test Results](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-interpreter.svg)](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-interpreter.svg)
 [![Compiler Test Results](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-compiler.svg)](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-compiler.svg)
@@ -18,14 +19,17 @@
 
 [![Zulip](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://chicory.zulipchat.com/join/g4gqsxoys6orfxlrk6hn4cyp/)
 
-Chicory is a JVM native WebAssembly runtime. It allows you to run WebAssembly programs with
-zero native dependencies or JNI. Chicory can run Wasm anywhere that the JVM can go. It is designed with
+Endive is a JVM native WebAssembly runtime. It allows you to run WebAssembly programs with
+zero native dependencies or JNI. Endive can run Wasm anywhere that the JVM can go. It is designed with
 simplicity and safety in mind.
 
-> *Reach out to us*: let us know what you are building with Chicory.
-> [Join our team Zulip chat with this invite link](https://chicory.zulipchat.com/join/g4gqsxoys6orfxlrk6hn4cyp/).
+Endive is a fork of [Chicory](https://github.com/dylibso/chicory) by Dylibso, Inc.
+We thank Dylibso for the incubation period and their foundational work on this project.
 
-Get started now with the [official documentation](https://chicory.dev/docs/)
+> *Reach out to us*: let us know what you are building with Endive.
+> [Join our Zulip chat with this invite link](https://chicory.zulipchat.com/join/g4gqsxoys6orfxlrk6hn4cyp/).
+
+Get started now with the [official documentation](https://endive.run/docs/)
 
 ## Why?
 
@@ -43,65 +47,46 @@ architecture and operating system. This matrix can become quite large. This elim
 
 ### 2. Runtime
 
-At runtime, you must use FFI to execute the module. While there might be performance benefits to doing this for some modules,
-when you do, you're effectively escaping the safety and observability of the JVM. Having a pure JVM runtime means all your
+At runtime, you must use FFI to execute the module. When you do, you're effectively escaping the safety and observability of the JVM. Having a pure JVM runtime means all your
 security and memory guarantees, and your tools, can stay in place.
 
 ## Goals
 
+* Be the default runtime for Wasm on the JVM
 * Be as safe as possible
-  * In that we are willing to sacrifice things like performance for safety and simplicity
-* Make it easy to run Wasm in any JVM environment without native code, including very restrictive environments.
+* Make it easy to run Wasm in any JVM environment without native code, including very restrictive environments
 * Fully support the core Wasm spec
-* Make integration with Java (and other host languages) easy and idiomatic.
-
-## Non-Goals:
-
-* Be a standalone runtime
-* Be the fastest runtime
-* Be the right choice for every JVM project
+* Make integration with Java (and other host languages) easy and idiomatic
 
 ## Roadmap
 
-Chicory development was started in September 2023. The following are the milestones we're aiming for. These
-are subject to change but represent our best guesses with current information. These are not necessarily sequential
-and some may be happening in parallel. Unless specified, any unchecked box is still not planned or started.
+Endive development builds on years of work started in September 2023 as Chicory.
 If you have an interest in working on any of these please reach out in Zulip!
 
-### 2023
+### Completed
 
 * [x] Wasm binary parser
 * [x] Simple bytecode interpreter
-* [x] Establish basic coding and testing patterns
 * [x] Generate JUnit tests from wasm test suite
-
-### 2024
-
-* [x] Make all tests green with the interpreter (important for correctness)
-* [x] Implement validation logic (important for safety)
-* [x] Draft of the v1.0 API (important for stability and dx)
-* [x] Decouple interpreter and create separate compiler and interpreter "engines"
-* [x] Proof of concept AOT compiler (run some subset of modules)
-* [x] AOT engine passes all the same specs as interpreter (stretch goal)
+* [x] All tests green with the interpreter (correctness)
+* [x] Validation logic (safety)
+* [x] v1.0 API (stability and dx)
+* [x] Decoupled interpreter and compiler "engines"
+* [x] AOT compiler passes all the same specs as interpreter
 * [x] WASIp1 Support (including test gen)
-  * [Read more details in the documentation](https://chicory.dev/docs/usage/wasi/)
-
-### 2025
-
 * [x] SIMD Support
-  * in the interpreter
-* [x] Tail Call
-  * in the interpreter(and compiler**)
+* [x] Tail Call (interpreter and compiler)
 * [x] Compiler out of experimental
 * [x] Exception Handling
 * [x] Threads Support
 * [x] Extended Constant Expressions
-
-### 2026
-
 * [x] GC support
 * [x] Multi-Memory Support
+
+### Ongoing
+
 * [ ] Performance
+* [ ] WASIp2 Support
 
 ## On the press
 
@@ -127,7 +112,7 @@ If you have an interest in working on any of these please reach out in Zulip!
 * [kwasm](https://github.com/jasonwyatt/KWasm)
 * [wazero](https://wazero.io/)
 
-## Who uses Chicory?
+## Who uses Endive?
 
 * [sqlite4j - Pure Java SQLite JDBC driver](https://github.com/roastedroot/sqlite4j)
 * [pglite4j - Embedded PostgreSQL 17 in pure Java](https://github.com/roastedroot/pglite4j)
@@ -150,5 +135,5 @@ If you have an interest in working on any of these please reach out in Zulip!
 
 ## Meet the Team
 
-📅 Chicory Office Hours, every Tuesdays, 16:00–16:30 UTC (09:00–09:30 PT · 12:00–12:30 ET · 18:00–18:30 CET).
-The link will be shared in the Zulip chat each week. Let’s talk Chicory!
+Endive Office Hours, every Tuesdays, 16:00-16:30 UTC (09:00-09:30 PT / 12:00-12:30 ET / 18:00-18:30 CET).
+The link will be shared in the Zulip chat each week.

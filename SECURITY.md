@@ -1,9 +1,13 @@
-# Reporting Security Issues
+# Security Policy
 
-The Endive team and community take security bugs seriously. We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
+Please refer to the [Bytecode Alliance security policy](https://bytecodealliance.org/security) for details on our disclosure policy and how to receive notifications about security issues.
 
-To report a security issue, please use the GitHub Security Advisory ["Report a Vulnerability"](https://github.com/bytecodealliance/endive/security/advisories/new) tab.
+## Reporting a Vulnerability
 
-The Endive team will send a response indicating the next steps in handling your report. After the initial reply to your report, the security team will keep you informed of the progress towards a fix and full announcement, and may ask for additional information or guidance.
+To report a vulnerability, navigate to the [security](https://github.com/bytecodealliance/endive/security) tab and click the green `Report a Vulnerability` button, or use [this direct link](https://github.com/bytecodealliance/endive/security/advisories/new) to the reporting form.
 
-Report security bugs in third-party modules to the person or team maintaining the module when applicable.
+The Endive team will send a response indicating the next steps in handling your report. After the initial reply, we will keep you informed of the progress towards a fix and full announcement, and may ask for additional information or guidance.
+
+Security patches are handled as priority releases. We recommend that CVE numbers are requested for discovered vulnerabilities following the [Bytecode Alliance security policy](https://bytecodealliance.org/security).
+
+Report security bugs in third-party dependencies to the person or team maintaining them when applicable.

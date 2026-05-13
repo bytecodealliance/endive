@@ -18,8 +18,8 @@ import run.endive.wasm.Parser;
 
 public class RegressionTest extends TestModule {
 
-    private final WasmRunner interpreterRunner = new ChicoryRunner();
-    private final WasmRunner compilerRunner = new ChicoryRunner(MachineFactoryCompiler::compile);
+    private final WasmRunner interpreterRunner = new DefaultRunner();
+    private final WasmRunner compilerRunner = new DefaultRunner(MachineFactoryCompiler::compile);
 
     private static Stream<Arguments> crashFolders() {
         return Stream.of(new File("src/test/resources"), new File("target/crash-reproducers"))
@@ -81,8 +81,8 @@ public class RegressionTest extends TestModule {
                         false);
 
         for (var res : results) {
-            if (res.getChicoryResult() != null) {
-                assertEquals(res.getOracleResult(), res.getChicoryResult());
+            if (res.getEngineResult() != null) {
+                assertEquals(res.getOracleResult(), res.getEngineResult());
             }
         }
         assertDoesNotThrow(() -> Instance.builder(module).build());

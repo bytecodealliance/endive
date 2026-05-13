@@ -8,15 +8,15 @@ import run.endive.runtime.Machine;
 import run.endive.runtime.WasmInterruptedException;
 import run.endive.wasm.Parser;
 
-public class ChicoryRunner implements WasmRunner {
+public class DefaultRunner implements WasmRunner {
 
     private final Function<Instance, Machine> machineFactory;
 
-    public ChicoryRunner() {
+    public DefaultRunner() {
         this(null);
     }
 
-    public ChicoryRunner(Function<Instance, Machine> machineFactory) {
+    public DefaultRunner(Function<Instance, Machine> machineFactory) {
         this.machineFactory = machineFactory;
     }
 

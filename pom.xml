@@ -96,6 +96,7 @@
     <templating-maven-plugin.version>3.1.0</templating-maven-plugin.version>
     <maven-file-management.version>3.2.0</maven-file-management.version>
     <google-compile-testing.version>0.23.0</google-compile-testing.version>
+    <license-maven-plugin.version>2.5.0</license-maven-plugin.version>
     <wagon-maven-plugin.version>3.0.0</wagon-maven-plugin.version>
     <zerofs.version>0.1.0</zerofs.version>
   </properties>
@@ -664,6 +665,50 @@
       </plugin>
 
       <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>${license-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>check-licenses</id>
+            <goals>
+              <goal>add-third-party</goal>
+            </goals>
+            <phase>validate</phase>
+            <configuration>
+              <failOnBlacklist>true</failOnBlacklist>
+              <includedLicenses>
+                <includedLicense>Apache-2.0</includedLicense>
+                <includedLicense>Apache License, Version 2.0</includedLicense>
+                <includedLicense>The Apache Software License, Version 2.0</includedLicense>
+                <includedLicense>Apache 2</includedLicense>
+                <includedLicense>Apache 2.0</includedLicense>
+                <includedLicense>MIT License</includedLicense>
+                <includedLicense>The MIT License</includedLicense>
+                <includedLicense>MIT</includedLicense>
+                <includedLicense>BSD-2-Clause</includedLicense>
+                <includedLicense>BSD-3-Clause</includedLicense>
+                <includedLicense>The BSD License</includedLicense>
+                <includedLicense>The New BSD License</includedLicense>
+                <includedLicense>Revised BSD</includedLicense>
+                <includedLicense>ISC</includedLicense>
+                <includedLicense>ISC License</includedLicense>
+                <includedLicense>MPL-2.0</includedLicense>
+                <includedLicense>Mozilla Public License, Version 2.0</includedLicense>
+                <includedLicense>Eclipse Public License 2.0</includedLicense>
+                <includedLicense>Eclipse Distribution License - v 1.0</includedLicense>
+                <includedLicense>EDL 1.0</includedLicense>
+                <includedLicense>Unicode/ICU License</includedLicense>
+                <includedLicense>Public Domain</includedLicense>
+              </includedLicenses>
+              <failIfWarning>true</failIfWarning>
+              <excludedScopes>test</excludedScopes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>${maven-javadoc-plugin.version}</version>
@@ -742,6 +787,7 @@
         <spotless.check.skip>true</spotless.check.skip>
         <checkstyle.skip>true</checkstyle.skip>
         <enforcer.skip>true</enforcer.skip>
+        <license.skip>true</license.skip>
         <maven.compiler.failOnWarning>false</maven.compiler.failOnWarning>
         <maven.dependency.failOnWarning>false</maven.dependency.failOnWarning>
         <maven.javadoc.skip>true</maven.javadoc.skip>
@@ -760,6 +806,7 @@
         <spotless.check.skip>true</spotless.check.skip>
         <checkstyle.skip>true</checkstyle.skip>
         <enforcer.skip>true</enforcer.skip>
+        <license.skip>true</license.skip>
         <maven.compiler.failOnWarning>false</maven.compiler.failOnWarning>
         <maven.dependency.failOnWarning>false</maven.dependency.failOnWarning>
         <skipITs>true</skipITs>

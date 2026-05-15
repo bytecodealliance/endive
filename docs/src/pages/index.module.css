@@ -23,10 +23,6 @@
   margin-bottom: 1.5rem;
 }
 
-[data-theme='dark'] .heroLogo {
-  filter: brightness(1.8) contrast(0.9);
-}
-
 .heroSubtitle {
   font-size: 1.4rem;
   margin-bottom: 2rem;

@@ -58,3 +58,11 @@ When using WASI, the host controls what capabilities the guest receives:
 - **Standard I/O** streams are host-controlled.
 
 See [Best Practices](/docs/security/best-practices) for actionable guidance on securing your Endive deployment.
+
+<!--
+```java
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+
+docs.FileOps.writeResult("docs/security", "overview.md.result", "empty");
+```
+-->

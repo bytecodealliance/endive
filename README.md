@@ -72,7 +72,7 @@ If you have an interest in working on any of these please reach out in Zulip!
 * [x] Validation logic (safety)
 * [x] v1.0 API (stability and dx)
 * [x] Decoupled interpreter and compiler "engines"
-* [x] AOT compiler passes all the same specs as interpreter
+* [x] Build-time compiler passes all the same specs as interpreter
 * [x] WASIp1 Support (including test gen)
 * [x] SIMD Support
 * [x] Tail Call (interpreter and compiler)

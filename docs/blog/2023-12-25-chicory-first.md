@@ -3,6 +3,7 @@ slug: first-announcement
 title: A zero dependency Wasm runtime for the JVM
 authors: [andreaTP, bhelx]
 tags: [wasm, chicory]
+unlisted: true
 ---
 <!-- truncate -->
 # A zero dependency Wasm runtime for the JVM

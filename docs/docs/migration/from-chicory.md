@@ -1,3 +1,9 @@
+---
+sidebar_position: 1
+sidebar_label: From Chicory
+title: Migrating from Chicory
+---
+
 # Migrating from Chicory to Endive
 
 Endive is a fork of [Chicory](https://github.com/dylibso/chicory) by Dylibso, Inc.
@@ -67,3 +73,11 @@ All spec-aligned exception names are unchanged: `TrapException`, `InvalidExcepti
 
 The JUL/System logger name has changed from `"chicory"` to `"endive"`.
 If you configure logging levels for the runtime, update your logging configuration accordingly.
+
+<!--
+```java
+//DEPS run.endive:docs-lib:999-SNAPSHOT
+
+docs.FileOps.writeResult("docs/migration", "from-chicory.md.result", "empty");
+```
+-->

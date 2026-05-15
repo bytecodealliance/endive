@@ -3,6 +3,7 @@ slug: chicory-redline
 title: 'Introducing Chicory Redline: Native Speed for Wasm on the JVM'
 authors: [andreaTP]
 tags: [wasm, chicory, redline]
+unlisted: true
 ---
 
 ![Chicory Redline](chicory-redline.png)

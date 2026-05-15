@@ -1,6 +1,5 @@
 bhelx:
   name: Benjamin Eckel
-  title: CTO @ Dylibso
   url: https://github.com/bhelx
   image_url: https://avatars.githubusercontent.com/u/185919
   page: true
@@ -19,7 +18,7 @@ andreaTP:
 
 evacchi:
   name: Edoardo Vacchi
-  title: Staff Software Engineer @ Dylibso
+  title: Staff Software Engineer @ Red Hat
   url: https://github.com/evacchi
   image_url: https://avatars.githubusercontent.com/u/380791?v=4
   socials:

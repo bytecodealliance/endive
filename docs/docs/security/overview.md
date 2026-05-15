@@ -20,24 +20,24 @@ WebAssembly provides a sandboxed execution environment by design:
 ## Trust Boundaries
 
 ```
-+---------------------------------------------------+
-|                JVM Host Process                    |
-|                                                   |
-|   +-----------------+  +-----------------+        |
-|   | Host Function A |  | Host Function B |        |
-|   +--------+--------+  +--------+--------+        |
-|            |                     |                 |
-|   - - - - -|- - trust boundary - |- - - - - - -   |
-|            |                     |                 |
-|   +--------v---------------------v--------+       |
-|   |           Endive Runtime              |       |
-|   |                                       |       |
-|   |   +-----------+   +-----------+       |       |
-|   |   | Wasm      |   | Wasm      |       |       |
-|   |   | Module A  |   | Module B  |       |       |
-|   |   +-----------+   +-----------+       |       |
-|   +---------------------------------------+       |
-+---------------------------------------------------+
++--------------------------------------------------+
+|               JVM Host Process                   |
+|                                                  |
+|  +-----------------+   +-----------------+       |
+|  | Host Function A |   | Host Function B |       |
+|  +--------+--------+   +--------+--------+       |
+|           |                      |               |
+|  - - - - -|- - trust boundary  - |- - - - - -   |
+|           |                      |               |
+|  +--------v----------------------v--------+      |
+|  |            Endive Runtime              |      |
+|  |                                        |      |
+|  |   +-----------+    +-----------+       |      |
+|  |   | Wasm      |    | Wasm      |       |      |
+|  |   | Module A  |    | Module B  |       |      |
+|  |   +-----------+    +-----------+       |      |
+|  +----------------------------------------+      |
++--------------------------------------------------+
 ```
 
 The critical trust boundary is between **Wasm guest code** and **host functions**. Host functions have full JVM privileges. Any argument passed from Wasm to a host function must be validated before use.

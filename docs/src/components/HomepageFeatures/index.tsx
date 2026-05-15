@@ -4,14 +4,14 @@ import styles from './styles.module.css';
 
 type FeatureItem = {
   title: string;
-  icon: string;
+  Svg: React.ComponentType<React.ComponentProps<'svg'>>;
   description: JSX.Element;
 };
 
 const FeatureList: FeatureItem[] = [
   {
     title: 'Zero Native Dependencies',
-    icon: '☕',
+    Svg: require('@site/static/img/icon-zero-deps.svg').default,
     description: (
       <>
         Run WebAssembly anywhere the JVM runs — no JNI, no native libraries,
@@ -21,7 +21,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Sandboxed by Default',
-    icon: '🔒',
+    Svg: require('@site/static/img/icon-sandbox.svg').default,
     description: (
       <>
         Wasm modules execute in an isolated sandbox with no ambient capabilities.
@@ -31,7 +31,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Drop-in Integration',
-    icon: '🧩',
+    Svg: require('@site/static/img/icon-integration.svg').default,
     description: (
       <>
         Add a single Maven dependency to embed Wasm in your Java app.
@@ -42,11 +42,11 @@ const FeatureList: FeatureItem[] = [
   },
 ];
 
-function Feature({title, icon, description}: FeatureItem) {
+function Feature({title, Svg, description}: FeatureItem) {
   return (
     <div className={clsx('col col--4')}>
       <div className="text--center">
-        <span className={styles.featureIcon} role="img">{icon}</span>
+        <Svg className={styles.featureSvg} role="img" />
       </div>
       <div className="text--center padding-horiz--md">
         <Heading as="h3">{title}</Heading>

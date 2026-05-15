@@ -5,8 +5,8 @@
   width: 100%;
 }
 
-.featureSvg {
-  height: 120px;
-  width: 120px;
-  color: var(--ifm-color-primary);
+.featureIcon {
+  font-size: 3.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
 }

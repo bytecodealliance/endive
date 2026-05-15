@@ -1,9 +1,13 @@
 ---
-sidebar_position: 20
+sidebar_position: 1
 sidebar_label: Host Functions
 title: Host Functions
 ---
 # Host and guests
+
+:::warning[Security Consideration]
+Host functions cross the sandbox boundary. Validate all arguments received from Wasm code — especially memory offsets and lengths — before accessing host resources. Never trust guest-provided pointers without bounds checking. See [Security Best Practices](/docs/security/best-practices).
+:::
 
 In Wasm, the instance of a module is generally regarded as the **guest**,
 and the surrounding runtime environment is called the **host**.
@@ -42,7 +46,7 @@ and determine what they do.
 Let's see it with another example. Download the following Wasm binary:
 
 ```bash
-curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/host-function.wat.wasm > logger.wasm
+curl https://raw.githubusercontent.com/bytecodealliance/endive/main/wasm-corpus/src/main/resources/compiled/host-function.wat.wasm > logger.wasm
 ```
 
 <!--
@@ -62,7 +66,7 @@ We could write it as the host function:
 ```java
 System.setOut(new PrintStream(
   new BufferedOutputStream(
-    new FileOutputStream("docs/usage/host-functions.md.result"))));
+    new FileOutputStream("docs/core/host-functions.md.result"))));
 ```
 -->
 
@@ -120,4 +124,4 @@ logIt.apply();
 // should print "Hello, World!" 10 times
 ```
 
-> **_NOTE:_** For an easier way to write host function and interact with a wasm module, see [Annotations](../usage/annotations.md).
+> **_NOTE:_** For an easier way to write host function and interact with a wasm module, see [Annotations](../annotations/index.md).

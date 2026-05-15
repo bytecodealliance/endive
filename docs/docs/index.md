@@ -35,13 +35,13 @@ implementation 'run.endive:runtime:latest-release'
 
 ### Loading and Instantiating Wasm Modules
 
-First your Wasm module must be loaded from disk and then instantiated. Let's [download a test module](https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/iterfact.wat.wasm) .
+First your Wasm module must be loaded from disk and then instantiated. Let's [download a test module](https://raw.githubusercontent.com/bytecodealliance/endive/main/wasm-corpus/src/main/resources/compiled/iterfact.wat.wasm) .
 This module contains some code to compute factorial:
 
 Download from the link or with curl:
 
 ```bash
-curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/iterfact.wat.wasm > factorial.wasm
+curl https://raw.githubusercontent.com/bytecodealliance/endive/main/wasm-corpus/src/main/resources/compiled/iterfact.wat.wasm > factorial.wasm
 ```
 
 <!--

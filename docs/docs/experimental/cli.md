@@ -5,6 +5,10 @@ title: CLI
 ---
 # Install and use the CLI
 
+:::warning[Security Consideration]
+The experimental CLI uses `inheritSystem()` by default, granting the Wasm module full access to the host filesystem, environment, and stdio. Do not use it with untrusted modules in its current form.
+:::
+
 The experimental Endive CLI is available for download on Maven at the link:
 
 ```

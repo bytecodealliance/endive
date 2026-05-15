@@ -1,10 +1,14 @@
 ---
-sidebar_position: 6
+sidebar_position: 3
 sidebar_label: Runtime Compiler Cache
 title: Runtime Compiler Cache
 ---
 
 # Overview of the Runtime Compiler Cache
+
+:::warning[Security Consideration]
+The directory cache stores compiled bytecode on disk without integrity verification. Ensure the cache directory has restrictive permissions (`chmod 700`) and is not writable by untrusted users. Do not share caches across trust boundaries.
+:::
 
 The runtime compiler cache lets the Endive runtime compiler store the results of compiling WASM modules to Java bytecode. Subsequent executions can skip compilation and start faster.
 
@@ -38,7 +42,7 @@ The implementation uses file system atomic moves (write to a temp file, then mov
 
 ### Using the Directory Cache
 
-We assume you already use the runtime compiler. If not, see the [Runtime Compiler](../usage/runtime-compiler) guide first.
+We assume you already use the runtime compiler. If not, see the [Runtime Compiler](../execution/runtime-compiler) guide first.
 
 ### Add the Maven Dependency
 
@@ -97,6 +101,6 @@ var instance = Instance.builder(module).
 <!--
 ```java
 //DEPS run.endive:docs-lib:999-SNAPSHOT
-docs.FileOps.writeResult("docs/experimental", "runtime-compiler-cache.md.result", "empty");
+docs.FileOps.writeResult("docs/execution", "compiler-cache.md.result", "empty");
 ```
 -->

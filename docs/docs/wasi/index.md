@@ -5,6 +5,10 @@ title: Wasi Preview 1
 ---
 # WASI Preview 1
 
+:::warning[Security Consideration]
+WASI file access does not enforce path sandboxing by default. Always use a virtual filesystem (e.g., ZeroFS or JimFS) to restrict guest access to pre-opened directories. Passing the host filesystem directly exposes all files the JVM process can access. See [Security Best Practices](/docs/security/best-practices).
+:::
+
 <!--
 ```java
 //DEPS run.endive:wasi:999-SNAPSHOT
@@ -51,7 +55,7 @@ In order to instantiate a WASI module you need an instance of `WasiPreview1`.
 For instance, download the following example from the link or with curl:
 
 ```bash
-curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/hello-wasi.wat.wasm > hello-wasi.wasm
+curl https://raw.githubusercontent.com/bytecodealliance/endive/main/wasm-corpus/src/main/resources/compiled/hello-wasi.wat.wasm > hello-wasi.wasm
 ```
 
 <!--
@@ -93,7 +97,7 @@ and stdout/stderr as an [OutputStream](https://docs.oracle.com/javase/8/docs/api
 Download from the link or with curl:
 
 ```bash
-curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/greet-wasi.rs.wasm > greet-wasi.wasm
+curl https://raw.githubusercontent.com/bytecodealliance/endive/main/wasm-corpus/src/main/resources/compiled/greet-wasi.rs.wasm > greet-wasi.wasm
 ```
 
 <!--
@@ -127,7 +131,7 @@ assert(fakeStderr.toString().equals(""));
 
 <!--
 ```java
-docs.FileOps.writeResult("docs/usage", "wasi.md.result", fakeStdout.toString() + fakeStderr.toString());
+docs.FileOps.writeResult("docs/wasi", "index.md.result", fakeStdout.toString() + fakeStderr.toString());
 ```
 -->
 
@@ -194,7 +198,7 @@ try (FileSystem fs = Jimfs.newFileSystem(Configuration.unix().toBuilder().setAtt
 
 If your module calls a wasi function that we don't support, or uses a feature that we don't support, we will throw a `WasmRuntimeException`.
 
-For the most up-to-date info, and to see what specific functions we support, see the [WasiPreview1.java](https://github.run/endive/blob/main/wasi/src/main/java/run/endive/wasi/WasiPreview1.java) and the following table:
+For the most up-to-date info, and to see what specific functions we support, see the [WasiPreview1.java](https://github.com/bytecodealliance/endive/blob/main/wasi/src/main/java/run/endive/wasi/WasiPreview1.java) and the following table:
 
 
 | WASI Function           | Supported  | Notes                                                                     |

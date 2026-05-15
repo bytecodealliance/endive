@@ -88,7 +88,7 @@ The following conversions are supported:
 ## WasmModuleInterface
 
 :::tip
-If you are using the [build-time compiler](build-time-compiler.md), you can use the `moduleInterface` parameter in the Maven plugin instead of the annotation processor. This is simpler and avoids the setup described below. See [Generating Module Exports and Imports](build-time-compiler.md#generating-module-exports-and-imports).
+If you are using the [build-time compiler](../execution/build-time-compiler.md), you can use the `moduleInterface` parameter in the Maven plugin instead of the annotation processor. This is simpler and avoids the setup described below. See [Generating Module Exports and Imports](../execution/build-time-compiler.md#generating-module-exports-and-imports).
 :::
 
 If you already have a Wasm module and want to generate scaffolded Java code to interact with it, you can use the `@WasmModuleInterface` annotation.
@@ -143,6 +143,6 @@ Exactly how this is done depends on the build system you are using, for instance
 
 <!--
 ```java
-docs.FileOps.writeResult("docs/usage", "annotations.md.result", "empty");
+docs.FileOps.writeResult("docs/annotations", "index.md.result", "empty");
 ```
 -->

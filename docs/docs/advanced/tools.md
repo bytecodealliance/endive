@@ -1,5 +1,5 @@
 ---
-sidebar_position: 60
+sidebar_position: 3
 sidebar_label: WABT
 title: WABT
 ---
@@ -43,7 +43,7 @@ import run.endive.runtime.Instance;
 
 System.setOut(new PrintStream(
   new BufferedOutputStream(
-    new FileOutputStream("docs/usage/tools.md.result"))));
+    new FileOutputStream("docs/advanced/tools.md.result"))));
 ```
 -->
 

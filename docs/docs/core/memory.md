@@ -1,5 +1,5 @@
 ---
-sidebar_position: 10
+sidebar_position: 2
 sidebar_label: Memory
 title: Memory
 ---
@@ -12,7 +12,7 @@ Let's look at an example where we have a module `count_vowels.wasm`, written in 
 in the string:
 
 ```bash
-curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/count_vowels.rs.wasm > count_vowels.wasm
+curl https://raw.githubusercontent.com/bytecodealliance/endive/main/wasm-corpus/src/main/resources/compiled/count_vowels.rs.wasm > count_vowels.wasm
 ```
 
 <!--
@@ -69,6 +69,6 @@ assert(3L == result); // 3 vowels in Hello, World!
 
 <!--
 ```java
-docs.FileOps.writeResult("docs/usage", "memory.md.result", "" + result);
+docs.FileOps.writeResult("docs/core", "memory.md.result", "" + result);
 ```
 -->

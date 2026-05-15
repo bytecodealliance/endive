@@ -1,5 +1,5 @@
 ---
-sidebar_position: 40
+sidebar_position: 3
 sidebar_label: Linking
 title: Linking
 ---
@@ -84,6 +84,6 @@ have interdependencies, you will have to instantiate and register them in the ri
 
 <!--
 ```java
-docs.FileOps.writeResult("docs/usage", "linking.md.result", "empty");
+docs.FileOps.writeResult("docs/core", "linking.md.result", "empty");
 ```
 -->

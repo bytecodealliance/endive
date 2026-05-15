@@ -1,5 +1,5 @@
 ---
-sidebar_position: 80
+sidebar_position: 4
 sidebar_label: Logging
 title: Logging
 ---
@@ -19,6 +19,6 @@ It's also possible to provide a custom `run.endive.log.Logger` implementation if
 ```java
 //DEPS run.endive:docs-lib:999-SNAPSHOT
 
-docs.FileOps.writeResult("docs/usage", "logging.md.result", "empty");
+docs.FileOps.writeResult("docs/advanced", "logging.md.result", "empty");
 ```
 -->

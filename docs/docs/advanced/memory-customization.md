@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 5
 sidebar_label: Memory
 title: Advanced Wasm Memory Customization
 ---
@@ -39,6 +39,6 @@ var instance = Instance.builder(module).withMemoryFactory(limits -> {
 
 <!--
 ```java
-docs.FileOps.writeResult("docs/advanced", "memory.md.result", "empty");
+docs.FileOps.writeResult("docs/advanced", "memory-customization.md.result", "empty");
 ```
 -->

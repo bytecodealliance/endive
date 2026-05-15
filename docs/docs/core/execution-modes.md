@@ -1,5 +1,5 @@
 ---
-sidebar_position: 110
+sidebar_position: 4
 sidebar_label: Execution modes
 title: Execution modes
 ---
@@ -24,6 +24,6 @@ title: Execution modes
 ```java
 //DEPS run.endive:docs-lib:999-SNAPSHOT
 
-docs.FileOps.writeResult("docs/usage", "execution_modes.md.result", "empty");
+docs.FileOps.writeResult("docs/core", "execution-modes.md.result", "empty");
 ```
 -->

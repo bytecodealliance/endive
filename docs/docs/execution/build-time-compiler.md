@@ -1,9 +1,13 @@
 ---
-sidebar_position: 130
+sidebar_position: 2
 sidebar_label: Build time Compilation
 title: Build Time Compilation
 ---
 ## Overview
+
+:::warning[Security Consideration]
+The compiler translates Wasm to JVM bytecode without post-compilation verification. Only compile Wasm modules you trust. See [Security Model](/docs/security/overview).
+:::
 
 The build time compiler backend is a drop-in replacement for the interpreter, and it passes 100% of the same 
 spec tests that the interpreter already supports.
@@ -107,7 +111,7 @@ var instance = Instance.builder(module).
 ### Generating Module Exports and Imports
 
 The build-time compiler can also generate typed Java wrappers for a module's exports and imports,
-eliminating the need for the [`@WasmModuleInterface` annotation](annotations.md#wasmmoduleinterface) and the annotation processor setup.
+eliminating the need for the [`@WasmModuleInterface` annotation](../annotations/index.md#wasmmoduleinterface) and the annotation processor setup.
 
 Add the `moduleInterface` parameter to the plugin configuration:
 
@@ -281,6 +285,6 @@ in the Maven example.
 
 <!--
 ```java
-docs.FileOps.writeResult("docs/usage", "build-time-compiler.md.result", "empty");
+docs.FileOps.writeResult("docs/execution", "build-time-compiler.md.result", "empty");
 ```
 -->

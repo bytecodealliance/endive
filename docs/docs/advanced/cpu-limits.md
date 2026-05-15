@@ -1,9 +1,13 @@
 ---
-sidebar_position: 30
+sidebar_position: 1
 sidebar_label: CPU
 title: CPU
 ---
 # Limiting CPU usage
+
+:::warning[Security Consideration]
+Wasm modules can contain infinite loops. When running untrusted code, always set execution timeouts via thread interruption or an ExecutorService with a deadline. Without timeouts, a malicious module can consume 100% CPU indefinitely.
+:::
 
 Often, when running untrusted user code in our infrastructure, we want to have strong guarantees around the termination of the program.
 
@@ -14,7 +18,7 @@ To achieve this result there are, currently, two mechanisms in Endive:
 Wasm modules executed using Endive honour the carrier thread interruption mechanism, thus you can leverage it to implement absolute timeouts:
 
 ```bash
-curl https://raw.githubusercontent.run/endive/main/wasm-corpus/src/main/resources/compiled/infinite-loop.c.wasm > infinite-loop.wasm
+curl https://raw.githubusercontent.com/bytecodealliance/endive/main/wasm-corpus/src/main/resources/compiled/infinite-loop.c.wasm > infinite-loop.wasm
 ```
 
 <!--
@@ -81,6 +85,6 @@ var instance =
 
 <!--
 ```java
-docs.FileOps.writeResult("docs/usage", "cpu.md.result", "empty");
+docs.FileOps.writeResult("docs/advanced", "cpu-limits.md.result", "empty");
 ```
 -->

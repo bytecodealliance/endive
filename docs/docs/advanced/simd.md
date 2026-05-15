@@ -1,5 +1,5 @@
 ---
-sidebar_position: 90
+sidebar_position: 2
 sidebar_label: Simd
 title: Simd support
 ---
@@ -24,7 +24,6 @@ docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "your.wasm");
 ```java
 //DEPS run.endive:docs-lib:999-SNAPSHOT
 
-docs.FileOps.writeResult("docs/usage", "logging.md.result", "empty");
 ```
 -->
 
@@ -52,7 +51,7 @@ var instance = Instance.builder(module).withMachineFactory(SimdInterpreterMachin
 ```java
 //DEPS run.endive:docs-lib:999-SNAPSHOT
 
-docs.FileOps.writeResult("docs/usage", "simd.md.result", "empty");
+docs.FileOps.writeResult("docs/advanced", "simd.md.result", "empty");
 ```
 -->
 

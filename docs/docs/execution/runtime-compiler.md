@@ -1,9 +1,17 @@
 ---
-sidebar_position: 120
+sidebar_position: 1
 sidebar_label: Runtime Compilation
 title: Runtime Compilation
 ---
 ## Overview
+
+:::warning[Security Consideration]
+The compiler translates Wasm to JVM bytecode without post-compilation verification. When compiling untrusted modules, prefer the interpreter for higher assurance, or run compiled code in an isolated classloader. See [Security Model](/docs/security/overview).
+:::
+
+:::info[Resource Limits]
+Compiling very large Wasm modules can consume significant memory and CPU. Consider setting JVM heap limits and compilation timeouts when processing untrusted input.
+:::
 
 The runtime compiler backend is a drop-in replacement for the interpreter, and it passes 100% of the same
 spec tests that the interpreter already supports.
@@ -120,6 +128,6 @@ This is usually fine when running on a standard JVM, but it involves some additi
 
 <!--
 ```java
-docs.FileOps.writeResult("docs/usage", "runtime-compiler.md.result", "empty");
+docs.FileOps.writeResult("docs/execution", "runtime-compiler.md.result", "empty");
 ```
 -->

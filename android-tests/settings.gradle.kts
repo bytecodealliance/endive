@@ -16,7 +16,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         mavenLocal {
-            val repoOverride = settings.providers.environmentVariable("CHICORY_REPO")
+            val repoOverride = settings.providers.environmentVariable("ENDIVE_REPO")
             val relativePath =
                 if (repoOverride.isPresent) {
                     repoOverride.get()

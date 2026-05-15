@@ -1,7 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-  <!-- Puzzle pieces fitting together -->
-  <path d="M18 30 h18 v-6 a6 6 0 0 1 12 0 v6 h18 v18 h6 a6 6 0 0 1 0 12 h-6 v18 h-48 z"/>
-  <!-- Second piece outline suggesting connection -->
-  <path d="M66 30 h16 v48 h-16" stroke-dasharray="4 3" opacity="0.5"/>
-  <path d="M66 48 h6 a6 6 0 0 0 0 12 h-6" stroke-dasharray="4 3" opacity="0.5"/>
+  <!-- Cup outline (your app) -->
+  <path d="M15 45 h30 v25 a6 6 0 0 1 -6 6 h-18 a6 6 0 0 1 -6 -6 z"/>
+  <path d="M45 52 h5 a5 5 0 0 1 0 10 h-5"/>
+  <!-- Plus sign between -->
+  <line x1="60" y1="58" x2="70" y2="58"/>
+  <line x1="65" y1="53" x2="65" y2="63"/>
+  <!-- Plant/leaf (Wasm module) dropping in -->
+  <path d="M82 55 q-8 -4 -9 -12 q7 1 9 12"/>
+  <path d="M82 55 q8 -4 9 -12 q-7 1 -9 12"/>
+  <path d="M82 55 q0 -8 0 -18"/>
+  <path d="M82 44 q-4 3 -3 8"/>
+  <path d="M82 44 q4 3 3 8"/>
+  <!-- Arrow pointing down into cup -->
+  <path d="M30 40 v-10" stroke-width="2"/>
+  <path d="M25 35 l5 5 l5 -5" stroke-width="2"/>
 </svg>

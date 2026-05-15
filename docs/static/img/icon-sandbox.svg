@@ -1,6 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-  <!-- Shield -->
-  <path d="M50 10 L88 25 V55 C88 78 50 95 50 95 C50 95 12 78 12 55 V25 Z"/>
-  <!-- Checkmark inside -->
-  <path d="M35 52 l10 10 l20 -20" stroke-width="3"/>
+  <!-- Pot/container (matching logo cup style) -->
+  <path d="M25 38 h50 v35 a10 10 0 0 1 -10 10 h-30 a10 10 0 0 1 -10 -10 z"/>
+  <!-- Lid -->
+  <path d="M22 38 h56"/>
+  <path d="M35 38 v-4 h30 v4"/>
+  <!-- Lock on the pot -->
+  <rect x="42" y="52" width="16" height="14" rx="2"/>
+  <path d="M45 52 v-5 a5 5 0 0 1 10 0 v5"/>
+  <circle cx="50" cy="59" r="2" fill="currentColor" stroke="none"/>
+  <!-- Small leaves on top -->
+  <path d="M50 28 q-8 -4 -9 -12 q7 1 9 12"/>
+  <path d="M50 28 q8 -4 9 -12 q-7 1 -9 12"/>
 </svg>

@@ -1,8 +1,8 @@
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
+import ThemedImage from '@theme/ThemedImage';
 
 import styles from './index.module.css';
 
@@ -10,7 +10,14 @@ function HomepageHeader() {
   return (
     <header className={clsx('hero', styles.heroBanner)}>
       <div className="container">
-        <img className={styles.heroLogo} src="img/endive-hero.png" alt="Endive" />
+        <ThemedImage
+          className={styles.heroLogo}
+          alt="Endive"
+          sources={{
+            light: 'img/endive-hero.png',
+            dark: 'img/endive-hero-dark.png',
+          }}
+        />
         <p className={clsx('hero__subtitle', styles.heroSubtitle)}>
           A JVM native WebAssembly runtime
         </p>

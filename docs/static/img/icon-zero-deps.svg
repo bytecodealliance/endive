@@ -1,21 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-  <!-- Cup body -->
-  <path d="M20 42 h44 v26 a8 8 0 0 1 -8 8 h-28 a8 8 0 0 1 -8 -8 z"/>
-  <!-- Handle -->
-  <path d="M64 49 h6 a7 7 0 0 1 0 14 h-6"/>
-  <!-- Saucer -->
-  <path d="M16 80 h52"/>
-  <!-- Stem -->
-  <line x1="42" y1="42" x2="42" y2="34"/>
-  <!-- Leaf left -->
-  <path d="M42 34 q-13 -5 -15 -16 q11 2 15 16"/>
-  <!-- Leaf center -->
-  <path d="M42 34 q0 -10 0 -20 q0 10 0 20"/>
-  <path d="M42 14 q-5 4 -4 10"/>
-  <path d="M42 14 q5 4 4 10"/>
-  <!-- Leaf right -->
-  <path d="M42 34 q13 -5 15 -16 q-11 2 -15 16"/>
-  <!-- Zero badge -->
-  <circle cx="83" cy="26" r="12" fill="currentColor" stroke="none" opacity="0.85"/>
-  <text x="83" y="31" text-anchor="middle" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="white" stroke="none">0</text>
+  <!-- Package/box -->
+  <path d="M50 15 L85 30 V70 L50 85 L15 70 V30 Z"/>
+  <line x1="50" y1="45" x2="50" y2="85"/>
+  <line x1="15" y1="30" x2="50" y2="45"/>
+  <line x1="85" y1="30" x2="50" y2="45"/>
+  <!-- Checkmark -->
+  <path d="M36 50 l8 8 l16 -16" stroke-width="3"/>
 </svg>

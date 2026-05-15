@@ -1,17 +1,17 @@
+endive:
+  label: Endive
+  permalink: /endive
+  description: Endive tag description
+
 chicory:
   label: Chicory
   permalink: /chicory
-  description: Chicory tag description
+  description: Historical Chicory posts
 
 wasm:
   label: Wasm
   permalink: /wasm
   description: Wasm tag description
-
-dylibso:
-  label: Dylibso
-  permalink: /dylibso
-  description: Dylibso
 
 release:
   label: Release
@@ -21,4 +21,14 @@ release:
 redline:
   label: Redline
   permalink: /redline
-  description: Chicory Redline
+  description: Endive Redline
+
+highlight:
+  label: Syntax Highlight
+  permalink: /highlight
+  description: Syntax highlighting
+
+treesitter:
+  label: Tree-sitter
+  permalink: /treesitter
+  description: Tree-sitter integration

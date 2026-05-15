@@ -1,27 +1,37 @@
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
-import Heading from '@theme/Heading';
+import ThemedImage from '@theme/ThemedImage';
 
 import styles from './index.module.css';
 
 function HomepageHeader() {
-  const {siteConfig} = useDocusaurusContext();
   return (
-    <header className={clsx('hero hero--primary', styles.heroBanner)}>
+    <header className={clsx('hero', styles.heroBanner)}>
       <div className="container">
-        <Heading as="h1" className="hero__title">
-          {siteConfig.title}
-        </Heading>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
-        <img className={styles.bigLogo} src="img/endive.png"/>
+        <ThemedImage
+          className={styles.heroLogo}
+          alt="Endive"
+          sources={{
+            light: 'img/endive-hero.png',
+            dark: 'img/endive-hero-dark.png',
+          }}
+        />
+        <p className={clsx('hero__subtitle', styles.heroSubtitle)}>
+          A JVM native WebAssembly runtime
+        </p>
         <div className={styles.buttons}>
           <Link
-            className="button button--secondary button--lg"
+            className="button button--primary button--lg"
             to="/docs">
             Get Started
+          </Link>
+          <Link
+            className="button button--outline button--lg"
+            to="https://github.com/bytecodealliance/endive"
+            style={{marginLeft: '1rem'}}>
+            GitHub
           </Link>
         </div>
       </div>
@@ -30,11 +40,10 @@ function HomepageHeader() {
 }
 
 export default function Home(): JSX.Element {
-  const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
-      title={`Hello from ${siteConfig.title}`}
-      description="Description will go into a meta tag in <head />">
+      title="JVM native WebAssembly runtime"
+      description="Endive is a JVM native WebAssembly runtime with zero native dependencies.">
       <HomepageHeader />
       <main>
         <HomepageFeatures />

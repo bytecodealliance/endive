@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Puzzle pieces fitting together -->
+  <path d="M18 30 h18 v-6 a6 6 0 0 1 12 0 v6 h18 v18 h6 a6 6 0 0 1 0 12 h-6 v18 h-48 z"/>
+  <!-- Second piece outline suggesting connection -->
+  <path d="M66 30 h16 v48 h-16" stroke-dasharray="4 3" opacity="0.5"/>
+  <path d="M66 48 h6 a6 6 0 0 0 0 12 h-6" stroke-dasharray="4 3" opacity="0.5"/>
+</svg>

@@ -35,12 +35,64 @@ const config: Config = {
       {
         redirects: [
           {
-            to: '/docs/usage/annotations',
-            from: ['/docs/experimental/host-modules'],
+            to: '/docs/annotations',
+            from: ['/docs/experimental/host-modules', '/docs/usage/annotations'],
           },
           {
-            to: '/docs/usage/runtime-compiler',
-            from: ['/docs/experimental/aot'],
+            to: '/docs/execution/runtime-compiler',
+            from: ['/docs/experimental/aot', '/docs/usage/runtime-compiler'],
+          },
+          {
+            to: '/docs/execution/build-time-compiler',
+            from: ['/docs/usage/build-time-compiler'],
+          },
+          {
+            to: '/docs/core/host-functions',
+            from: ['/docs/usage/host-functions'],
+          },
+          {
+            to: '/docs/core/memory',
+            from: ['/docs/usage/memory'],
+          },
+          {
+            to: '/docs/core/linking',
+            from: ['/docs/usage/linking'],
+          },
+          {
+            to: '/docs/core/execution-modes',
+            from: ['/docs/usage/execution_modes'],
+          },
+          {
+            to: '/docs/wasi',
+            from: ['/docs/usage/wasi'],
+          },
+          {
+            to: '/docs/advanced/cpu-limits',
+            from: ['/docs/usage/cpu'],
+          },
+          {
+            to: '/docs/advanced/simd',
+            from: ['/docs/usage/simd'],
+          },
+          {
+            to: '/docs/advanced/tools',
+            from: ['/docs/usage/tools'],
+          },
+          {
+            to: '/docs/advanced/logging',
+            from: ['/docs/usage/logging'],
+          },
+          {
+            to: '/docs/getting-started/installation',
+            from: ['/docs/usage/bom'],
+          },
+          {
+            to: '/docs/advanced/memory-customization',
+            from: ['/docs/advanced/memory'],
+          },
+          {
+            to: '/docs/execution/compiler-cache',
+            from: ['/docs/experimental/runtime-compiler-cache'],
           },
         ],
       },
@@ -79,6 +131,7 @@ const config: Config = {
       logo: {
         alt: 'Endive Logo',
         src: 'img/endive.png',
+        srcDark: 'img/endive-dark.png',
       },
       items: [
         {

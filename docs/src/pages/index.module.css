@@ -8,6 +8,7 @@
   text-align: center;
   position: relative;
   overflow: hidden;
+  background: none;
 }
 
 @media screen and (max-width: 996px) {
@@ -16,14 +17,24 @@
   }
 }
 
+.heroLogo {
+  max-width: 400px;
+  width: 80%;
+  margin-bottom: 1.5rem;
+}
+
+[data-theme='dark'] .heroLogo {
+  filter: invert(0.85) hue-rotate(180deg);
+}
+
+.heroSubtitle {
+  font-size: 1.4rem;
+  margin-bottom: 2rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
 .buttons {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.bigLogo {
-  height: 30%;
-  max-height: 500px;
-  padding: 4em;
 }

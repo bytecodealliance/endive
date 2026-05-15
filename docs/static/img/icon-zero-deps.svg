@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Package/box -->
+  <path d="M50 15 L85 30 V70 L50 85 L15 70 V30 Z"/>
+  <line x1="50" y1="45" x2="50" y2="85"/>
+  <line x1="15" y1="30" x2="50" y2="45"/>
+  <line x1="85" y1="30" x2="50" y2="45"/>
+  <!-- Checkmark -->
+  <path d="M36 50 l8 8 l16 -16" stroke-width="3"/>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Shield -->
+  <path d="M50 10 L88 25 V55 C88 78 50 95 50 95 C50 95 12 78 12 55 V25 Z"/>
+  <!-- Checkmark inside -->
+  <path d="M35 52 l10 10 l20 -20" stroke-width="3"/>
+</svg>

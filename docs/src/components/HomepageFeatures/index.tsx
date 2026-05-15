@@ -10,35 +10,36 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Pure Java',
-    Svg: require('@site/static/img/zero-deps.svg').default,
+    title: 'Zero Native Dependencies',
+    Svg: require('@site/static/img/icon-zero-deps.svg').default,
     description: (
       <>
-        Using Endive you don't need to rely on any system resource.
-        Everything runs in 100% pure Java on top of the standard library.
+        Run WebAssembly anywhere the JVM runs — no JNI, no native libraries,
+        no platform-specific binaries. Ship a single JAR to every OS and architecture.
       </>
     ),
   },
   {
-    title: 'Easy integration',
-    Svg: require('@site/static/img/wrench.svg').default,
+    title: 'Sandboxed by Default',
+    Svg: require('@site/static/img/icon-sandbox.svg').default,
     description: (
       <>
-        Integrating Endive in your project is smooth and only requires a few steps.
-        Give your application a twist with a plugin system.
+        Wasm modules execute in an isolated sandbox with no ambient capabilities.
+        Your host controls what the guest can access — memory, files, and system calls.
       </>
     ),
   },
   {
-    title: 'Secure by design',
-    Svg: require('@site/static/img/helmet.svg').default,
+    title: 'Drop-in Integration',
+    Svg: require('@site/static/img/icon-integration.svg').default,
     description: (
       <>
-        Web Assembly modules are running in a sandboxed environment.
-        You have full control over the used resources.
+        Add a single Maven dependency to embed Wasm in your Java app.
+        Choose between interpreter, runtime compiler, or build-time compiler
+        depending on your needs.
       </>
     ),
-  }
+  },
 ];
 
 function Feature({title, Svg, description}: FeatureItem) {

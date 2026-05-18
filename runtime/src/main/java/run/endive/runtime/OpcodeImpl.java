@@ -837,7 +837,7 @@ public final class OpcodeImpl {
 
     public static void TABLE_INIT(
             Instance instance, int tableidx, int elementidx, int size, int elemidx, int offset) {
-        var end = offset + size;
+        long endL = (long) offset + (long) size;
         var table = instance.table(tableidx);
 
         var elementCount = instance.elementCount();
@@ -846,10 +846,12 @@ public final class OpcodeImpl {
                 (currentElement instanceof PassiveElement) ? currentElement.elementCount() : 0;
         boolean isOutOfBounds =
                 (size < 0
+                        || offset < 0
+                        || elemidx < 0
                         || elementidx > elementCount
                         || (size > 0 && !(currentElement instanceof PassiveElement))
-                        || elemidx + size > currentElementCount
-                        || end > table.size());
+                        || (long) elemidx + (long) size > (long) currentElementCount
+                        || endL > (long) table.size());
 
         if (isOutOfBounds) {
             throw new WasmRuntimeException("out of bounds table access");
@@ -858,6 +860,7 @@ public final class OpcodeImpl {
             return;
         }
 
+        int end = (int) endL;
         for (int i = offset; i < end; i++) {
             var elem = instance.element(elementidx);
             var val =

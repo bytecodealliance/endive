@@ -1,6 +1,7 @@
 package run.endive.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -9,6 +10,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.MemoryLimits;
 
 public class MemoryTest {
@@ -164,5 +166,12 @@ public class MemoryTest {
         assertArrayEquals(data, memory.readBytes(dest, data.length));
         // Source should be unchanged
         assertArrayEquals(data, memory.readBytes(100, data.length));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("memoryImplementations")
+    public void checkBoundsOverflowShouldTrap(String name, Supplier<Memory> memorySupplier) {
+        var memory = memorySupplier.get();
+        assertThrows(WasmEngineException.class, () -> memory.readBytes(1, Integer.MAX_VALUE));
     }
 }

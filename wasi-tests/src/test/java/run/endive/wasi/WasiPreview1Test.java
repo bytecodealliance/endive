@@ -235,6 +235,65 @@ public class WasiPreview1Test {
         assertTrue(System.nanoTime() >= deadline);
     }
 
+    @Test
+    public void fdReadNegativeIovLenShouldReturnEinval() throws IOException {
+        try (var fs = newZeroFs()) {
+            Path root = fs.getPath("test");
+            createDirectory(root);
+            writeString(root.resolve("hello.txt"), "Hello");
+            try (var wasi = wasiWithDirectory(root.toString(), root)) {
+                var memory = new ByteBufferMemory(new MemoryLimits(1));
+
+                int fdPtr = 0;
+                int result = wasi.pathOpen(memory, 3, 0, "hello.txt", 0, 0, 0, 0, fdPtr);
+                assertEquals(WasiErrno.ESUCCESS.value(), result);
+                int fd = memory.readInt(fdPtr);
+
+                int iovs = 100;
+                int iovBase = 200;
+                memory.writeI32(iovs, iovBase);
+                memory.writeI32(iovs + 4, 0x80000001); // negative in signed int
+                int nreadPtr = 300;
+                result = wasi.fdRead(memory, fd, iovs, 1, nreadPtr);
+                assertEquals(WasiErrno.EINVAL.value(), result);
+            }
+        }
+    }
+
+    @Test
+    public void symlinkEscapeShouldReturnEacces() throws IOException {
+        Path tmpDir = java.nio.file.Files.createTempDirectory("wasi-symlink-test");
+        try {
+            Path sandbox = tmpDir.resolve("sandbox");
+            createDirectory(sandbox);
+            Path outside = tmpDir.resolve("outside");
+            createDirectory(outside);
+            writeString(outside.resolve("secret.txt"), "secret");
+            createSymbolicLink(sandbox.resolve("escape"), outside.resolve("secret.txt"));
+
+            try (var wasi = wasiWithDirectory(sandbox.toString(), sandbox)) {
+                var memory = new ByteBufferMemory(new MemoryLimits(1));
+                int buf = 0;
+                int result =
+                        wasi.pathFilestatGet(
+                                memory, 3, WasiLookupFlags.SYMLINK_FOLLOW, "escape", buf);
+                assertEquals(WasiErrno.EACCES.value(), result);
+            }
+        } finally {
+            try (var paths = java.nio.file.Files.walk(tmpDir)) {
+                paths.sorted(java.util.Comparator.reverseOrder())
+                        .forEach(
+                                p -> {
+                                    try {
+                                        java.nio.file.Files.deleteIfExists(p);
+                                    } catch (IOException ignored) {
+                                        // best-effort cleanup
+                                    }
+                                });
+            }
+        }
+    }
+
     private static FileSystem newZeroFs() {
         return ZeroFs.newFileSystem(
                 Configuration.unix().toBuilder().setAttributeViews("unix").build());

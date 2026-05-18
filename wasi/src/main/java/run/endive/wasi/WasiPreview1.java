@@ -1022,7 +1022,7 @@ public final class WasiPreview1 implements Closeable {
         Map<String, Object> attributes;
         try {
             if (flagSet(lookupFlags, WasiLookupFlags.SYMLINK_FOLLOW)) {
-                var resolved = resolveSymlinks(path);
+                var resolved = resolveSymlinks(path, directory);
                 if (resolved.isError()) {
                     return resolved.error();
                 } else {
@@ -1100,7 +1100,7 @@ public final class WasiPreview1 implements Closeable {
         }
     }
 
-    private ResolvedSymlink resolveSymlinks(Path path) {
+    private ResolvedSymlink resolveSymlinks(Path path, Path directory) {
         List<Path> visited = new ArrayList<>();
         while (Files.isSymbolicLink(path)) {
             if (visited.contains(path)) {
@@ -1110,10 +1110,20 @@ public final class WasiPreview1 implements Closeable {
             }
 
             try {
-                path = Files.readSymbolicLink(path);
+                Path target = Files.readSymbolicLink(path);
+                if (!target.isAbsolute()) {
+                    target = path.getParent().resolve(target);
+                }
+                path = target.normalize();
             } catch (IOException e) {
                 return new ResolvedSymlink(wasiResult(WasiErrno.EIO));
             }
+        }
+
+        Path dirNorm = directory.toAbsolutePath().normalize();
+        Path pathNorm = path.toAbsolutePath().normalize();
+        if (!pathNorm.startsWith(dirNorm)) {
+            return new ResolvedSymlink(wasiResult(WasiErrno.EACCES));
         }
 
         return new ResolvedSymlink(path);
@@ -1175,7 +1185,7 @@ public final class WasiPreview1 implements Closeable {
 
         try {
             if (flagSet(oldFlags, WasiLookupFlags.SYMLINK_FOLLOW)) {
-                var resolved = resolveSymlinks(oldPath);
+                var resolved = resolveSymlinks(oldPath, oldDirectory);
                 if (resolved.isError()) {
                     return resolved.error();
                 } else {
@@ -1246,7 +1256,7 @@ public final class WasiPreview1 implements Closeable {
         }
 
         if (flagSet(lookupFlags, WasiLookupFlags.SYMLINK_FOLLOW)) {
-            var resolved = resolveSymlinks(path);
+            var resolved = resolveSymlinks(path, directory);
             if (resolved.isError()) {
                 return resolved.error();
             } else {

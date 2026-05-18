@@ -821,12 +821,14 @@ public final class OpcodeImpl {
 
         for (int i = size - 1; i >= 0; i--) {
             if (d <= s) {
-                var val = src.ref(s++);
-                var inst = src.instance(d);
-                dest.setRef(d++, (int) val, inst);
+                var val = src.ref(s);
+                var inst = src.instance(s);
+                dest.setRef(d, (int) val, inst);
+                s++;
+                d++;
             } else {
                 var val = src.ref(s + i);
-                var inst = src.instance(d + i);
+                var inst = src.instance(s + i);
                 dest.setRef(d + i, (int) val, inst);
             }
         }

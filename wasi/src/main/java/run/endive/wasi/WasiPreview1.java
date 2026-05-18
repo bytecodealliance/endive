@@ -1120,10 +1120,15 @@ public final class WasiPreview1 implements Closeable {
             }
         }
 
-        Path dirNorm = directory.toAbsolutePath().normalize();
-        Path pathNorm = path.toAbsolutePath().normalize();
-        if (!pathNorm.startsWith(dirNorm)) {
-            return new ResolvedSymlink(wasiResult(WasiErrno.EACCES));
+        try {
+            Path dirReal = directory.toRealPath();
+            Path pathReal =
+                    Files.exists(path) ? path.toRealPath() : path.toAbsolutePath().normalize();
+            if (!pathReal.startsWith(dirReal)) {
+                return new ResolvedSymlink(wasiResult(WasiErrno.EACCES));
+            }
+        } catch (IOException e) {
+            return new ResolvedSymlink(wasiResult(WasiErrno.EIO));
         }
 
         return new ResolvedSymlink(path);

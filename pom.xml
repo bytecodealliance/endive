@@ -665,50 +665,6 @@
       </plugin>
 
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>license-maven-plugin</artifactId>
-        <version>${license-maven-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>check-licenses</id>
-            <goals>
-              <goal>add-third-party</goal>
-            </goals>
-            <phase>validate</phase>
-            <configuration>
-              <failOnBlacklist>true</failOnBlacklist>
-              <includedLicenses>
-                <includedLicense>Apache-2.0</includedLicense>
-                <includedLicense>Apache License, Version 2.0</includedLicense>
-                <includedLicense>The Apache Software License, Version 2.0</includedLicense>
-                <includedLicense>Apache 2</includedLicense>
-                <includedLicense>Apache 2.0</includedLicense>
-                <includedLicense>MIT License</includedLicense>
-                <includedLicense>The MIT License</includedLicense>
-                <includedLicense>MIT</includedLicense>
-                <includedLicense>BSD-2-Clause</includedLicense>
-                <includedLicense>BSD-3-Clause</includedLicense>
-                <includedLicense>The BSD License</includedLicense>
-                <includedLicense>The New BSD License</includedLicense>
-                <includedLicense>Revised BSD</includedLicense>
-                <includedLicense>ISC</includedLicense>
-                <includedLicense>ISC License</includedLicense>
-                <includedLicense>MPL-2.0</includedLicense>
-                <includedLicense>Mozilla Public License, Version 2.0</includedLicense>
-                <includedLicense>Eclipse Public License 2.0</includedLicense>
-                <includedLicense>Eclipse Distribution License - v 1.0</includedLicense>
-                <includedLicense>EDL 1.0</includedLicense>
-                <includedLicense>Unicode/ICU License</includedLicense>
-                <includedLicense>Public Domain</includedLicense>
-              </includedLicenses>
-              <failIfWarning>true</failIfWarning>
-              <excludedScopes>test</excludedScopes>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>${maven-javadoc-plugin.version}</version>
@@ -767,6 +723,52 @@
             </goals>
             <configuration>
               <useModulePath>true</useModulePath>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>${license-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>check-licenses</id>
+            <goals>
+              <goal>add-third-party</goal>
+            </goals>
+            <phase>validate</phase>
+            <configuration>
+              <failOnBlacklist>true</failOnBlacklist>
+              <includedLicenses>
+                <includedLicense>Apache-2.0</includedLicense>
+                <includedLicense>Apache License, Version 2.0</includedLicense>
+                <includedLicense>The Apache Software License, Version 2.0</includedLicense>
+                <includedLicense>Apache 2</includedLicense>
+                <includedLicense>Apache 2.0</includedLicense>
+                <includedLicense>The Apache License, Version 2.0</includedLicense>
+                <includedLicense>MIT License</includedLicense>
+                <includedLicense>The MIT License</includedLicense>
+                <includedLicense>MIT</includedLicense>
+                <includedLicense>BSD-2-Clause</includedLicense>
+                <includedLicense>BSD-3-Clause</includedLicense>
+                <includedLicense>The BSD License</includedLicense>
+                <includedLicense>The New BSD License</includedLicense>
+                <includedLicense>Revised BSD</includedLicense>
+                <includedLicense>ISC</includedLicense>
+                <includedLicense>ISC License</includedLicense>
+                <includedLicense>MPL-2.0</includedLicense>
+                <includedLicense>Mozilla Public License, Version 2.0</includedLicense>
+                <includedLicense>Eclipse Public License 2.0</includedLicense>
+                <includedLicense>Eclipse Public License, Version 2.0</includedLicense>
+                <includedLicense>Eclipse Distribution License - v 1.0</includedLicense>
+                <includedLicense>EDL 1.0</includedLicense>
+                <includedLicense>Unicode/ICU License</includedLicense>
+                <includedLicense>Public Domain</includedLicense>
+              </includedLicenses>
+              <failIfWarning>true</failIfWarning>
+              <excludedScopes>test</excludedScopes>
             </configuration>
           </execution>
         </executions>

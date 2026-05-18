@@ -2,7 +2,7 @@ package run.endive.wasm;
 
 /**
  * Base exception for errors raised by the Wasm engine (parsing, validation, linking,
- * instantiation, or execution). Distinct from {@link run.endive.runtime.WasmException},
+ * instantiation, or execution). Distinct from {@code run.endive.runtime.WasmException},
  * which represents Wasm-level tagged exceptions from the exception-handling proposal.
  */
 public class WasmEngineException extends RuntimeException {

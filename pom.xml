@@ -767,6 +767,7 @@
                 <includedLicense>EDL 1.0</includedLicense>
                 <includedLicense>Unicode/ICU License</includedLicense>
                 <includedLicense>Public Domain</includedLicense>
+                <includedLicense>GNU General Public License (GPL), version 2, with the Classpath exception</includedLicense>
               </includedLicenses>
               <failIfWarning>true</failIfWarning>
               <excludedScopes>test</excludedScopes>

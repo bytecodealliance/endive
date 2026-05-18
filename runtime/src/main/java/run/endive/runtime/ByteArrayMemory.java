@@ -320,7 +320,7 @@ public final class ByteArrayMemory implements Memory {
 
     private static void checkBounds(
             int addr, int size, int limit, Function<String, WasmEngineException> exceptionFactory) {
-        if (addr < 0 || size < 0 || addr > limit || (size > 0 && ((addr + size) > limit))) {
+        if (addr < 0 || size < 0 || addr > limit || (size > 0 && ((long) addr + (long) size > (long) limit))) {
             var errorMsg =
                     "out of bounds memory access: attempted to access address: "
                             + addr

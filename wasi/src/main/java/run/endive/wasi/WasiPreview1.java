@@ -570,6 +570,9 @@ public final class WasiPreview1 implements Closeable {
             int base = iovs + (i * 8);
             int iovBase = memory.readInt(base);
             var iovLen = memory.readInt(base + 4);
+            if (iovLen < 0) {
+                return wasiResult(WasiErrno.EINVAL);
+            }
             try {
                 byte[] data = new byte[iovLen];
                 int read = file.read(data, offset);
@@ -670,6 +673,9 @@ public final class WasiPreview1 implements Closeable {
             var base = iovs + (i * 8);
             var iovBase = memory.readInt(base);
             var iovLen = memory.readInt(base + 4);
+            if (iovLen < 0) {
+                return wasiResult(WasiErrno.EINVAL);
+            }
             var data = memory.readBytes(iovBase, iovLen);
             try {
                 int written = file.write(data, offset);
@@ -713,6 +719,9 @@ public final class WasiPreview1 implements Closeable {
             int base = iovs + (i * 8);
             int iovBase = memory.readInt(base);
             var iovLen = memory.readInt(base + 4);
+            if (iovLen < 0) {
+                return wasiResult(WasiErrno.EINVAL);
+            }
             try {
                 byte[] data = new byte[iovLen];
                 int read = reader.read(data);
@@ -938,6 +947,9 @@ public final class WasiPreview1 implements Closeable {
             var base = iovs + (i * 8);
             var iovBase = memory.readInt(base);
             var iovLen = memory.readInt(base + 4);
+            if (iovLen < 0) {
+                return wasiResult(WasiErrno.EINVAL);
+            }
             var data = memory.readBytes(iovBase, iovLen);
             try {
                 int written = writer.write(data);

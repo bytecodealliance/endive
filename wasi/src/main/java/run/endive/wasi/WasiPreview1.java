@@ -1110,11 +1110,7 @@ public final class WasiPreview1 implements Closeable {
             }
 
             try {
-                Path target = Files.readSymbolicLink(path);
-                if (!target.isAbsolute()) {
-                    target = path.getParent().resolve(target);
-                }
-                path = target.normalize();
+                path = Files.readSymbolicLink(path);
             } catch (IOException e) {
                 return new ResolvedSymlink(wasiResult(WasiErrno.EIO));
             }

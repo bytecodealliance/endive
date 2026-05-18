@@ -798,13 +798,14 @@ public final class OpcodeImpl {
 
     public static void TABLE_FILL(
             Instance instance, int tableIndex, int size, int value, int offset) {
-        int end = offset + size;
+        long endL = (long) offset + (long) size;
         var table = instance.table(tableIndex);
 
-        if (size < 0 || end > table.size()) {
+        if (size < 0 || offset < 0 || endL > (long) table.size()) {
             throw new WasmRuntimeException("out of bounds table access");
         }
 
+        int end = (int) endL;
         for (int i = offset; i < end; i++) {
             table.setRef(i, value, instance);
         }

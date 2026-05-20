@@ -6,14 +6,15 @@ import * as approvals from "approvals";
 import {configure} from "approvals/lib/config";
 import {JestReporter} from "approvals/lib/Providers/Jest/JestReporter";
 
-const markdownFiles = [];
+const markdownFiles: string[] = [];
 const includedFolders = ["docs"]
 
 // collecting all markdown files to be tested
 includedFolders.forEach(dir => {
   fs.readdirSync(path.join(__dirname, "..", dir), { recursive: true }).forEach(file => {
-    if (file.toLowerCase().endsWith(".md")) {
-      markdownFiles.push(path.join(dir, file))
+    const name = String(file);
+    if (name.toLowerCase().endsWith(".md")) {
+      markdownFiles.push(path.join(dir, name))
     }
   });
 });

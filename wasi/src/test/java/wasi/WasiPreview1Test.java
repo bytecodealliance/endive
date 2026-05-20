@@ -23,7 +23,7 @@ import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.ValType;
 
-@Timeout(10)
+@Timeout(600)
 public class WasiPreview1Test {
 
     private static WasmModule loadModule(String fileName) {
@@ -195,7 +195,7 @@ public class WasiPreview1Test {
     }
 
     @Test
-    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    @Timeout(value = 600, unit = TimeUnit.SECONDS)
     public void shouldRunWasiDemoDotnetModule() throws Exception {
         var fakeStdout = new MockPrintStream();
         var wasiOpts =

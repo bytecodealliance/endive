@@ -1,6 +1,6 @@
 [versions]
 agp = "9.2.1"
-junitJupiterApi = "5.14.3"
+junitJupiterApi = "6.1.0"
 kotlin = "2.3.21"
 endive = "999-SNAPSHOT"
 

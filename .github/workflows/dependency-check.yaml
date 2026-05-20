@@ -30,7 +30,10 @@ jobs:
             -DfailBuildOnCVSS=7 \
             -DsuppressedPaths=./dependency-check-suppressions.xml \
             -Dformats=HTML,JSON \
-            -Danalyzer.ossindexAnalyzerEnabled=true
+            -Danalyzer.ossindexAnalyzerEnabled=true \
+            -DnvdApiKey=${{ secrets.NVD_API_KEY }}
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
       - name: Upload report
         uses: actions/upload-artifact@v7
         if: always()

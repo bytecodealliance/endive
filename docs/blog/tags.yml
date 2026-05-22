@@ -13,6 +13,16 @@ wasm:
   permalink: /wasm
   description: Wasm tag description
 
+bug:
+  label: Bug
+  permalink: /bug
+  description: Bug investigations and fixes
+
+jvm:
+  label: JVM
+  permalink: /jvm
+  description: JVM internals
+
 release:
   label: Release
   permalink: /release

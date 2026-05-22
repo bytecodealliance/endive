@@ -18,6 +18,8 @@ This guide documents all breaking changes for users migrating from Chicory.
 | `com.dylibso.chicory:wasm` | `run.endive:wasm` |
 | `com.dylibso.chicory:wasi` | `run.endive:wasi` |
 | `com.dylibso.chicory:annotations` | `run.endive:annotations` |
+| `com.dylibso.chicory:annotations-processor` | `run.endive:annotations-processor` |
+| `com.dylibso.chicory:log` | `run.endive:log` |
 | `com.dylibso.chicory:bom` | `run.endive:bom` |
 
 All module artifact names (`runtime`, `compiler`, `wasm`, etc.) are unchanged.

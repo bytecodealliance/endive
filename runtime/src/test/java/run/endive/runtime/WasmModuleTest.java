@@ -24,6 +24,7 @@ import run.endive.corpus.CorpusResources;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.Parser;
 import run.endive.wasm.UninstantiableException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.CatchOpCode;
 import run.endive.wasm.types.FunctionType;
@@ -808,5 +809,27 @@ public class WasmModuleTest {
         // verify against a reference that doesn't exist
         var isNull3 = instance.exports().function("is_null").apply(1L)[0];
         assertEquals(1L, isNull3);
+    }
+
+    @Test
+    public void hostFunctionStackOverflowShouldBeWrapped() {
+        var func =
+                new HostFunction(
+                        "console",
+                        "log",
+                        FunctionType.of(List.of(ValType.I32, ValType.I32), List.of()),
+                        (Instance inst, long... args) -> {
+                            throw new StackOverflowError("simulated stack overflow");
+                        });
+        var instance =
+                Instance.builder(loadModule("compiled/host-function.wat.wasm"))
+                        .withImportValues(
+                                ImportValues.builder()
+                                        .addFunction(new HostFunction[] {func})
+                                        .build())
+                        .build();
+        var logIt = instance.export("logIt");
+        var e = assertThrows(WasmEngineException.class, logIt::apply);
+        assertEquals("call stack exhausted", e.getMessage());
     }
 }

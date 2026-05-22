@@ -123,6 +123,8 @@ public class InterpreterMachine implements Machine {
                 }
             } catch (WasmException e) {
                 THROW_REF(instance, instance.registerException(e), stack, stackFrame, callStack);
+            } catch (StackOverflowError e) {
+                throw new WasmEngineException("call stack exhausted", e);
             } finally {
                 if (!callStack.isEmpty() && callStack.peek() == stackFrame) {
                     callStack.pop();

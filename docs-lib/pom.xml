@@ -13,4 +13,8 @@
   <name>Endive - Docs Lib</name>
   <description>INTERNAL USAGE ONLY - utils to verify the docs</description>
 
+  <properties>
+    <dependency-check.skip>true</dependency-check.skip>
+  </properties>
+
 </project>

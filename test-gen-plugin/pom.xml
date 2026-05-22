@@ -13,6 +13,10 @@
   <name>Endive - Test Gen Maven Plugin</name>
   <description>A Maven Plugin to generate tests from the WebAssembly testsuite</description>
 
+  <properties>
+    <dependency-check.skip>true</dependency-check.skip>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>com.github.javaparser</groupId>

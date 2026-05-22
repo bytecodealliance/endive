@@ -13,6 +13,10 @@
   <name>Endive - Annotations - IT</name>
   <description>Integration tests for the Endive annotations</description>
 
+  <properties>
+    <dependency-check.skip>true</dependency-check.skip>
+  </properties>
+
   <dependencies>
     <!-- Dummy dependencies to force reactor ordering -->
     <dependency>

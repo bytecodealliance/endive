@@ -13,6 +13,10 @@
   <name>Endive - Test Gen Lib</name>
   <description>A library to generate tests from the WebAssembly testsuite</description>
 
+  <properties>
+    <dependency-check.skip>true</dependency-check.skip>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>

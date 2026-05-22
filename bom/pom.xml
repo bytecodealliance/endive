@@ -12,6 +12,10 @@
   <name>Endive - BOM</name>
   <description>Bill of Materials (BOM)</description>
 
+  <properties>
+    <dependency-check.skip>true</dependency-check.skip>
+  </properties>
+
   <dependencyManagement>
     <dependencies>
       <dependency>

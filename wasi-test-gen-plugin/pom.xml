@@ -13,6 +13,10 @@
   <name>Endive - WASI Test Gen Maven Plugin</name>
   <description>A Maven Plugin to generate tests from the WebAssembly wasi-testsuite</description>
 
+  <properties>
+    <dependency-check.skip>true</dependency-check.skip>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>

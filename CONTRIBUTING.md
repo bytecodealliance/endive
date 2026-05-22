@@ -95,6 +95,18 @@ Our priority is to focus on implementing [proposals](https://github.com/WebAssem
 
 Because we are all humans, and to ensure Endive evolves in the right direction, all changes must pass continuous integration before being merged. The CI is based on GitHub Actions, which means that pull requests will receive automatic feedback.  Please watch out for the results of these workflows to see if your PR passes all tests.
 
+### OWASP Dependency Check
+
+A nightly [OWASP Dependency Check](https://dependency-check.github.io/DependencyCheck/) runs against all modules and fails the build if any dependency has a CVSS score of 7 or higher. Only published (BOM) modules are scanned; internal and test-only modules opt out by setting:
+
+```xml
+<properties>
+  <dependency-check.skip>true</dependency-check.skip>
+</properties>
+```
+
+If you add a new module that is **not** published in the BOM, add the property above to its `pom.xml`. New modules without this property will be scanned by default.
+
 ### IntelliJ default limits
 
 Some of the SIMD tests are exceeding the default limits of IntelliJ.

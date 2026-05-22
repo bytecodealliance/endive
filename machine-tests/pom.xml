@@ -12,6 +12,10 @@
 
   <name>Endive - Machines tests</name>
 
+  <properties>
+    <dependency-check.skip>true</dependency-check.skip>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>run.endive</groupId>

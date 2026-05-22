@@ -15,6 +15,7 @@
 
   <properties>
     <skipTests>true</skipTests>
+    <dependency-check.skip>true</dependency-check.skip>
   </properties>
 
   <dependencies>

@@ -13,6 +13,10 @@
   <name>Endive - Runtime tests</name>
   <description>Tests for the Endive runtime using the WebAssembly testsuite</description>
 
+  <properties>
+    <dependency-check.skip>true</dependency-check.skip>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>run.endive</groupId>

@@ -50,7 +50,7 @@ public final class MemCopyWorkaround {
             I32GEUFunc noop4 = (a, b) -> b;
 
             // Warm up the JIT... to make it see memoryCopyFunc.apply is megamorphic
-            for (int i = 0; i < 1000; i++) {
+            for (int i = 0; i < 10_000; i++) {
                 memoryCopyFunc = noop1;
                 MemCopyWorkaround.memoryCopy(0, 0, 0, null);
                 memoryCopyFunc = noop2;

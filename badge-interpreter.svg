@@ -1,0 +1,20 @@
+<svg width="425.8" height="20" viewBox="0 0 4258 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tests Interpreter: 62061 success, 83 skip, 0 failures, 0 errors, 62144 total">
+  <title>Tests Interpreter: 62061 success, 83 skip, 0 failures, 0 errors, 62144 total</title>
+  <linearGradient id="a" x2="0" y2="100%">
+    <stop offset="0" stop-opacity=".1" stop-color="#EEE"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <mask id="m"><rect width="4258" height="200" rx="30" fill="#FFF"/></mask>
+  <g mask="url(#m)">
+    <rect width="1040" height="200" fill="#555"/>
+    <rect width="3218" height="200" fill="#31c653" x="1040"/>
+    <rect width="4258" height="200" fill="url(#a)"/>
+  </g>
+  <g aria-hidden="true" fill="#fff" text-anchor="start" font-family="Verdana,DejaVu Sans,sans-serif" font-size="110">
+    <text x="60" y="148" textLength="940" fill="#000" opacity="0.25">Tests Interpreter</text>
+    <text x="50" y="138" textLength="940">Tests Interpreter</text>
+    <text x="1095" y="148" textLength="3118" fill="#000" opacity="0.25">62061 success, 83 skip, 0 failures, 0 errors, 62144 total</text>
+    <text x="1085" y="138" textLength="3118">62061 success, 83 skip, 0 failures, 0 errors, 62144 total</text>
+  </g>
+  
+</svg>

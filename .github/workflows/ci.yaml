@@ -5,10 +5,6 @@ on:
     branches: [ main ]
   pull_request:
 
-permissions:
-  contents: read
-  checks: write
-
 jobs:
   ci:
     name: CI
@@ -83,6 +79,9 @@ jobs:
 
   test-results:
     name: Test Results
+    permissions:
+      contents: write
+      checks: write
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -172,10 +171,19 @@ jobs:
         with:
           name: badge-${{ env.BADGE_NAME }}
           path: badge-${{ env.BADGE_NAME }}.svg
-      - name: Upload badge to Gist
+      - name: Checkout badges branch
         if: steps.publish.outputs.badge
-        uses: andymckay/append-gist-action@ab30bf28df67017c7ad696500b218558c7c04db3
+        uses: actions/checkout@v6
         with:
-          token: ${{ secrets.GIST_TOKEN }}
-          gistURL: https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15
-          file: badge-${{ env.BADGE_NAME }}.svg
+          ref: badges
+          path: badges
+      - name: Upload badge to badges branch
+        if: steps.publish.outputs.badge
+        run: |
+          cd badges
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          cp ../badge-${{ env.BADGE_NAME }}.svg .
+          git add badge-${{ env.BADGE_NAME }}.svg
+          git commit -m "Update ${{ env.BADGE_NAME }} badge" || exit 0
+          git push -f

@@ -13,9 +13,9 @@
   <a href="/CONTRIBUTING.md">Contributing</a>
 </p>
 
-[![Interpreter Test Results](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-interpreter.svg)](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-interpreter.svg)
-[![Compiler Test Results](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-compiler.svg)](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-compiler.svg)
-[![WASI Test Results](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-wasi.svg)](https://gist.githubusercontent.com/andreaTP/69354d1cc6cf23e4c3c4a9a8daf7ea15/raw/badge-wasi.svg)
+[![Interpreter Test Results](https://raw.githubusercontent.com/bytecodealliance/endive/badges/badge-interpreter.svg)](https://github.com/bytecodealliance/endive/actions)
+[![Compiler Test Results](https://raw.githubusercontent.com/bytecodealliance/endive/badges/badge-compiler.svg)](https://github.com/bytecodealliance/endive/actions)
+[![WASI Test Results](https://raw.githubusercontent.com/bytecodealliance/endive/badges/badge-wasi.svg)](https://github.com/bytecodealliance/endive/actions)
 
 [![Zulip](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://bytecodealliance.zulipchat.com/#narrow/stream/endive)
 

@@ -100,4 +100,47 @@ public class WasmToolsTest {
                 exitException.getMessage().contains("failed to validate"),
                 "found: " + exitException.getMessage() + " doesn't contains the expected result");
     }
+
+    @Test
+    public void shouldValidateSimpleModuleWithWasm1() {
+        Validate.builder()
+                .withFeatures(WasmFeature.WASM1)
+                .build()
+                .validateModule(
+                        "(module (func (export \"add\")"
+                                + " (param i32) (param i32) (result i32)"
+                                + " (i32.add (local.get 0) (local.get 1))))");
+    }
+
+    @Test
+    public void shouldRejectSimdModuleWithWasm1() {
+        var validator = Validate.builder().withFeatures(WasmFeature.WASM1).build();
+        assertThrows(
+                WatParseException.class,
+                () ->
+                        validator.validateModule(
+                                "(module (func (result v128) (v128.const i32x4 0 0 0 0)))"));
+    }
+
+    @Test
+    public void shouldAcceptSimdModuleWithWasm2() {
+        Validate.builder()
+                .withFeatures(WasmFeature.WASM2)
+                .build()
+                .validateModule("(module (func (result v128) (v128.const i32x4 0 0 0 0)))");
+    }
+
+    @Test
+    public void shouldRejectSimdModuleWhenDisabled() {
+        var validator =
+                Validate.builder()
+                        .withFeatures(WasmFeature.WASM2)
+                        .withoutFeature(WasmFeature.SIMD)
+                        .build();
+        assertThrows(
+                WatParseException.class,
+                () ->
+                        validator.validateModule(
+                                "(module (func (result v128) (v128.const i32x4 0 0 0 0)))"));
+    }
 }

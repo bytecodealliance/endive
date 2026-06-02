@@ -1,10 +1,9 @@
 package run.endive.runtime;
 
 /**
- * Boxed representation of an i31ref value for storage in int-typed containers (tables, globals).
- * On the stack, i31 values use an efficient tagged-long encoding (see {@link
- * run.endive.wasm.types.Value#encodeI31}). This class is only used when i31 values need
- * to pass through int-typed storage where the tag would be lost.
+ * Representation of an i31ref value.
+ * On the stack, stored as Object in the refs array.
+ * Two i31ref values with the same integer value are equal per the Wasm spec (ref.eq).
  */
 public final class WasmI31Ref implements WasmGcRef {
 
@@ -22,6 +21,22 @@ public final class WasmI31Ref implements WasmGcRef {
     }
 
     public int value() {
+        return value;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof WasmI31Ref)) {
+            return false;
+        }
+        return value == ((WasmI31Ref) o).value;
+    }
+
+    @Override
+    public int hashCode() {
         return value;
     }
 }

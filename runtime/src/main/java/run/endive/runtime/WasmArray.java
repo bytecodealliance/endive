@@ -2,16 +2,23 @@ package run.endive.runtime;
 
 /**
  * Runtime representation of a WasmGC array instance.
- * Elements are stored as raw long values (same encoding as stack values).
+ * Numeric elements are stored in {@code elements} (long[]).
+ * Reference-typed elements are stored in {@code elementRefs} (Object[]).
  * Packed types (i8, i16) are stored as full long slots for simplicity.
  */
 public final class WasmArray implements WasmGcRef {
     private final int typeIdx;
     private final long[] elements;
+    private final Object[] elementRefs;
 
     public WasmArray(int typeIdx, long[] elements) {
+        this(typeIdx, elements, null);
+    }
+
+    public WasmArray(int typeIdx, long[] elements, Object[] elementRefs) {
         this.typeIdx = typeIdx;
         this.elements = elements;
+        this.elementRefs = (elementRefs != null) ? elementRefs : new Object[elements.length];
     }
 
     @Override
@@ -27,11 +34,23 @@ public final class WasmArray implements WasmGcRef {
         elements[idx] = value;
     }
 
+    public Object getRef(int idx) {
+        return elementRefs[idx];
+    }
+
+    public void setRef(int idx, Object ref) {
+        elementRefs[idx] = ref;
+    }
+
     public int length() {
         return elements.length;
     }
 
     public long[] elements() {
         return elements;
+    }
+
+    public Object[] elementRefs() {
+        return elementRefs;
     }
 }

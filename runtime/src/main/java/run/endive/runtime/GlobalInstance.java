@@ -8,6 +8,7 @@ import run.endive.wasm.types.ValueType;
 public class GlobalInstance {
     private long valueLow;
     private long valueHigh;
+    private Object refValue;
     private final ValType valType;
     private Instance instance;
     private final MutabilityType mutabilityType;
@@ -87,5 +88,13 @@ public class GlobalInstance {
 
     public MutabilityType getMutabilityType() {
         return mutabilityType;
+    }
+
+    public Object getRefValue() {
+        return refValue;
+    }
+
+    public void setRefValue(Object ref) {
+        this.refValue = ref;
     }
 }

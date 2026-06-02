@@ -14,12 +14,21 @@ public class TableInstance {
     private final Table table;
     private Instance[] instances;
     private int[] refs;
+    private Object[] objRefs;
 
     public TableInstance(Table table, int initialValue) {
         this.table = table;
         this.instances = new Instance[(int) table.limits().min()];
         refs = new int[(int) table.limits().min()];
         Arrays.fill(refs, initialValue);
+        if (isGcTable()) {
+            objRefs = new Object[(int) table.limits().min()];
+        }
+    }
+
+    private boolean isGcTable() {
+        var et = table.elementType();
+        return !et.equals(ValType.FuncRef) && !et.equals(ValType.ExternRef);
     }
 
     public int size() {
@@ -46,6 +55,29 @@ public class TableInstance {
         Arrays.fill(newInstances, oldSize, targetSize, instance);
         refs = newRefs;
         instances = newInstances;
+        if (objRefs != null) {
+            objRefs = Arrays.copyOf(objRefs, targetSize);
+        }
+        table.limits().grow(size);
+        return oldSize;
+    }
+
+    public int growWithRef(int size, Object refValue, Instance instance) {
+        var oldSize = refs.length;
+        var targetSize = oldSize + size;
+        if (size < 0 || targetSize > limits().max()) {
+            return -1;
+        }
+        var newRefs = Arrays.copyOf(refs, targetSize);
+        Arrays.fill(newRefs, oldSize, targetSize, REF_NULL_VALUE);
+        var newInstances = Arrays.copyOf(instances, targetSize);
+        Arrays.fill(newInstances, oldSize, targetSize, instance);
+        refs = newRefs;
+        instances = newInstances;
+        if (objRefs != null) {
+            objRefs = Arrays.copyOf(objRefs, targetSize);
+            Arrays.fill(objRefs, oldSize, targetSize, refValue);
+        }
         table.limits().grow(size);
         return oldSize;
     }
@@ -65,11 +97,29 @@ public class TableInstance {
         return ref;
     }
 
+    public Object objRef(int index) {
+        if (index < 0 || index >= this.refs.length) {
+            throw new WasmEngineException("undefined element");
+        }
+        return (objRefs != null) ? objRefs[index] : null;
+    }
+
     public void setRef(int index, int value, Instance instance) {
         if (index < 0 || index >= this.refs.length || index >= this.instances.length) {
             throw new UninstantiableException("out of bounds table access");
         }
         this.refs[index] = value;
+        this.instances[index] = instance;
+    }
+
+    public void setObjRef(int index, Object ref, Instance instance) {
+        if (index < 0 || index >= this.refs.length || index >= this.instances.length) {
+            throw new UninstantiableException("out of bounds table access");
+        }
+        if (objRefs != null) {
+            objRefs[index] = ref;
+        }
+        this.refs[index] = (ref == null) ? REF_NULL_VALUE : 0;
         this.instances[index] = instance;
     }
 
@@ -80,6 +130,9 @@ public class TableInstance {
     public void reset() {
         for (int i = 0; i < refs.length; i++) {
             this.refs[i] = REF_NULL_VALUE;
+        }
+        if (objRefs != null) {
+            Arrays.fill(objRefs, null);
         }
     }
 }

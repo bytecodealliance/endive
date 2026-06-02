@@ -820,17 +820,27 @@ public final class OpcodeImpl {
             throw new WasmRuntimeException("out of bounds table access");
         }
 
+        boolean isGcTable =
+                !dest.elementType().equals(ValType.FuncRef)
+                        && !dest.elementType().equals(ValType.ExternRef);
+
         for (int i = size - 1; i >= 0; i--) {
             if (d <= s) {
-                var val = src.ref(s);
                 var inst = src.instance(s);
-                dest.setRef(d, (int) val, inst);
+                if (isGcTable) {
+                    dest.setObjRef(d, src.objRef(s), inst);
+                } else {
+                    dest.setRef(d, src.ref(s), inst);
+                }
                 s++;
                 d++;
             } else {
-                var val = src.ref(s + i);
                 var inst = src.instance(s + i);
-                dest.setRef(d + i, (int) val, inst);
+                if (isGcTable) {
+                    dest.setObjRef(d + i, src.objRef(s + i), inst);
+                } else {
+                    dest.setRef(d + i, src.ref(s + i), inst);
+                }
             }
         }
     }
@@ -861,18 +871,24 @@ public final class OpcodeImpl {
         }
 
         int end = (int) endL;
+        boolean isGcTable =
+                !table.elementType().equals(ValType.FuncRef)
+                        && !table.elementType().equals(ValType.ExternRef);
         for (int i = offset; i < end; i++) {
             var elem = instance.element(elementidx);
-            var val =
-                    boxForTable(
-                            computeConstantValue(instance, elem.initializers().get(elemidx++))[0],
-                            instance);
-            if (table.elementType().equals(ValType.FuncRef)) {
-                if (val > instance.functionCount()) {
-                    throw new WasmRuntimeException("out of bounds table access");
-                }
-                table.setRef(i, val, instance);
+            if (isGcTable) {
+                var result =
+                        ConstantEvaluators.computeConstant(
+                                instance, elem.initializers().get(elemidx++));
+                table.setObjRef(i, result.ref(), instance);
             } else {
+                var val =
+                        (int) computeConstantValue(instance, elem.initializers().get(elemidx++))[0];
+                if (table.elementType().equals(ValType.FuncRef)) {
+                    if (val > instance.functionCount()) {
+                        throw new WasmRuntimeException("out of bounds table access");
+                    }
+                }
                 table.setRef(i, val, instance);
             }
         }

@@ -44,6 +44,7 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
             Deque<StackFrame> callStack,
             int funcId,
             long[] args,
+            Object[] refArgs,
             FunctionType callType,
             boolean popResults)
             throws WasmEngineException {
@@ -51,7 +52,7 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
             usedInterpretedFunctions.add(funcId);
             System.err.println("Endive: calling interpreted function " + funcId);
         }
-        return super.call(stack, instance, callStack, funcId, args, callType, popResults);
+        return super.call(stack, instance, callStack, funcId, args, refArgs, callType, popResults);
     }
 
     @Override

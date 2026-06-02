@@ -234,6 +234,28 @@ public final class ValType {
         return isReference(this.opcode());
     }
 
+    public boolean isGcReference() {
+        switch (opcode()) {
+            case ID.AnyRef:
+            case ID.EqRef:
+            case ID.i31:
+            case ID.StructRef:
+            case ID.ArrayRef:
+            case ID.NoneRef:
+                return true;
+            case ID.Ref:
+            case ID.RefNull:
+                int ht = typeIdx();
+                return ht != TypeIdxCode.FUNC.code()
+                        && ht != TypeIdxCode.NOFUNC.code()
+                        && ht != TypeIdxCode.EXTERN.code()
+                        && ht != TypeIdxCode.NOEXTERN.code()
+                        && ht != TypeIdxCode.EXN.code();
+            default:
+                return false;
+        }
+    }
+
     // https://webassembly.github.io/gc/core/binary/types.html#heap-types
     public static boolean isAbsHeapType(int opcode) {
         return (opcode == ID.NoFuncRef
@@ -670,6 +692,30 @@ public final class ValType {
 
         public boolean isReference() {
             return ValType.isReference(opcode);
+        }
+
+        public boolean isGcReference() {
+            if (!isReference()) {
+                return false;
+            }
+            switch (opcode) {
+                case ID.AnyRef:
+                case ID.EqRef:
+                case ID.i31:
+                case ID.StructRef:
+                case ID.ArrayRef:
+                case ID.NoneRef:
+                    return true;
+                case ID.Ref:
+                case ID.RefNull:
+                    return typeIdx != TypeIdxCode.FUNC.code()
+                            && typeIdx != TypeIdxCode.NOFUNC.code()
+                            && typeIdx != TypeIdxCode.EXTERN.code()
+                            && typeIdx != TypeIdxCode.NOEXTERN.code()
+                            && typeIdx != TypeIdxCode.EXN.code();
+                default:
+                    return false;
+            }
         }
 
         @Deprecated(since = "use .build.resolve(typeSection) instead")

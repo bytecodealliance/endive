@@ -2,6 +2,7 @@ package run.endive.runtime;
 
 import static java.util.Objects.requireNonNullElse;
 import static java.util.Objects.requireNonNullElseGet;
+import static run.endive.runtime.ConstantEvaluators.computeConstant;
 import static run.endive.runtime.ConstantEvaluators.computeConstantInstance;
 import static run.endive.runtime.ConstantEvaluators.computeConstantValue;
 import static run.endive.wasm.types.ExternalType.FUNCTION;
@@ -133,7 +134,7 @@ public class Instance {
 
         for (int i = 0; i < tables.length; i++) {
             long rawValue = computeConstantValue(this, tables[i].initialize())[0];
-            var initValue = OpcodeImpl.boxForTable(rawValue, this);
+            int initValue = (int) rawValue;
             if (tableFactory != null) {
                 this.tables[i] = tableFactory.create(tables[i], initValue);
             } else {
@@ -151,7 +152,8 @@ public class Instance {
         // because segment offsets can reference local globals via global.get.
         for (var i = 0; i < globalInitializers.length; i++) {
             var g = globalInitializers[i];
-            var values = computeConstantValue(this, g.initInstructions());
+            var result = computeConstant(this, g.initInstructions());
+            var values = result.longs();
             if (globalFactory != null) {
                 globals[i] =
                         globalFactory.create(
@@ -168,6 +170,9 @@ public class Instance {
                                 g.mutabilityType());
             }
             globals[i].setInstance(this);
+            if (g.valueType().isReference()) {
+                globals[i].setRefValue(result.ref());
+            }
         }
 
         for (var el : elements) {
@@ -181,14 +186,22 @@ public class Instance {
                         || (offset + initializers.size() - 1) >= table.size()) {
                     throw new UninstantiableException("out of bounds table access");
                 }
+                boolean isGcTable =
+                        !table.elementType().equals(ValType.FuncRef)
+                                && !table.elementType().equals(ValType.ExternRef);
                 for (int i = 0; i < initializers.size(); i++) {
                     final List<Instruction> init = initializers.get(i);
                     int index = offset + i;
-                    var value = computeConstantValue(this, init);
                     var inst = computeConstantInstance(this, init);
 
                     assert ae.type().isReference();
-                    table.setRef(index, OpcodeImpl.boxForTable(value[0], this), inst);
+                    if (isGcTable) {
+                        var result = computeConstant(this, init);
+                        table.setObjRef(index, result.ref(), inst);
+                    } else {
+                        var value = computeConstantValue(this, init);
+                        table.setRef(index, (int) value[0], inst);
+                    }
                 }
             }
         }
@@ -476,6 +489,26 @@ public class Instance {
             return heapTypeSubOf(gc.typeIdx(), targetHeapType);
         }
         // Internalized externref (via any.convert_extern)
+        return targetHeapType == ValType.TypeIdxCode.ANY.code();
+    }
+
+    public boolean heapTypeMatchRef(
+            Object ref, boolean nullable, int targetHeapType, int sourceHeapType) {
+        if (ref == null) {
+            return nullable;
+        }
+        if (targetHeapType == ValType.TypeIdxCode.NONE.code()
+                || targetHeapType == ValType.TypeIdxCode.NOFUNC.code()
+                || targetHeapType == ValType.TypeIdxCode.NOEXTERN.code()) {
+            return false;
+        }
+        if (targetHeapType == ValType.TypeIdxCode.FUNC.code()
+                || targetHeapType == ValType.TypeIdxCode.EXTERN.code()) {
+            return true;
+        }
+        if (ref instanceof WasmGcRef) {
+            return heapTypeSubOf(((WasmGcRef) ref).typeIdx(), targetHeapType);
+        }
         return targetHeapType == ValType.TypeIdxCode.ANY.code();
     }
 

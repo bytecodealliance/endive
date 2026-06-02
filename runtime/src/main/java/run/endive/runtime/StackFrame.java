@@ -27,6 +27,7 @@ public class StackFrame {
     private final int funcId;
     private int pc;
     private final long[] locals;
+    private final Object[] localRefs;
     private final ValType[] localTypes;
     private final int[] localIdx;
     private final Instance instance;
@@ -38,6 +39,7 @@ public class StackFrame {
                 instance,
                 funcId,
                 args,
+                null,
                 Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyList());
@@ -47,6 +49,7 @@ public class StackFrame {
             Instance instance,
             int funcId,
             long[] args,
+            Object[] refArgs,
             List<ValType> argsTypes,
             List<ValType> localTypes,
             List<AnnotatedInstruction> code) {
@@ -54,6 +57,10 @@ public class StackFrame {
         this.instance = instance;
         this.funcId = funcId;
         this.locals = Arrays.copyOf(args, sizeOf(argsTypes) + sizeOf(localTypes));
+        this.localRefs = new Object[this.locals.length];
+        if (refArgs != null) {
+            System.arraycopy(refArgs, 0, this.localRefs, 0, refArgs.length);
+        }
         int localsSize = argsTypes.size() + localTypes.size();
         this.localTypes = new ValType[localsSize];
         for (int i = 0; i < argsTypes.size(); i++) {
@@ -70,7 +77,11 @@ public class StackFrame {
             ValType type = localTypes.get(i);
             var idx = j + sizeOf(argsTypes);
             if (!type.equals(ValType.V128)) {
-                locals[idx] = Value.zero(type);
+                if (type.isReference()) {
+                    locals[idx] = Value.REF_NULL_VALUE;
+                } else {
+                    locals[idx] = Value.zero(type);
+                }
                 j += 1;
             } else {
                 locals[idx] = Value.zero(ValType.I64);
@@ -95,6 +106,18 @@ public class StackFrame {
         for (int i = 0; i < locals.length; i++) {
             setLocal(i, args[i]);
         }
+        Arrays.fill(localRefs, null);
+        pc = 0;
+    }
+
+    void reset(long[] args, Object[] refArgs) {
+        for (int i = 0; i < locals.length; i++) {
+            setLocal(i, args[i]);
+        }
+        Arrays.fill(localRefs, null);
+        if (refArgs != null) {
+            System.arraycopy(refArgs, 0, localRefs, 0, refArgs.length);
+        }
         pc = 0;
     }
 
@@ -116,6 +139,15 @@ public class StackFrame {
 
     long local(int i) {
         return locals[i];
+    }
+
+    void setLocalRef(int i, Object ref) {
+        this.localRefs[i] = ref;
+        this.locals[i] = (ref == null) ? Value.REF_NULL_VALUE : 0;
+    }
+
+    Object localRef(int i) {
+        return localRefs[i];
     }
 
     @Override
@@ -200,19 +232,32 @@ public class StackFrame {
     static void doControlTransfer(CtrlFrame ctrlFrame, MStack stack) {
         var endResults = ctrlFrame.startValues + ctrlFrame.endValues; // unwind stack
         long[] returns = new long[endResults];
+        Object[] returnRefs = new Object[endResults];
+        Object[] stackRefArray = stack.refArray();
         for (int i = 0; i < returns.length; i++) {
             if (stack.size() > 0) {
                 returns[i] = stack.pop();
+                if (stackRefArray != null) {
+                    returnRefs[i] = stackRefArray[stack.size()];
+                    stackRefArray[stack.size()] = null;
+                }
             }
         }
 
+        stack.clearRefsTo(ctrlFrame.height);
         while (stack.size() > ctrlFrame.height) {
             stack.pop();
         }
 
         for (int i = 0; i < returns.length; i++) {
-            long value = returns[returns.length - 1 - i];
-            stack.push(value);
+            int idx = returns.length - 1 - i;
+            long value = returns[idx];
+            Object ref = returnRefs[idx];
+            if (ref != null) {
+                stack.pushRef(ref);
+            } else {
+                stack.push(value);
+            }
         }
     }
 }

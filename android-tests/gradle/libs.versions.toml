@@ -1,7 +1,7 @@
 [versions]
 agp = "9.2.1"
 junitJupiterApi = "5.14.3"
-kotlin = "2.3.21"
+kotlin = "2.4.0"
 endive = "999-SNAPSHOT"
 
 [libraries]

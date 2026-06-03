@@ -8,4 +8,8 @@ import run.endive.wasm.WasmEngineException;
 @FunctionalInterface
 public interface ExportFunction {
     long[] apply(long... args) throws WasmEngineException;
+
+    default Object[] applyGc(Object... args) throws WasmEngineException {
+        throw new UnsupportedOperationException("This function does not support GC references");
+    }
 }

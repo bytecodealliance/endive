@@ -1,6 +1,6 @@
 final class run/endive/$gen/CompiledMachineFuncGroup_0 {
 
-  public static func_0(IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+  public static func_0(IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)Ljava/lang/Object;
     ILOAD 0
     ILOAD 1
     ISTORE 5
@@ -17,12 +17,14 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ILOAD 5
     I2L
     LASTORE
+    ICONST_2
+    ANEWARRAY java/lang/Object
     ICONST_0
     ALOAD 3
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structNew ([JILrun/endive/runtime/Instance;)I
-    IRETURN
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structNew ([J[Ljava/lang/Object;ILrun/endive/runtime/Instance;)Ljava/lang/Object;
+    ARETURN
 
-  public static call_0(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
+  public static call_0(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
     ALOAD 2
     ICONST_0
     LALOAD
@@ -33,75 +35,77 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     L2I
     ALOAD 1
     ALOAD 0
-    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_0 (IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_0 (IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)Ljava/lang/Object;
+    ASTORE 4
+    ALOAD 0
+    ALOAD 4
+    INVOKEVIRTUAL run/endive/runtime/Instance.registerGcRef (Lrun/endive/runtime/WasmGcRef;)I
     I2L
-    LSTORE 3
+    LSTORE 4
     ICONST_1
     NEWARRAY T_LONG
     DUP
     ICONST_0
-    LLOAD 3
+    LLOAD 4
     LASTORE
     ARETURN
 
-  public static func_1(ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
-    ILOAD 0
+  public static func_1(Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    ALOAD 0
     ICONST_0
     ICONST_0
     ALOAD 2
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (IIILrun/endive/runtime/Instance;)J
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (Ljava/lang/Object;IILrun/endive/runtime/Instance;)J
     L2I
     IRETURN
 
-  public static call_1(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
-    ALOAD 2
+  public static call_1(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
+    ALOAD 3
     ICONST_0
-    LALOAD
-    L2I
+    AALOAD
     ALOAD 1
     ALOAD 0
-    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_1 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_1 (Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
-    LSTORE 3
+    LSTORE 4
     ICONST_1
     NEWARRAY T_LONG
     DUP
     ICONST_0
-    LLOAD 3
+    LLOAD 4
     LASTORE
     ARETURN
 
-  public static func_2(ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
-    ILOAD 0
+  public static func_2(Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    ALOAD 0
     ICONST_0
     ICONST_0
     ALOAD 2
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (IIILrun/endive/runtime/Instance;)J
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (Ljava/lang/Object;IILrun/endive/runtime/Instance;)J
     L2I
-    ILOAD 0
+    ALOAD 0
     ICONST_0
     ICONST_1
     ALOAD 2
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (IIILrun/endive/runtime/Instance;)J
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (Ljava/lang/Object;IILrun/endive/runtime/Instance;)J
     L2I
     IADD
     IRETURN
 
-  public static call_2(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
-    ALOAD 2
+  public static call_2(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
+    ALOAD 3
     ICONST_0
-    LALOAD
-    L2I
+    AALOAD
     ALOAD 1
     ALOAD 0
-    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_2 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_2 (Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
-    LSTORE 3
+    LSTORE 4
     ICONST_1
     NEWARRAY T_LONG
     DUP
     ICONST_0
-    LLOAD 3
+    LLOAD 4
     LASTORE
     ARETURN
 }

@@ -147,10 +147,92 @@ public class InterpreterMachine implements Machine {
 
         var totalResults = sizeOf(type.returns());
         var results = new long[totalResults];
-        for (var i = totalResults - 1; i >= 0; i--) {
-            results[i] = stack.pop();
+        int slot = totalResults;
+        for (int r = type.returns().size() - 1; r >= 0; r--) {
+            var retType = type.returns().get(r);
+            if (retType.isGcReference()) {
+                slot--;
+                var ref = stack.popRef();
+                results[slot] = (ref == null) ? Value.REF_NULL_VALUE : 0;
+            } else if (retType.equals(ValType.V128)) {
+                slot -= 2;
+                results[slot + 1] = stack.pop();
+                results[slot] = stack.pop();
+            } else {
+                slot--;
+                results[slot] = stack.pop();
+            }
         }
         return results;
+    }
+
+    @Override
+    public Object[] callGc(int funcId, Object[] gcArgs) throws WasmEngineException {
+        checkInterruption();
+        var typeId = instance.functionType(funcId);
+        var type = instance.type(typeId);
+
+        var longArgs = new long[sizeOf(type.params())];
+        Object[] refArgs = null;
+        int slot = 0;
+        for (int i = 0; i < type.params().size(); i++) {
+            var param = type.params().get(i);
+            if (param.isGcReference()) {
+                if (refArgs == null) {
+                    refArgs = new Object[longArgs.length];
+                }
+                refArgs[slot] = (gcArgs != null && i < gcArgs.length) ? gcArgs[i] : null;
+                slot++;
+            } else if (param.equals(ValType.V128)) {
+                if (gcArgs != null && i < gcArgs.length && gcArgs[i] instanceof long[]) {
+                    var v = (long[]) gcArgs[i];
+                    longArgs[slot] = v[0];
+                    longArgs[slot + 1] = v.length > 1 ? v[1] : 0;
+                }
+                slot += 2;
+            } else {
+                if (gcArgs != null && i < gcArgs.length && gcArgs[i] instanceof Number) {
+                    longArgs[slot] = ((Number) gcArgs[i]).longValue();
+                }
+                slot++;
+            }
+        }
+
+        call(stack, instance, callStack, funcId, longArgs, refArgs, null, false);
+
+        if (type.returns().isEmpty() || stack.size() == 0) {
+            return null;
+        }
+
+        var results = new Object[type.returns().size()];
+        for (int r = type.returns().size() - 1; r >= 0; r--) {
+            var retType = type.returns().get(r);
+            if (retType.isGcReference()) {
+                results[r] = stack.popRef();
+            } else if (retType.equals(ValType.V128)) {
+                long hi = stack.pop();
+                long lo = stack.pop();
+                results[r] = new long[] {lo, hi};
+            } else {
+                results[r] = boxReturnValue(retType, stack.pop());
+            }
+        }
+        return results;
+    }
+
+    private static Object boxReturnValue(ValType type, long raw) {
+        switch (type.opcode()) {
+            case ValType.ID.I32:
+                return (int) raw;
+            case ValType.ID.I64:
+                return raw;
+            case ValType.ID.F32:
+                return Value.longToFloat(raw);
+            case ValType.ID.F64:
+                return Value.longToDouble(raw);
+            default:
+                return raw;
+        }
     }
 
     protected Instance instance() {
@@ -1098,7 +1180,7 @@ public class InterpreterMachine implements Machine {
                     ANY_CONVERT_EXTERN(stack);
                     break;
                 case EXTERN_CONVERT_ANY:
-                    EXTERN_CONVERT_ANY(stack, instance);
+                    EXTERN_CONVERT_ANY(stack);
                     break;
                 default:
                     {
@@ -1822,7 +1904,7 @@ public class InterpreterMachine implements Machine {
         var tableidx = (int) operands.get(0);
         var table = instance.table(tableidx);
         var et = table.elementType();
-        boolean isGcTable = !et.equals(ValType.FuncRef) && !et.equals(ValType.ExternRef);
+        boolean isGcTable = et.isGcReference();
 
         var size = (int) stack.pop();
         if (isGcTable) {
@@ -1847,7 +1929,7 @@ public class InterpreterMachine implements Machine {
         var tableidx = (int) operands.get(0);
         var table = instance.table(tableidx);
         var et = table.elementType();
-        boolean isGcTable = !et.equals(ValType.FuncRef) && !et.equals(ValType.ExternRef);
+        boolean isGcTable = et.isGcReference();
 
         var size = (int) stack.pop();
         if (isGcTable) {
@@ -2007,7 +2089,7 @@ public class InterpreterMachine implements Machine {
         var type = instance.type(typeId);
         // given a list of param types, let's pop those params off the stack
         // and pass as args to the function call
-        var extracted = extractArgsAndRefsForParams(stack, type.params());
+        var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
         call(
                 stack,
                 instance,
@@ -2028,7 +2110,7 @@ public class InterpreterMachine implements Machine {
         var type = instance.type(typeId);
         // given a list of param types, let's pop those params off the stack
         // and pass as args to the function call
-        var extracted = extractArgsAndRefsForParams(stack, type.params());
+        var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
         call(
                 stack,
                 instance,
@@ -2192,7 +2274,7 @@ public class InterpreterMachine implements Machine {
         var idx = (int) operands.get(0);
         var table = instance.table(idx);
         var et = table.elementType();
-        boolean isGcTable = !et.equals(ValType.FuncRef) && !et.equals(ValType.ExternRef);
+        boolean isGcTable = et.isGcReference();
         if (isGcTable) {
             var refVal = stack.popRef();
             var i = (int) stack.pop();
@@ -2208,7 +2290,7 @@ public class InterpreterMachine implements Machine {
         var idx = (int) operands.get(0);
         var table = instance.table(idx);
         var et = table.elementType();
-        boolean isGcTable = !et.equals(ValType.FuncRef) && !et.equals(ValType.ExternRef);
+        boolean isGcTable = et.isGcReference();
         var i = (int) stack.pop();
         if (isGcTable) {
             stack.pushRef(table.objRef(i));
@@ -2733,7 +2815,7 @@ public class InterpreterMachine implements Machine {
         var typeId = instance.functionType(funcId);
         var type = instance.type(typeId);
         var func = instance.function(funcId);
-        var extracted = extractArgsAndRefsForParams(stack, type.params());
+        var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
         var args = (long[]) extracted[0];
         var refArgs = (Object[]) extracted[1];
 
@@ -2821,7 +2903,7 @@ public class InterpreterMachine implements Machine {
                             + refMachine.getName());
         }
 
-        var extracted = extractArgsAndRefsForParams(stack, type.params());
+        var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
         var args = (long[]) extracted[0];
         var refArgs = (Object[]) extracted[1];
 
@@ -2897,7 +2979,7 @@ public class InterpreterMachine implements Machine {
         var func = instance.function(funcId);
         // given a list of param types, let's pop those params off the stack
         // and pass as args to the function call
-        var extracted = extractArgsAndRefsForParams(stack, type.params());
+        var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
         var args = (long[]) extracted[0];
         var refArgs = (Object[]) extracted[1];
 
@@ -2944,7 +3026,7 @@ public class InterpreterMachine implements Machine {
 
         // given a list of param types, let's pop those params off the stack
         // and pass as args to the function call
-        var extracted = extractArgsAndRefsForParams(stack, type.params());
+        var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
         var args = (long[]) extracted[0];
         var refArgs = (Object[]) extracted[1];
         if (useCurrentInstanceInterpreter(instance, refInstance, funcId)) {
@@ -3196,7 +3278,8 @@ public class InterpreterMachine implements Machine {
      * Ref-typed params are popped from the ref stack; others from the long stack.
      * Returns a 2-element array: [0] = long[] args, [1] = Object[] refArgs (or null if no refs).
      */
-    protected static Object[] extractArgsAndRefsForParams(MStack stack, List<ValType> params) {
+    protected static Object[] extractArgsAndRefsForParams(
+            MStack stack, List<ValType> params, Instance instance) {
         if (params == null || params.isEmpty()) {
             return new Object[] {Value.EMPTY_VALUES, null};
         }
@@ -3790,24 +3873,33 @@ public class InterpreterMachine implements Machine {
     }
 
     private static void ANY_CONVERT_EXTERN(MStack stack) {
-        // Pop long externref, wrap in WasmExternRef, pushRef
-        var val = stack.pop();
-        if (val == REF_NULL_VALUE) {
-            stack.pushRef(null);
+        // Externref can be on long side (host-provided) or Object side (externalized GC value)
+        Object[] refArray = stack.refArray();
+        Object refValue = (refArray != null) ? refArray[stack.size() - 1] : null;
+        if (refValue instanceof WasmExternRef && ((WasmExternRef) refValue).isObjectRef()) {
+            // Externalized GC value coming back — unwrap to original GC Object
+            var externRef = (WasmExternRef) stack.popRef();
+            stack.pushRef(externRef.objectValue());
         } else {
-            stack.pushRef(new WasmExternRef(val));
+            var val = stack.pop();
+            if (val == REF_NULL_VALUE) {
+                stack.pushRef(null);
+            } else {
+                stack.pushRef(new WasmExternRef(val));
+            }
         }
     }
 
-    private static void EXTERN_CONVERT_ANY(MStack stack, Instance instance) {
+    private static void EXTERN_CONVERT_ANY(MStack stack) {
         var ref = stack.popRef();
         if (ref == null) {
             stack.push(REF_NULL_VALUE);
         } else if (ref instanceof WasmExternRef) {
             stack.push(((WasmExternRef) ref).value());
         } else {
-            // GC value being externalized — register so it survives the round-trip
-            stack.push(instance.registerGcRef((WasmGcRef) ref));
+            // GC value externalized — wrap in WasmExternRef and keep on ref side.
+            // This allows round-tripping through any.convert_extern.
+            stack.pushRef(new WasmExternRef(ref));
         }
     }
 

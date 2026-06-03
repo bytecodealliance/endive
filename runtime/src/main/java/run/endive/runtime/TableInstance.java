@@ -27,8 +27,7 @@ public class TableInstance {
     }
 
     private boolean isGcTable() {
-        var et = table.elementType();
-        return !et.equals(ValType.FuncRef) && !et.equals(ValType.ExternRef);
+        return table.elementType().isGcReference();
     }
 
     public int size() {

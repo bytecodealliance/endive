@@ -10,4 +10,8 @@ public interface Machine {
     default long[] call(int funcId, long[] args, Object[] refArgs) throws WasmEngineException {
         return call(funcId, args);
     }
+
+    default Object[] callGc(int funcId, Object[] args) throws WasmEngineException {
+        throw new UnsupportedOperationException("This Machine does not support GC references");
+    }
 }

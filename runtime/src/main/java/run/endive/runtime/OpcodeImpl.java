@@ -8,7 +8,6 @@ import java.lang.reflect.InvocationTargetException;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.PassiveElement;
 import run.endive.wasm.types.ValType;
-import run.endive.wasm.types.Value;
 
 /**
  * Note: Some opcodes are easy or trivial to implement as compiler intrinsics (local.get, i32.add, etc).
@@ -820,9 +819,7 @@ public final class OpcodeImpl {
             throw new WasmRuntimeException("out of bounds table access");
         }
 
-        boolean isGcTable =
-                !dest.elementType().equals(ValType.FuncRef)
-                        && !dest.elementType().equals(ValType.ExternRef);
+        boolean isGcTable = dest.elementType().isGcReference();
 
         for (int i = size - 1; i >= 0; i--) {
             if (d <= s) {
@@ -871,9 +868,7 @@ public final class OpcodeImpl {
         }
 
         int end = (int) endL;
-        boolean isGcTable =
-                !table.elementType().equals(ValType.FuncRef)
-                        && !table.elementType().equals(ValType.ExternRef);
+        boolean isGcTable = table.elementType().isGcReference();
         for (int i = offset; i < end; i++) {
             var elem = instance.element(elementidx);
             if (isGcTable) {
@@ -899,29 +894,15 @@ public final class OpcodeImpl {
      * i31 values (tagged longs) are boxed as WasmI31Ref GC refs so the tag is preserved.
      * For non-GC values (funcref, externref), this is a no-op cast to int.
      */
+    @SuppressWarnings("InlineMeSuggester")
+    @Deprecated
     public static int boxForTable(long stackValue, Instance instance) {
-        if (Value.isI31(stackValue)) {
-            var i31Ref = new WasmI31Ref(Value.decodeI31U(stackValue));
-            return instance.registerGcRef(i31Ref);
-        }
         return (int) stackValue;
     }
 
-    /**
-     * Converts an int from table storage to a stack long value, unboxing i31 refs.
-     * Only performs GC ref lookup for GC-typed tables (anyref, eqref, etc.) to avoid
-     * overhead for funcref tables in non-GC modules.
-     */
+    @SuppressWarnings("InlineMeSuggester")
+    @Deprecated
     public static long unboxFromTable(int tableValue, Instance instance, ValType elementType) {
-        if (tableValue != Value.REF_NULL_VALUE
-                && tableValue >= 0
-                && !elementType.equals(ValType.FuncRef)
-                && !elementType.equals(ValType.ExternRef)) {
-            var gcRef = instance.gcRef(tableValue);
-            if (gcRef instanceof WasmI31Ref) {
-                return Value.encodeI31(((WasmI31Ref) gcRef).value());
-            }
-        }
         return tableValue;
     }
 

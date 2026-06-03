@@ -526,7 +526,8 @@ final class WasmAnalyzer {
 
                         // BR_ON_NULL_CHECK: DUPs ref, pushes 1 if null, 0 if not null
                         // JVM stack after check: [ref, 0_or_1]
-                        result.add(new CompilerInstruction(CompilerOpCode.BR_ON_NULL_CHECK));
+                        result.add(
+                                new CompilerInstruction(CompilerOpCode.BR_ON_NULL_CHECK, ref.id()));
 
                         // IFEQ: pops boolean; if 0 (not null) -> jump to notNullLabel
                         // JVM stack after IFEQ: [ref]
@@ -555,7 +556,9 @@ final class WasmAnalyzer {
 
                         // BR_ON_NON_NULL_CHECK: DUPs ref, pushes 1 if non-null, 0 if null
                         // JVM stack after check: [ref, 0_or_1]
-                        result.add(new CompilerInstruction(CompilerOpCode.BR_ON_NON_NULL_CHECK));
+                        result.add(
+                                new CompilerInstruction(
+                                        CompilerOpCode.BR_ON_NON_NULL_CHECK, ref.id()));
 
                         // IFEQ: if 0 (null) -> jump to nullLabel
                         var nullLabel = nextLabel++;
@@ -1275,10 +1278,14 @@ final class WasmAnalyzer {
                                 .resolve(module.typeSection()));
                 break;
             case REF_IS_NULL:
-                // [ref] -> [I32]
-                stack.popRef();
-                stack.push(ValType.I32);
-                break;
+                {
+                    // [ref] -> [I32]
+                    var refType = stack.peek();
+                    stack.popRef();
+                    stack.push(ValType.I32);
+                    out.add(new CompilerInstruction(CompilerOpCode.REF_IS_NULL, refType.id()));
+                    return;
+                }
             case MEMORY_COPY:
             case MEMORY_FILL:
             case MEMORY_INIT:
@@ -1413,7 +1420,8 @@ final class WasmAnalyzer {
                     var rt = stack.peek();
                     stack.popRef();
                     stack.push(valType(ValType.ID.Ref, rt.typeIdx()));
-                    break;
+                    out.add(new CompilerInstruction(CompilerOpCode.REF_AS_NON_NULL, rt.id()));
+                    return;
                 }
             case STRUCT_NEW:
                 {

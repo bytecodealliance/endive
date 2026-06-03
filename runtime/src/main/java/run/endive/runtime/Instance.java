@@ -133,12 +133,18 @@ public class Instance {
         this.gcRefs = new GcRefStore(this);
 
         for (int i = 0; i < tables.length; i++) {
-            long rawValue = computeConstantValue(this, tables[i].initialize())[0];
-            int initValue = (int) rawValue;
+            var result = computeConstant(this, tables[i].initialize());
+            int initValue = (int) result.longValue();
             if (tableFactory != null) {
                 this.tables[i] = tableFactory.create(tables[i], initValue);
             } else {
                 this.tables[i] = new TableInstance(tables[i], initValue);
+            }
+            if (tables[i].elementType().isGcReference() && result.ref() != null) {
+                var tbl = this.tables[i];
+                for (int j = 0; j < tbl.size(); j++) {
+                    tbl.setObjRef(j, result.ref(), this);
+                }
             }
         }
 
@@ -186,9 +192,7 @@ public class Instance {
                         || (offset + initializers.size() - 1) >= table.size()) {
                     throw new UninstantiableException("out of bounds table access");
                 }
-                boolean isGcTable =
-                        !table.elementType().equals(ValType.FuncRef)
-                                && !table.elementType().equals(ValType.ExternRef);
+                boolean isGcTable = table.elementType().isGcReference();
                 for (int i = 0; i < initializers.size(); i++) {
                     final List<Instruction> init = initializers.get(i);
                     int index = offset + i;
@@ -281,11 +285,23 @@ public class Instance {
 
         public ExportFunction function(String name) {
             var export = getExport(FUNCTION, name);
-            return args -> {
-                try {
-                    return instance.machine.call(export.index(), args);
-                } finally {
-                    instance.gcSafePoint();
+            return new ExportFunction() {
+                @Override
+                public long[] apply(long... args) {
+                    try {
+                        return instance.machine.call(export.index(), args);
+                    } finally {
+                        instance.gcSafePoint();
+                    }
+                }
+
+                @Override
+                public Object[] applyGc(Object... args) {
+                    try {
+                        return instance.machine.callGc(export.index(), args);
+                    } finally {
+                        instance.gcSafePoint();
+                    }
                 }
             };
         }
@@ -450,10 +466,12 @@ public class Instance {
         return null;
     }
 
+    @Deprecated
     public int registerGcRef(WasmGcRef ref) {
         return gcRefs.put(ref);
     }
 
+    @Deprecated
     public WasmGcRef gcRef(int idx) {
         return gcRefs.get(idx);
     }

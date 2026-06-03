@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import run.endive.runtime.internal.GcRefStore;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.UninstantiableException;
 import run.endive.wasm.UnlinkableException;
@@ -74,7 +73,6 @@ public class Instance {
     private final Exports fluentExports;
 
     private final Map<Integer, WasmException> exnRefs;
-    private final GcRefStore gcRefs;
 
     private TailCallPending tailCallPending;
 
@@ -130,7 +128,6 @@ public class Instance {
         this.fluentExports = new Exports(this);
 
         this.exnRefs = new HashMap<>();
-        this.gcRefs = new GcRefStore(this);
 
         for (int i = 0; i < tables.length; i++) {
             var result = computeConstant(this, tables[i].initialize());
@@ -250,9 +247,6 @@ public class Instance {
             }
         }
 
-        // Safe point: wasm stack is empty after init
-        gcSafePoint();
-
         return this;
     }
 
@@ -285,23 +279,24 @@ public class Instance {
 
         public ExportFunction function(String name) {
             var export = getExport(FUNCTION, name);
+            var funcType = instance.type(instance.functionType(export.index()));
+            boolean hasGcReturns = funcType.returns().stream().anyMatch(ValType::isGcReference);
+            boolean hasGcParams = funcType.params().stream().anyMatch(ValType::isGcReference);
             return new ExportFunction() {
                 @Override
                 public long[] apply(long... args) {
-                    try {
-                        return instance.machine.call(export.index(), args);
-                    } finally {
-                        instance.gcSafePoint();
+                    if (hasGcReturns || hasGcParams) {
+                        throw new UnsupportedOperationException(
+                                "Function '"
+                                        + name
+                                        + "' uses GC references. Use applyGc() instead.");
                     }
+                    return instance.machine.call(export.index(), args);
                 }
 
                 @Override
                 public Object[] applyGc(Object... args) {
-                    try {
-                        return instance.machine.callGc(export.index(), args);
-                    } finally {
-                        instance.gcSafePoint();
-                    }
+                    return instance.machine.callGc(export.index(), args);
                 }
             };
         }
@@ -458,22 +453,22 @@ public class Instance {
         return exnRefs.get(idx);
     }
 
+    @Deprecated
     public long[] array(int idx) {
-        var gcRef = gcRefs.get(idx);
-        if (gcRef instanceof WasmArray) {
-            return ((WasmArray) gcRef).elements();
-        }
-        return null;
+        throw new UnsupportedOperationException(
+                "GcRefStore has been removed. Use applyGc() to get WasmArray objects directly.");
     }
 
     @Deprecated
     public int registerGcRef(WasmGcRef ref) {
-        return gcRefs.put(ref);
+        throw new UnsupportedOperationException(
+                "GcRefStore has been removed. GC references are managed by Java GC.");
     }
 
     @Deprecated
     public WasmGcRef gcRef(int idx) {
-        return gcRefs.get(idx);
+        throw new UnsupportedOperationException(
+                "GcRefStore has been removed. Use applyGc() to get GC references directly.");
     }
 
     public boolean heapTypeMatch(
@@ -535,11 +530,6 @@ public class Instance {
             return true;
         }
         return ValType.heapTypeSubtype(actual, target, module.typeSection());
-    }
-
-    /** Epoch-based GC safe point. Call when the wasm stack is guaranteed empty. */
-    void gcSafePoint() {
-        gcRefs.safePoint();
     }
 
     public Machine getMachine() {

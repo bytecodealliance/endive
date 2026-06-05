@@ -49,4 +49,19 @@ public enum WasmValueType {
     public String value() {
         return value;
     }
+
+    public boolean isGcReference() {
+        switch (this) {
+            case STRUCT_REF:
+            case ANY_REF:
+            case NULL_REF:
+            case ARRAY_REF:
+            case EQ_REF:
+            case I31_REF:
+            case REF_NULL:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

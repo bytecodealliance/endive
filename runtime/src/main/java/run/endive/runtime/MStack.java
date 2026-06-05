@@ -65,6 +65,9 @@ public class MStack {
 
     public Object popRef() {
         count--;
+        if (refs == null) {
+            return null;
+        }
         Object ref = refs[count];
         refs[count] = null;
         return ref;
@@ -75,6 +78,9 @@ public class MStack {
     }
 
     public Object peekRef() {
+        if (refs == null) {
+            return null;
+        }
         return refs[count - 1];
     }
 

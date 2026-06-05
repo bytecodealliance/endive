@@ -281,17 +281,18 @@ public class Instance {
             var export = getExport(FUNCTION, name);
             var funcType = instance.type(instance.functionType(export.index()));
             boolean hasGcReturns = funcType.returns().stream().anyMatch(ValType::isGcReference);
-            boolean hasGcParams = funcType.params().stream().anyMatch(ValType::isGcReference);
             return new ExportFunction() {
                 @Override
                 public long[] apply(long... args) {
-                    if (hasGcReturns || hasGcParams) {
+                    var result = instance.machine.call(export.index(), args);
+                    if (hasGcReturns) {
                         throw new UnsupportedOperationException(
                                 "Function '"
                                         + name
-                                        + "' uses GC references. Use applyGc() instead.");
+                                        + "' returns GC references."
+                                        + " Use applyGc() instead.");
                     }
-                    return instance.machine.call(export.index(), args);
+                    return result;
                 }
 
                 @Override

@@ -212,6 +212,18 @@ public final class ConstantEvaluators {
                         var len = (int) stack.pop().longValue();
                         var elements = new long[len];
                         var elementRefs = new Object[len];
+                        var at =
+                                instance.module()
+                                        .typeSection()
+                                        .getSubType(typeIdx)
+                                        .compType()
+                                        .arrayType();
+                        var ft = at.fieldType();
+                        if (ft.storageType().valType() != null
+                                && ft.storageType().valType().isReference()
+                                && !ft.storageType().isGcReference()) {
+                            Arrays.fill(elements, Value.REF_NULL_VALUE);
+                        }
                         var array = new WasmArray(typeIdx, elements, elementRefs);
                         stack.push(new ConstantResult(new long[] {0}, array));
                         break;

@@ -77,6 +77,7 @@ public class JavaTestGen {
         cu.addImport("org.junit.jupiter.api.Assertions.assertNotNull", true, false);
         cu.addImport("org.junit.jupiter.api.Assertions.assertThrows", true, false);
         cu.addImport("org.junit.jupiter.api.Assertions.assertTrue", true, false);
+        cu.addImport("org.junit.jupiter.api.Assertions.assertNull", true, false);
         cu.addImport("org.junit.jupiter.api.Assertions.assertDoesNotThrow", true, false);
 
         // testing imports
@@ -371,29 +372,64 @@ public class JavaTestGen {
         }
     }
 
+    /**
+     * Check if a command involves GC reference types in its args or expected values.
+     * If so, we must use applyGc(Object...) instead of apply(long...).
+     */
+    private static boolean needsGcCall(Command cmd) {
+        if (cmd.action() != null && cmd.action().args() != null) {
+            for (var arg : cmd.action().args()) {
+                if (arg.type().isGcReference()) {
+                    return true;
+                }
+            }
+        }
+        if (cmd.expected() != null) {
+            for (var expected : cmd.expected()) {
+                if (expected.type().isGcReference()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private List<Expression> generateAssert(String varName, Command cmd, String moduleName) {
         assert (cmd.type() == CommandType.ASSERT_RETURN
                 || cmd.type() == CommandType.ASSERT_TRAP
                 || cmd.type() == CommandType.ASSERT_EXCEPTION
                 || cmd.type() == CommandType.ASSERT_EXHAUSTION);
 
-        var args =
-                (cmd.action().args() != null)
-                        ? Arrays.stream(cmd.action().args())
-                                .map(WasmValue::toArgsValue)
-                                .collect(Collectors.toList())
-                        : List.<String>of();
+        boolean useGc = needsGcCall(cmd);
 
-        var adaptedArgs =
-                (args == null || args.size() == 0)
-                        ? ""
-                        : args.stream().collect(Collectors.joining(").add(", ".add(", ")"));
-
-        // Function or Global
-        var invocationMethod =
-                (cmd.action().type() == ActionType.INVOKE)
-                        ? ".apply(ArgsAdapter.builder()" + adaptedArgs + ".build()" + ")"
-                        : ".getValue()";
+        String invocationMethod;
+        if (cmd.action().type() == ActionType.INVOKE) {
+            if (useGc) {
+                var gcArgs =
+                        (cmd.action().args() != null)
+                                ? Arrays.stream(cmd.action().args())
+                                        .map(WasmValue::toGcArgsValue)
+                                        .collect(Collectors.toList())
+                                : List.<String>of();
+                var gcArgsStr =
+                        (gcArgs.isEmpty()) ? "" : gcArgs.stream().collect(Collectors.joining(", "));
+                invocationMethod = ".applyGc(" + gcArgsStr + ")";
+            } else {
+                var args =
+                        (cmd.action().args() != null)
+                                ? Arrays.stream(cmd.action().args())
+                                        .map(WasmValue::toArgsValue)
+                                        .collect(Collectors.toList())
+                                : List.<String>of();
+                var adaptedArgs =
+                        (args == null || args.size() == 0)
+                                ? ""
+                                : args.stream().collect(Collectors.joining(").add(", ".add(", ")"));
+                invocationMethod = ".apply(ArgsAdapter.builder()" + adaptedArgs + ".build()" + ")";
+            }
+        } else {
+            invocationMethod = ".getValue()";
+        }
 
         if (cmd.type() == CommandType.ASSERT_TRAP
                 || cmd.type() == CommandType.ASSERT_EXHAUSTION
@@ -421,37 +457,47 @@ public class JavaTestGen {
 
             for (int i = 0; i < cmd.expected().length; i++) {
                 var expected = cmd.expected()[i];
-                var resultVar =
-                        (cmd.action().type() == ActionType.INVOKE)
-                                ? expected.toResultValue(resVarName + "[" + i + "]")
-                                : expected.toResultValue(resVarName);
 
-                if (expected.type().equals(WasmValueType.V128)) {
-                    exprs.add(new NameExpr("var expected = " + resultVar));
-                    switch (expected.laneType()) {
-                        case I8:
-                            exprs.add(
-                                    new NameExpr(
-                                            "assertArrayEquals(expected," + " vecTo8(results))"));
-                            break;
-                        case I16:
-                            exprs.add(
-                                    new NameExpr("assertArrayEquals(expected, vecTo16(results))"));
-                            break;
-                        case I32:
-                            exprs.add(
-                                    new NameExpr(
-                                            "assertArrayEquals(expected," + " vecTo32(results))"));
-                            break;
-                        case F32:
-                            exprs.add(
-                                    new NameExpr(
-                                            "assertArrayEquals(expected," + " vecToF32(results))"));
-                            break;
-                    }
-
+                if (useGc && cmd.action().type() == ActionType.INVOKE) {
+                    // GC path: results are Object[]
+                    var resultVar = expected.toGcResultValue(resVarName + "[" + i + "]");
+                    exprs.add(expected.toGcAssertion(resultVar, moduleName));
                 } else {
-                    exprs.add(expected.toAssertion(resultVar, moduleName));
+                    var resultVar =
+                            (cmd.action().type() == ActionType.INVOKE)
+                                    ? expected.toResultValue(resVarName + "[" + i + "]")
+                                    : expected.toResultValue(resVarName);
+
+                    if (expected.type().equals(WasmValueType.V128)) {
+                        exprs.add(new NameExpr("var expected = " + resultVar));
+                        switch (expected.laneType()) {
+                            case I8:
+                                exprs.add(
+                                        new NameExpr(
+                                                "assertArrayEquals(expected,"
+                                                        + " vecTo8(results))"));
+                                break;
+                            case I16:
+                                exprs.add(
+                                        new NameExpr(
+                                                "assertArrayEquals(expected, vecTo16(results))"));
+                                break;
+                            case I32:
+                                exprs.add(
+                                        new NameExpr(
+                                                "assertArrayEquals(expected,"
+                                                        + " vecTo32(results))"));
+                                break;
+                            case F32:
+                                exprs.add(
+                                        new NameExpr(
+                                                "assertArrayEquals(expected,"
+                                                        + " vecToF32(results))"));
+                                break;
+                        }
+                    } else {
+                        exprs.add(expected.toAssertion(resultVar, moduleName));
+                    }
                 }
             }
 
@@ -466,11 +512,20 @@ public class JavaTestGen {
 
         String invocationMethod;
         if (cmd.action().type() == ActionType.INVOKE) {
-            var args =
-                    Arrays.stream(cmd.action().args())
-                            .map(WasmValue::toArgsValue)
-                            .collect(Collectors.joining(", "));
-            invocationMethod = ".apply(" + args + ")";
+            boolean useGc = needsGcCall(cmd);
+            if (useGc) {
+                var gcArgs =
+                        Arrays.stream(cmd.action().args())
+                                .map(WasmValue::toGcArgsValue)
+                                .collect(Collectors.joining(", "));
+                invocationMethod = ".applyGc(" + gcArgs + ")";
+            } else {
+                var args =
+                        Arrays.stream(cmd.action().args())
+                                .map(WasmValue::toArgsValue)
+                                .collect(Collectors.joining(", "));
+                invocationMethod = ".apply(" + args + ")";
+            }
         } else {
             throw new IllegalArgumentException("Unhandled action type " + cmd.action().type());
         }

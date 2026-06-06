@@ -76,7 +76,6 @@ import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.runtime.Memory;
 import run.endive.runtime.WasmException;
-import run.endive.runtime.WasmGcRef;
 import run.endive.runtime.internal.CompilerInterpreterMachine;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
@@ -94,16 +93,6 @@ public final class Compiler {
     private static final Type AOT_INTERPRETER_MACHINE_TYPE =
             Type.getType(CompilerInterpreterMachine.class);
     private static final Type INSTANCE_TYPE = Type.getType(Instance.class);
-
-    private static final java.lang.reflect.Method INSTANCE_REGISTER_GC_REF;
-
-    static {
-        try {
-            INSTANCE_REGISTER_GC_REF = Instance.class.getMethod("registerGcRef", WasmGcRef.class);
-        } catch (NoSuchMethodException e) {
-            throw new AssertionError(e);
-        }
-    }
 
     private static final MethodType CALL_METHOD_TYPE_WITH_REFS =
             methodType(long[].class, Instance.class, Memory.class, long[].class, Object[].class);
@@ -534,14 +523,12 @@ public final class Compiler {
                 null,
                 null);
 
-        if (!interpretedFunctions.isEmpty()) {
-            classWriter.visitField(
-                    Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL,
-                    "compilerInterpreterMachine",
-                    getDescriptor(CompilerInterpreterMachine.class),
-                    null,
-                    null);
-        }
+        classWriter.visitField(
+                Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL,
+                "compilerInterpreterMachine",
+                getDescriptor(CompilerInterpreterMachine.class),
+                null,
+                null);
 
         // constructor
         emitFunction(
@@ -572,6 +559,32 @@ public final class Compiler {
                 methodType(long[].class, int.class, long[].class, Object[].class),
                 false,
                 asm -> compileMachineCall(internalClassName, asm, 3));
+
+        // Machine.callGc(int, Object[]) implementation
+        // Delegates to compilerInterpreterMachine.callGc() which handles
+        // arg splitting, interpreter execution, and result boxing.
+        // Locals: 0=this, 1=funcId, 2=args
+        emitFunction(
+                classWriter,
+                "callGc",
+                methodType(Object[].class, int.class, Object[].class),
+                false,
+                asm -> {
+                    asm.load(0, OBJECT_TYPE);
+                    asm.getfield(
+                            internalClassName,
+                            "compilerInterpreterMachine",
+                            getDescriptor(CompilerInterpreterMachine.class));
+                    asm.load(1, INT_TYPE);
+                    asm.load(2, OBJECT_TYPE);
+                    asm.invokevirtual(
+                            AOT_INTERPRETER_MACHINE_TYPE.getInternalName(),
+                            "callGc",
+                            methodType(Object[].class, int.class, Object[].class)
+                                    .toMethodDescriptorString(),
+                            false);
+                    asm.areturn(OBJECT_TYPE);
+                });
 
         // call_indirect_xxx() bridges for native CALL_INDIRECT
         // When using bridge classes, these methods are on separate classes
@@ -698,34 +711,32 @@ public final class Compiler {
         asm.load(1, OBJECT_TYPE);
         asm.putfield(internalClassName, "instance", getDescriptor(Instance.class));
 
-        if (!interpretedFunctions.isEmpty()) {
+        // Always create compilerInterpreterMachine for callGc support
+        asm.load(0, OBJECT_TYPE);
+        asm.anew(AOT_INTERPRETER_MACHINE_TYPE);
+        asm.dup();
+        asm.load(1, OBJECT_TYPE);
 
-            asm.load(0, OBJECT_TYPE);
-            asm.anew(AOT_INTERPRETER_MACHINE_TYPE);
+        // construct int[] with the interpreted function ids
+        var funcIds = new ArrayList<>(interpretedFunctions);
+        asm.iconst(funcIds.size());
+        asm.newarray(INT_TYPE);
+        for (int i = 0; i < funcIds.size(); i++) {
             asm.dup();
-            asm.load(1, OBJECT_TYPE);
-
-            // construct int[] with the interpreted function ids
-            var funcIds = new ArrayList<>(interpretedFunctions);
-            asm.iconst(funcIds.size());
-            asm.newarray(INT_TYPE);
-            for (int i = 0; i < funcIds.size(); i++) {
-                asm.dup();
-                asm.iconst(i);
-                asm.iconst(funcIds.get(i));
-                asm.astore(INT_TYPE);
-            }
-
-            asm.invokespecial(
-                    AOT_INTERPRETER_MACHINE_TYPE.getInternalName(),
-                    "<init>",
-                    getMethodDescriptor(VOID_TYPE, INSTANCE_TYPE, INT_ARRAY_TYPE),
-                    false);
-            asm.putfield(
-                    internalClassName,
-                    "compilerInterpreterMachine",
-                    getDescriptor(CompilerInterpreterMachine.class));
+            asm.iconst(i);
+            asm.iconst(funcIds.get(i));
+            asm.astore(INT_TYPE);
         }
+
+        asm.invokespecial(
+                AOT_INTERPRETER_MACHINE_TYPE.getInternalName(),
+                "<init>",
+                getMethodDescriptor(VOID_TYPE, INSTANCE_TYPE, INT_ARRAY_TYPE),
+                false);
+        asm.putfield(
+                internalClassName,
+                "compilerInterpreterMachine",
+                getDescriptor(CompilerInterpreterMachine.class));
 
         asm.areturn(VOID_TYPE);
     }
@@ -1095,20 +1106,12 @@ public final class Compiler {
         if (returnType == void.class) {
             asm.aconst(null);
         } else if (returnType == Object.class) {
-            // GC ref return: register in GcRefStore and wrap in long[]
-            asm.store(4, OBJECT_TYPE);
-            asm.load(0, OBJECT_TYPE); // instance
-            asm.load(4, OBJECT_TYPE);
-            emitInvokeVirtual(asm, INSTANCE_REGISTER_GC_REF);
-            // returns int ID
-            asm.visitInsn(Opcodes.I2L);
-            asm.store(4, LONG_TYPE);
+            // GC ref return: discard the Object result and return a dummy long[]{0}.
+            // GC ref results should be accessed via callGc() which goes through the
+            // interpreter path and handles Object results natively.
+            asm.pop();
             asm.iconst(1);
             asm.newarray(LONG_TYPE);
-            asm.dup();
-            asm.iconst(0);
-            asm.load(4, LONG_TYPE);
-            asm.astore(LONG_TYPE);
         } else if (returnType != long[].class && returnType != Object[].class) {
             emitJvmToLong(asm, type.returns().get(0));
             asm.store(4, LONG_TYPE);

@@ -54,10 +54,14 @@ public final class ShadedRefs {
     static final Method REF_AS_NON_NULL;
     static final Method GC_REF_AS_NON_NULL;
     static final Method TABLE_GET;
+    static final Method TABLE_GET_REF;
     static final Method TABLE_SET;
+    static final Method TABLE_SET_REF;
     static final Method TABLE_SIZE;
     static final Method TABLE_GROW;
+    static final Method TABLE_GROW_REF;
     static final Method TABLE_FILL;
+    static final Method TABLE_FILL_REF;
     static final Method TABLE_COPY;
     static final Method TABLE_INIT;
     static final Method TABLE_REQUIRED_REF;
@@ -72,6 +76,7 @@ public final class ShadedRefs {
 
     // Exception handling methods
     static final Method CREATE_WASM_EXCEPTION;
+    static final Method CREATE_WASM_EXCEPTION_GC;
     static final Method INSTANCE_GET_EXCEPTION;
     static final Method EXCEPTION_MATCHES;
 
@@ -176,10 +181,18 @@ public final class ShadedRefs {
     static final Method CAST_TEST;
     static final Method CAST_TEST_NULL;
     static final Method HEAP_TYPE_MATCH;
+    // int-based variants for funcref/externref (non-GC refs, int on JVM stack)
+    static final Method REF_TEST_INT;
+    static final Method REF_TEST_NULL_INT;
+    static final Method CAST_TEST_INT;
+    static final Method CAST_TEST_NULL_INT;
+    static final Method HEAP_TYPE_MATCH_INT;
     static final Method REF_EQ;
     static final Method REF_I31;
     static final Method I31_GET_S;
     static final Method I31_GET_U;
+    static final Method ANY_CONVERT_EXTERN;
+    static final Method EXTERN_CONVERT_ANY;
     static final Method DATA_DROP;
 
     static {
@@ -281,18 +294,34 @@ public final class ShadedRefs {
             REF_AS_NON_NULL = Shaded.class.getMethod("refAsNonNull", int.class);
             GC_REF_AS_NON_NULL = Shaded.class.getMethod("gcRefAsNonNull", Object.class);
             TABLE_GET = Shaded.class.getMethod("tableGet", int.class, int.class, Instance.class);
+            TABLE_GET_REF =
+                    Shaded.class.getMethod("tableGetRef", int.class, int.class, Instance.class);
             TABLE_SET =
                     Shaded.class.getMethod(
                             "tableSet", int.class, int.class, int.class, Instance.class);
+            TABLE_SET_REF =
+                    Shaded.class.getMethod(
+                            "tableSetRef", int.class, Object.class, int.class, Instance.class);
             TABLE_SIZE = Shaded.class.getMethod("tableSize", int.class, Instance.class);
             TABLE_GROW =
                     Shaded.class.getMethod(
                             "tableGrow", int.class, int.class, int.class, Instance.class);
+            TABLE_GROW_REF =
+                    Shaded.class.getMethod(
+                            "tableGrowRef", Object.class, int.class, int.class, Instance.class);
             TABLE_FILL =
                     Shaded.class.getMethod(
                             "tableFill",
                             int.class,
                             int.class,
+                            int.class,
+                            int.class,
+                            Instance.class);
+            TABLE_FILL_REF =
+                    Shaded.class.getMethod(
+                            "tableFillRef",
+                            int.class,
+                            Object.class,
                             int.class,
                             int.class,
                             Instance.class);
@@ -333,6 +362,13 @@ public final class ShadedRefs {
             CREATE_WASM_EXCEPTION =
                     Shaded.class.getMethod(
                             "createWasmException", long[].class, int.class, Instance.class);
+            CREATE_WASM_EXCEPTION_GC =
+                    Shaded.class.getMethod(
+                            "createWasmExceptionGc",
+                            long[].class,
+                            Object[].class,
+                            int.class,
+                            Instance.class);
             INSTANCE_GET_EXCEPTION = Instance.class.getMethod("exn", int.class);
             EXCEPTION_MATCHES =
                     Shaded.class.getMethod(
@@ -909,10 +945,32 @@ public final class ShadedRefs {
                             int.class,
                             int.class,
                             Instance.class);
+            REF_TEST_INT =
+                    Shaded.class.getMethod(
+                            "refTestInt", int.class, int.class, int.class, Instance.class);
+            REF_TEST_NULL_INT =
+                    Shaded.class.getMethod(
+                            "refTestNullInt", int.class, int.class, int.class, Instance.class);
+            CAST_TEST_INT =
+                    Shaded.class.getMethod(
+                            "castTestInt", int.class, int.class, int.class, Instance.class);
+            CAST_TEST_NULL_INT =
+                    Shaded.class.getMethod(
+                            "castTestNullInt", int.class, int.class, int.class, Instance.class);
+            HEAP_TYPE_MATCH_INT =
+                    Shaded.class.getMethod(
+                            "heapTypeMatchInt",
+                            int.class,
+                            boolean.class,
+                            int.class,
+                            int.class,
+                            Instance.class);
             REF_EQ = Shaded.class.getMethod("refEq", Object.class, Object.class);
             REF_I31 = Shaded.class.getMethod("refI31", int.class);
             I31_GET_S = Shaded.class.getMethod("i31GetS", Object.class);
             I31_GET_U = Shaded.class.getMethod("i31GetU", Object.class);
+            ANY_CONVERT_EXTERN = Shaded.class.getMethod("anyConvertExtern", int.class);
+            EXTERN_CONVERT_ANY = Shaded.class.getMethod("externConvertAny", Object.class);
             DATA_DROP = Shaded.class.getMethod("dataDrop", int.class, Instance.class);
 
         } catch (NoSuchMethodException e) {

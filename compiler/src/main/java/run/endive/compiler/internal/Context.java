@@ -180,6 +180,14 @@ final class Context {
         return prefix + "FuncGroup_" + (funcId / maxFunctionsPerClass);
     }
 
+    /**
+     * Returns true if the table at the given index has a GC reference element type.
+     */
+    public boolean isGcTable(int tableIndex) {
+        var tableTypes = WasmAnalyzer.getTableTypes(module);
+        return tableIndex < tableTypes.size() && tableTypes.get(tableIndex).isGcReference();
+    }
+
     public FunctionType tagFunctionType(int tagId) {
         if (tagId < 0) {
             throw new IllegalArgumentException("Tag ID must be non-negative");

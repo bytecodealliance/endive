@@ -37,6 +37,9 @@ public class MStack {
     }
 
     public void push(long v) {
+        if (refs != null) {
+            refs[count] = null;
+        }
         elements[count] = v;
         count++;
 

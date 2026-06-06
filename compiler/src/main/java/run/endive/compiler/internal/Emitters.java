@@ -83,6 +83,20 @@ final class Emitters {
         return ValType.builder().fromId(id).build().resolve(ctx.typeSection());
     }
 
+    /**
+     * Determines whether a source heap type represents a GC reference (Object on JVM stack)
+     * or a non-GC reference (int on JVM stack, e.g. funcref/externref).
+     */
+    private static boolean isSourceGcRef(int srcHeapType, Context ctx) {
+        var srcType =
+                ValType.builder()
+                        .withOpcode(ValType.ID.RefNull)
+                        .withTypeIdx(srcHeapType)
+                        .build()
+                        .resolve(ctx.typeSection());
+        return srcType.isGcReference();
+    }
+
     public static void DROP_KEEP(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int keepStart = (int) ins.operand(0) + 1;
 
@@ -407,15 +421,19 @@ final class Emitters {
     }
 
     public static void TABLE_GET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        asm.iconst((int) ins.operand(0));
+        int tableIdx = (int) ins.operand(0);
+        boolean isGcRef = ins.operand(1) != 0;
+        asm.iconst(tableIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.TABLE_GET);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.TABLE_GET_REF : ShadedRefs.TABLE_GET);
     }
 
     public static void TABLE_SET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        asm.iconst((int) ins.operand(0));
+        int tableIdx = (int) ins.operand(0);
+        boolean isGcRef = ins.operand(1) != 0;
+        asm.iconst(tableIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.TABLE_SET);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.TABLE_SET_REF : ShadedRefs.TABLE_SET);
     }
 
     public static void TABLE_SIZE(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -425,15 +443,19 @@ final class Emitters {
     }
 
     public static void TABLE_GROW(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        asm.iconst((int) ins.operand(0));
+        int tableIdx = (int) ins.operand(0);
+        boolean isGcRef = ins.operand(1) != 0;
+        asm.iconst(tableIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.TABLE_GROW);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.TABLE_GROW_REF : ShadedRefs.TABLE_GROW);
     }
 
     public static void TABLE_FILL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        asm.iconst((int) ins.operand(0));
+        int tableIdx = (int) ins.operand(0);
+        boolean isGcRef = ins.operand(1) != 0;
+        asm.iconst(tableIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.TABLE_FILL);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.TABLE_FILL_REF : ShadedRefs.TABLE_FILL);
     }
 
     public static void TABLE_COPY(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -1288,12 +1310,18 @@ final class Emitters {
         int tagNumber = (int) ins.operand(0);
         var type = ctx.tagFunctionType(tagNumber);
 
-        // emmit:
-        // call createWasmException(long[] args, int tagNumber, Instance instance)
-        emitBoxValuesOnStack(ctx, asm, type.params());
-        asm.iconst(tagNumber);
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.CREATE_WASM_EXCEPTION);
+        boolean hasGcRefs = type.params().stream().anyMatch(ValType::isGcReference);
+        if (hasGcRefs) {
+            emitBoxFieldsForStruct(ctx, asm, type.params());
+            asm.iconst(tagNumber);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.CREATE_WASM_EXCEPTION_GC);
+        } else {
+            emitBoxValuesOnStack(ctx, asm, type.params());
+            asm.iconst(tagNumber);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.CREATE_WASM_EXCEPTION);
+        }
         asm.athrow();
     }
 
@@ -1381,22 +1409,46 @@ final class Emitters {
     public static void CATCH_UNBOX_PARAMS(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         var tag = (int) ins.operand(0);
-        // Get the tag type to know what
-        // parameter types to unbox
         var tagFuncType = ctx.tagFunctionType(tag);
         if (!tagFuncType.params().isEmpty()) {
-            // unbox the exception args
+            boolean hasGcRefs = tagFuncType.params().stream().anyMatch(ValType::isGcReference);
+            int longArraySlot = ctx.tempSlot() + 1;
+            int refArraySlot = ctx.tempSlot() + 2;
+
+            // Load long[] args
             asm.load(ctx.tempSlot(), OBJECT_TYPE);
             asm.invokevirtual(
                     getInternalName(WasmException.class),
                     "args",
                     getMethodDescriptor(getType(long[].class)),
                     false);
+            asm.store(longArraySlot, OBJECT_TYPE);
 
-            // Store the array in a local variable
-            // Unbox each argument from the
-            // long[] array and push onto stack
-            emitUnboxResult(asm, tagFuncType.params(), ctx.tempSlot() + 1);
+            // Load Object[] refArgs if needed
+            if (hasGcRefs) {
+                asm.load(ctx.tempSlot(), OBJECT_TYPE);
+                asm.invokevirtual(
+                        getInternalName(WasmException.class),
+                        "refArgs",
+                        getMethodDescriptor(getType(Object[].class)),
+                        false);
+                asm.store(refArraySlot, OBJECT_TYPE);
+            }
+
+            // Unbox each argument
+            for (int i = 0; i < tagFuncType.params().size(); i++) {
+                var param = tagFuncType.params().get(i);
+                if (param.isGcReference()) {
+                    asm.load(refArraySlot, OBJECT_TYPE);
+                    asm.iconst(i);
+                    asm.aload(OBJECT_TYPE);
+                } else {
+                    asm.load(longArraySlot, OBJECT_TYPE);
+                    asm.iconst(i);
+                    asm.aload(LONG_TYPE);
+                    emitLongToJvm(asm, param);
+                }
+            }
         }
     }
 
@@ -1804,39 +1856,43 @@ final class Emitters {
     public static void REF_TEST(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int heapType = (int) ins.operand(0);
         int srcHeapType = (int) ins.operand(1);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         // stack: [ref]
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.REF_TEST);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.REF_TEST : ShadedRefs.REF_TEST_INT);
     }
 
     public static void REF_TEST_NULL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int heapType = (int) ins.operand(0);
         int srcHeapType = (int) ins.operand(1);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.REF_TEST_NULL);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.REF_TEST_NULL : ShadedRefs.REF_TEST_NULL_INT);
     }
 
     public static void CAST_TEST(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int heapType = (int) ins.operand(0);
         int srcHeapType = (int) ins.operand(1);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.CAST_TEST);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.CAST_TEST : ShadedRefs.CAST_TEST_INT);
     }
 
     public static void CAST_TEST_NULL(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int heapType = (int) ins.operand(0);
         int srcHeapType = (int) ins.operand(1);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.CAST_TEST_NULL);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.CAST_TEST_NULL : ShadedRefs.CAST_TEST_NULL_INT);
     }
 
     public static void REF_I31(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -1857,12 +1913,16 @@ final class Emitters {
 
     public static void ANY_CONVERT_EXTERN(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        // identity - no-op at runtime
+        // externref (int on JVM) -> anyref (Object on JVM)
+        // Box the int into an Object for use in the GC ref hierarchy.
+        emitInvokeStatic(asm, ShadedRefs.ANY_CONVERT_EXTERN);
     }
 
     public static void EXTERN_CONVERT_ANY(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        // identity - no-op at runtime
+        // anyref (Object on JVM) -> externref (int on JVM)
+        // Unbox back to int. Non-null GC refs get a unique non-null int value.
+        emitInvokeStatic(asm, ShadedRefs.EXTERN_CONVERT_ANY);
     }
 
     public static void BR_ON_NULL_CHECK(
@@ -1911,13 +1971,15 @@ final class Emitters {
         boolean nullable = ins.operand(0) != 0;
         int heapType = (int) ins.operand(1);
         int srcHeapType = (int) ins.operand(2);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         // stack: [ref]
         asm.dup();
         asm.iconst(nullable ? 1 : 0);
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.HEAP_TYPE_MATCH);
+        emitInvokeStatic(
+                asm, isGcRef ? ShadedRefs.HEAP_TYPE_MATCH : ShadedRefs.HEAP_TYPE_MATCH_INT);
         // result: boolean on stack (1 if matches, 0 if not)
     }
 
@@ -1927,13 +1989,15 @@ final class Emitters {
         boolean nullable = ins.operand(0) != 0;
         int heapType = (int) ins.operand(1);
         int srcHeapType = (int) ins.operand(2);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         // stack: [ref]
         asm.dup();
         asm.iconst(nullable ? 1 : 0);
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.HEAP_TYPE_MATCH);
+        emitInvokeStatic(
+                asm, isGcRef ? ShadedRefs.HEAP_TYPE_MATCH : ShadedRefs.HEAP_TYPE_MATCH_INT);
         // invert: 1 if NOT matching (branch), 0 if matching (don't branch)
         var wasTrue = new Label();
         var end = new Label();

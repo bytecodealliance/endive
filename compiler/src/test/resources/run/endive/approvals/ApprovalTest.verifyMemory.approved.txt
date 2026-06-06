@@ -2,12 +2,22 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
 
   private final Lrun/endive/runtime/Instance; instance
 
+  private final Lrun/endive/runtime/internal/CompilerInterpreterMachine; compilerInterpreterMachine
+
   public <init>(Lrun/endive/runtime/Instance;)V
     ALOAD 0
     INVOKESPECIAL java/lang/Object.<init> ()V
     ALOAD 0
     ALOAD 1
     PUTFIELD run/endive/$gen/CompiledMachine.instance : Lrun/endive/runtime/Instance;
+    ALOAD 0
+    NEW run/endive/runtime/internal/CompilerInterpreterMachine
+    DUP
+    ALOAD 1
+    ICONST_0
+    NEWARRAY T_INT
+    INVOKESPECIAL run/endive/runtime/internal/CompilerInterpreterMachine.<init> (Lrun/endive/runtime/Instance;[I)V
+    PUTFIELD run/endive/$gen/CompiledMachine.compilerInterpreterMachine : Lrun/endive/runtime/internal/CompilerInterpreterMachine;
     RETURN
 
   public call(I[J)[J
@@ -43,6 +53,14 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
    L1
     INVOKESTATIC run/endive/$gen/CompiledMachineShaded.throwCallStackExhausted (Ljava/lang/StackOverflowError;)Ljava/lang/RuntimeException;
     ATHROW
+
+  public callGc(I[Ljava/lang/Object;)[Ljava/lang/Object;
+    ALOAD 0
+    GETFIELD run/endive/$gen/CompiledMachine.compilerInterpreterMachine : Lrun/endive/runtime/internal/CompilerInterpreterMachine;
+    ILOAD 1
+    ALOAD 2
+    INVOKEVIRTUAL run/endive/runtime/internal/CompilerInterpreterMachine.callGc (I[Ljava/lang/Object;)[Ljava/lang/Object;
+    ARETURN
 
   public static call_indirect_0(IIILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     INVOKESTATIC run/endive/$gen/CompiledMachineShaded.checkInterruption ()V

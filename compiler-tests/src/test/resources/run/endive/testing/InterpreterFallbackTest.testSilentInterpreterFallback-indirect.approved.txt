@@ -16,4 +16,4 @@ run.endive.testing.Test3MachineFuncGroup_0.func_3
 run.endive.testing.Test3MachineFuncGroup_0.call_3
 run.endive.testing.Test3MachineMachineCall.call
 run.endive.testing.Test3Machine.call
-run.endive.runtime.Instance$Exports.lambda$function$0
+run.endive.runtime.Instance$Exports$1.apply

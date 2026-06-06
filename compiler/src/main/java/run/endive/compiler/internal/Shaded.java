@@ -20,7 +20,6 @@ import run.endive.runtime.WasmStruct;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.ValType;
-import run.endive.wasm.types.Value;
 
 /**
  * This class will get shaded into the compiled code.
@@ -107,12 +106,35 @@ public final class Shaded {
         return OpcodeImpl.TABLE_GET(instance, tableIndex, index);
     }
 
+    public static Object tableGetRef(int index, int tableIndex, Instance instance) {
+        return instance.table(tableIndex).objRef(index);
+    }
+
     public static void tableSet(int index, int value, int tableIndex, Instance instance) {
         instance.table(tableIndex).setRef(index, value, instance);
     }
 
+    public static void tableSetRef(int index, Object value, int tableIndex, Instance instance) {
+        instance.table(tableIndex).setObjRef(index, value, instance);
+    }
+
     public static int tableGrow(int value, int size, int tableIndex, Instance instance) {
         return instance.table(tableIndex).grow(size, value, instance);
+    }
+
+    public static int tableGrowRef(Object value, int size, int tableIndex, Instance instance) {
+        return instance.table(tableIndex).growWithRef(size, value, instance);
+    }
+
+    public static void tableFillRef(
+            int offset, Object value, int size, int tableIndex, Instance instance) {
+        var table = instance.table(tableIndex);
+        if (offset + size > table.size()) {
+            throw new TrapException("out of bounds table access");
+        }
+        for (int i = 0; i < size; i++) {
+            table.setObjRef(offset + i, value, instance);
+        }
     }
 
     public static int tableSize(int tableIndex, Instance instance) {
@@ -405,6 +427,16 @@ public final class Shaded {
             args = new long[0];
         }
         WasmException e = new WasmException(instance, tagNumber, args);
+        instance.registerException(e);
+        return e;
+    }
+
+    public static WasmException createWasmExceptionGc(
+            long[] args, Object[] refArgs, int tagNumber, Instance instance) {
+        if (args == null) {
+            args = new long[0];
+        }
+        WasmException e = new WasmException(instance, tagNumber, args, refArgs);
         instance.registerException(e);
         return e;
     }
@@ -951,12 +983,20 @@ public final class Shaded {
         if (element == null || offset + len > element.elementCount()) {
             throw new TrapException("out of bounds table access");
         }
+        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+        boolean isRef = at.fieldType().storageType().isGcReference();
         var elems = new long[len];
+        var elemRefs = new Object[len];
         for (int i = 0; i < len; i++) {
-            elems[i] =
-                    elementValueToRef(computeElementValue(instance, elemIdx, offset + i), instance);
+            var init = element.initializers().get(offset + i);
+            var result = ConstantEvaluators.computeConstant(instance, init);
+            if (isRef) {
+                elemRefs[i] = result.ref();
+            } else {
+                elems[i] = result.longValue();
+            }
         }
-        return new WasmArray(typeIdx, elems);
+        return new WasmArray(typeIdx, elems, elemRefs);
     }
 
     public static long arrayGet(Object ref, int idx, int typeIdx, Instance instance) {
@@ -1153,14 +1193,20 @@ public final class Shaded {
         if (len == 0) {
             return;
         }
+        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+        boolean isRef = at.fieldType().storageType().isGcReference();
         for (int i = 0; i < len; i++) {
-            arr.set(
-                    dstOff + i,
-                    elementValueToRef(
-                            computeElementValue(instance, elemIdx, srcOff + i), instance));
+            var init = element.initializers().get(srcOff + i);
+            var result = ConstantEvaluators.computeConstant(instance, init);
+            if (isRef) {
+                arr.setRef(dstOff + i, result.ref());
+            } else {
+                arr.set(dstOff + i, result.longValue());
+            }
         }
     }
 
+    // GC ref (Object on JVM stack) variants
     public static int refTest(Object ref, int heapType, int srcHeapType, Instance instance) {
         return instance.heapTypeMatchRef(ref, false, heapType, srcHeapType) ? 1 : 0;
     }
@@ -1187,6 +1233,34 @@ public final class Shaded {
     public static boolean heapTypeMatch(
             Object ref, boolean nullable, int heapType, int srcHeapType, Instance instance) {
         return instance.heapTypeMatchRef(ref, nullable, heapType, srcHeapType);
+    }
+
+    // Non-GC ref (int on JVM stack) variants for funcref/externref
+    public static int refTestInt(int ref, int heapType, int srcHeapType, Instance instance) {
+        return instance.heapTypeMatch(ref, false, heapType, srcHeapType) ? 1 : 0;
+    }
+
+    public static int refTestNullInt(int ref, int heapType, int srcHeapType, Instance instance) {
+        return instance.heapTypeMatch(ref, true, heapType, srcHeapType) ? 1 : 0;
+    }
+
+    public static int castTestInt(int ref, int heapType, int srcHeapType, Instance instance) {
+        if (!instance.heapTypeMatch(ref, false, heapType, srcHeapType)) {
+            throw new TrapException("cast failure");
+        }
+        return ref;
+    }
+
+    public static int castTestNullInt(int ref, int heapType, int srcHeapType, Instance instance) {
+        if (!instance.heapTypeMatch(ref, true, heapType, srcHeapType)) {
+            throw new TrapException("cast failure");
+        }
+        return ref;
+    }
+
+    public static boolean heapTypeMatchInt(
+            int ref, boolean nullable, int heapType, int srcHeapType, Instance instance) {
+        return instance.heapTypeMatch(ref, nullable, heapType, srcHeapType);
     }
 
     public static Object refI31(int val) {
@@ -1224,20 +1298,8 @@ public final class Shaded {
         return 0;
     }
 
-    @SuppressWarnings("deprecation")
-    private static long elementValueToRef(long val, Instance instance) {
-        if (Value.isI31(val)) {
-            var i31 = new WasmI31Ref(Value.decodeI31U(val));
-            return instance.registerGcRef(i31);
-        }
-        return val;
-    }
-
-    private static long computeElementValue(Instance instance, int elemIdx, int offset) {
-        var element = instance.element(elemIdx);
-        var init = element.initializers().get(offset);
-        return ConstantEvaluators.computeConstantValue(instance, init)[0];
-    }
+    // elementValueToRef and computeElementValue removed: arrayNewElem/arrayInitElem now use
+    // ConstantEvaluators.computeConstant directly to properly handle GC ref elements.
 
     private static long readFromData(byte[] data, int offset, int size) {
         long val = 0;
@@ -1245,6 +1307,26 @@ public final class Shaded {
             val |= (long) (data[offset + i] & 0xFF) << (i * 8);
         }
         return val;
+    }
+
+    public static Object anyConvertExtern(int ref) {
+        if (ref == REF_NULL_VALUE) {
+            return null;
+        }
+        return Integer.valueOf(ref);
+    }
+
+    public static int externConvertAny(Object ref) {
+        if (ref == null) {
+            return REF_NULL_VALUE;
+        }
+        if (ref instanceof Integer) {
+            return (Integer) ref;
+        }
+        // Non-null GC ref (struct, array, i31, etc.) converted to externref.
+        // Return a non-null sentinel since the externref is opaque.
+        int hash = System.identityHashCode(ref);
+        return hash == REF_NULL_VALUE ? 0 : hash;
     }
 
     public static void dataDrop(int segment, Instance instance) {

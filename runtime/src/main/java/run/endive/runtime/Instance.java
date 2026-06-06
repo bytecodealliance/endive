@@ -494,16 +494,17 @@ public class Instance {
             var funcTypeIdx = functionType((int) ref);
             return heapTypeSubOf(funcTypeIdx, targetHeapType);
         }
-        // ANY hierarchy: i31, struct, array, or internalized externref
-        if (Value.isI31(ref)) {
-            return heapTypeSubOf(ValType.TypeIdxCode.I31.code(), targetHeapType);
+        // Concrete function type source (sourceHeapType >= 0 and is a func type)
+        if (sourceHeapType >= 0
+                && module.typeSection() != null
+                && module.typeSection().getSubType(sourceHeapType).compType().funcType() != null) {
+            var funcTypeIdx = functionType((int) ref);
+            return heapTypeSubOf(funcTypeIdx, targetHeapType);
         }
-        var gc = gcRef((int) ref);
-        if (gc != null) {
-            return heapTypeSubOf(gc.typeIdx(), targetHeapType);
-        }
-        // Internalized externref (via any.convert_extern)
-        return targetHeapType == ValType.TypeIdxCode.ANY.code();
+        // For non-GC ref values (int on JVM), the only remaining possibility is externref.
+        // In the new GC design, GC refs are Objects and should not reach this method.
+        // Return false for type mismatches.
+        return false;
     }
 
     public boolean heapTypeMatchRef(

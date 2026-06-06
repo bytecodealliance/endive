@@ -736,6 +736,31 @@ final class WasmAnalyzer {
                                         CompilerOpCode.CAST_TEST_NULL, castNullOperands));
                         break;
                     }
+                case REF_TEST:
+                    {
+                        // ref.test: [ref] -> [i32]
+                        var srcType = stack.peek();
+                        stack.popRef();
+                        var heapType = (int) ins.operand(0);
+                        stack.push(ValType.I32);
+                        long[] refTestOperands = {heapType, srcType.typeIdx()};
+                        result.add(
+                                new CompilerInstruction(CompilerOpCode.REF_TEST, refTestOperands));
+                        break;
+                    }
+                case REF_TEST_NULL:
+                    {
+                        // ref.test null: [ref] -> [i32]
+                        var srcType = stack.peek();
+                        stack.popRef();
+                        var heapType = (int) ins.operand(0);
+                        stack.push(ValType.I32);
+                        long[] refTestNullOperands = {heapType, srcType.typeIdx()};
+                        result.add(
+                                new CompilerInstruction(
+                                        CompilerOpCode.REF_TEST_NULL, refTestNullOperands));
+                        break;
+                    }
                 default:
                     analyzeSimple(result, stack, ins, functionType, body);
             }
@@ -1297,27 +1322,48 @@ final class WasmAnalyzer {
                 stack.pop(ValType.I32);
                 break;
             case TABLE_FILL:
-                // [I32 ref I32] -> []
-                stack.pop(ValType.I32);
-                stack.pop(stack.peek());
-                stack.pop(ValType.I32);
-                break;
+                {
+                    // [I32 ref I32] -> []
+                    stack.pop(ValType.I32);
+                    var fillValType = stack.peek().resolve(module.typeSection());
+                    stack.pop(fillValType);
+                    stack.pop(ValType.I32);
+                    long[] fillOps = {ins.operand(0), fillValType.isGcReference() ? 1 : 0};
+                    out.add(new CompilerInstruction(CompilerOpCode.TABLE_FILL, fillOps));
+                    return;
+                }
             case TABLE_GET:
-                // [I32] -> [ref]
-                stack.pop(ValType.I32);
-                stack.push(tableTypes.get((int) ins.operand(0)));
-                break;
+                {
+                    // [I32] -> [ref]
+                    stack.pop(ValType.I32);
+                    var tableElemType = tableTypes.get((int) ins.operand(0));
+                    tableElemType.resolve(module.typeSection());
+                    stack.push(tableElemType);
+                    long[] getOps = {ins.operand(0), tableElemType.isGcReference() ? 1 : 0};
+                    out.add(new CompilerInstruction(CompilerOpCode.TABLE_GET, getOps));
+                    return;
+                }
             case TABLE_GROW:
-                // [ref I32] -> [I32]
-                stack.pop(ValType.I32);
-                stack.pop(tableTypes.get((int) ins.operand(0)));
-                stack.push(ValType.I32);
-                break;
+                {
+                    // [ref I32] -> [I32]
+                    stack.pop(ValType.I32);
+                    var growValType = stack.peek().resolve(module.typeSection());
+                    stack.pop(growValType);
+                    stack.push(ValType.I32);
+                    long[] growOps = {ins.operand(0), growValType.isGcReference() ? 1 : 0};
+                    out.add(new CompilerInstruction(CompilerOpCode.TABLE_GROW, growOps));
+                    return;
+                }
             case TABLE_SET:
-                // [I32 ref] -> []
-                stack.pop(tableTypes.get((int) ins.operand(0)));
-                stack.pop(ValType.I32);
-                break;
+                {
+                    // [I32 ref] -> []
+                    var setValType = stack.peek().resolve(module.typeSection());
+                    stack.pop(setValType);
+                    stack.pop(ValType.I32);
+                    long[] setOps = {ins.operand(0), setValType.isGcReference() ? 1 : 0};
+                    out.add(new CompilerInstruction(CompilerOpCode.TABLE_SET, setOps));
+                    return;
+                }
             case CALL:
                 // [p*] -> [r*]
                 updateStack(stack, functionTypes.get((int) ins.operand(0)));
@@ -1579,7 +1625,8 @@ final class WasmAnalyzer {
                         ValType.builder()
                                 .withOpcode(ValType.ID.Ref)
                                 .withTypeIdx(ValType.TypeIdxCode.I31.code())
-                                .build());
+                                .build()
+                                .resolve(module.typeSection()));
                 break;
             case I31_GET_S:
             case I31_GET_U:
@@ -1719,7 +1766,7 @@ final class WasmAnalyzer {
         return Stream.concat(importedFunctions, moduleFunctions).collect(toUnmodifiableList());
     }
 
-    private static List<ValType> getTableTypes(WasmModule module) {
+    static List<ValType> getTableTypes(WasmModule module) {
         var importedTables =
                 module.importSection().stream()
                         .filter(TableImport.class::isInstance)

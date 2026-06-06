@@ -40,10 +40,10 @@ public class BrOnNullTest {
 
         // Create a point(42, 7) and verify get_x_or_default returns 42
         var newPoint = instance.export("new_point");
-        long[] pointRef = newPoint.apply(42, 7);
+        Object[] pointRef = newPoint.applyGc((Object) 42L, (Object) 7L);
 
         var getX = instance.export("get_x_or_default");
-        assertEquals(42, getX.apply(pointRef[0])[0]);
+        assertEquals(42, (int) (Integer) getX.applyGc(pointRef[0])[0]);
     }
 
     @ParameterizedTest

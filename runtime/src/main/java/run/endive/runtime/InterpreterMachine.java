@@ -261,16 +261,6 @@ public class InterpreterMachine implements Machine {
                 return;
             }
             var instruction = frame.loadCurrentInstruction();
-            //                LOGGER.log(
-            //                        System.Logger.Level.DEBUG,
-            //                        "func="
-            //                                + frame.funcId
-            //                                + "@"
-            //                                + frame.pc
-            //                                + ": "
-            //                                + instruction
-            //                                + " stack="
-            //                                + stack);
             var opcode = instruction.opcode();
             Operands operands = instruction::operand;
             instance.onExecution(instruction, stack);
@@ -345,8 +335,10 @@ public class InterpreterMachine implements Machine {
                         var tag = instance.tag(tagNumber);
                         var type = instance.type(tag.tagType().typeIdx());
 
-                        var args = extractArgsForParams(stack, type.params());
-                        var exception = new WasmException(instance, tagNumber, args);
+                        var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
+                        var args = (long[]) extracted[0];
+                        var refArgs = (Object[]) extracted[1];
+                        var exception = new WasmException(instance, tagNumber, args, refArgs);
                         var exceptionIdx = instance.registerException(exception);
                         frame = THROW_REF(instance, exceptionIdx, stack, frame, callStack);
                         break;
@@ -3127,17 +3119,13 @@ public class InterpreterMachine implements Machine {
                         case CATCH:
                             if (currentCatch.tag() == exception.tagIdx() || compatibleImport) {
                                 found = true;
-                                for (var arg : exception.args()) {
-                                    stack.push(arg);
-                                }
+                                pushExceptionArgs(exception, stack);
                             }
                             break;
                         case CATCH_REF:
                             if (currentCatch.tag() == exception.tagIdx() || compatibleImport) {
                                 found = true;
-                                for (var arg : exception.args()) {
-                                    stack.push(arg);
-                                }
+                                pushExceptionArgs(exception, stack);
                                 stack.push(exceptionIdx);
                             }
                             break;
@@ -3250,22 +3238,36 @@ public class InterpreterMachine implements Machine {
 
     private static void BR_ON_NULL(
             StackFrame frame, MStack stack, AnnotatedInstruction instruction) {
-        var ref = (int) stack.pop();
-        if (ref == REF_NULL_VALUE) {
-            BR(frame, stack, instruction);
+        Object refObj = stack.peekRef();
+        if (refObj != null) {
+            // Non-null GC ref — pop the ref side, keep it
+            stack.popRef();
+            stack.pushRef(refObj);
         } else {
-            stack.push(ref);
+            // Non-GC ref or null GC ref — check the long side
+            var val = stack.pop();
+            if (val == REF_NULL_VALUE) {
+                BR(frame, stack, instruction);
+            } else {
+                stack.push(val);
+            }
         }
     }
 
     private static void BR_ON_NON_NULL(
             StackFrame frame, MStack stack, AnnotatedInstruction instruction) {
-        var ref = (int) stack.pop();
-        if (ref == REF_NULL_VALUE) {
-            // do nothing
-        } else {
-            stack.push(ref);
+        Object refObj = stack.peekRef();
+        if (refObj != null) {
+            // Non-null GC ref — pop and branch with it
+            stack.popRef();
+            stack.pushRef(refObj);
             BR(frame, stack, instruction);
+        } else {
+            var val = stack.pop();
+            if (val != REF_NULL_VALUE) {
+                stack.push(val);
+                BR(frame, stack, instruction);
+            }
         }
     }
 
@@ -3445,7 +3447,16 @@ public class InterpreterMachine implements Machine {
         var typeIdx = (int) operands.get(0);
         var st = instance.module().typeSection().getSubType(typeIdx).compType().structType();
         var fields = new long[st.fieldTypes().length];
-        // fieldRefs is already null-initialized which is correct for ref defaults (null)
+        // Default values: 0 for numeric, null for GC refs (already zero-initialized),
+        // REF_NULL_VALUE for non-GC references (funcref, externref)
+        for (int i = 0; i < fields.length; i++) {
+            var ft = st.fieldTypes()[i];
+            if (ft.storageType().valType() != null
+                    && ft.storageType().valType().isReference()
+                    && !ft.storageType().isGcReference()) {
+                fields[i] = REF_NULL_VALUE;
+            }
+        }
         var struct = new WasmStruct(typeIdx, fields);
         stack.pushRef(struct);
     }
@@ -3815,6 +3826,17 @@ public class InterpreterMachine implements Machine {
                 arr.setRef(dstOffset + i, result.ref());
             } else {
                 arr.set(dstOffset + i, result.longValue());
+            }
+        }
+    }
+
+    private static void pushExceptionArgs(WasmException exception, MStack stack) {
+        var refArgs = exception.refArgs();
+        for (int i = 0; i < exception.args().length; i++) {
+            if (refArgs != null && refArgs[i] != null) {
+                stack.pushRef(refArgs[i]);
+            } else {
+                stack.push(exception.args()[i]);
             }
         }
     }

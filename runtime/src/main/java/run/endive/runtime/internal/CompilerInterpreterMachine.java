@@ -11,6 +11,7 @@ import run.endive.runtime.StackFrame;
 import run.endive.runtime.WasmException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.ValType;
 
 /**
  * This class is used by compiler generated classes. It MUST remain backwards compatible
@@ -72,15 +73,32 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
             var stack = stack();
             var typeId = instance.functionType(funcId);
             var type = instance.type(typeId);
-            var args = extractArgsForParams(stack, type.params());
+            var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
+            var args = (long[]) extracted[0];
+            var refArgs = (Object[]) extracted[1];
+            boolean hasGcReturns = type.returns().stream().anyMatch(ValType::isGcReference);
 
             try {
-                var results = instance.getMachine().call(funcId, args);
-                // a host function can return null or an array of ints
-                // which we will push onto the stack
-                if (results != null) {
-                    for (var result : results) {
-                        stack.push(result);
+                if (hasGcReturns) {
+                    var gcResults =
+                            instance.getMachine()
+                                    .callGc(funcId, mergeArgsForCallGc(args, refArgs, type));
+                    if (gcResults != null) {
+                        for (int i = 0; i < type.returns().size(); i++) {
+                            var retType = type.returns().get(i);
+                            if (retType.isGcReference()) {
+                                stack.pushRef(gcResults[i]);
+                            } else if (gcResults[i] instanceof Number) {
+                                stack.push(((Number) gcResults[i]).longValue());
+                            }
+                        }
+                    }
+                } else {
+                    var results = instance.getMachine().call(funcId, args, refArgs);
+                    if (results != null) {
+                        for (var result : results) {
+                            stack.push(result);
+                        }
                     }
                 }
             } catch (WasmException e) {
@@ -89,6 +107,21 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
                 THROW_REF(instance, instance.registerException(e), stack, stackFrame, callStack);
             }
         }
+    }
+
+    private static Object[] mergeArgsForCallGc(long[] args, Object[] refArgs, FunctionType type) {
+        var gcArgs = new Object[type.params().size()];
+        int slot = 0;
+        for (int i = 0; i < type.params().size(); i++) {
+            var param = type.params().get(i);
+            if (param.isGcReference()) {
+                gcArgs[i] = (refArgs != null) ? refArgs[slot] : null;
+            } else {
+                gcArgs[i] = args[slot];
+            }
+            slot += (param.equals(ValType.V128)) ? 2 : 1;
+        }
+        return gcArgs;
     }
 
     @Override

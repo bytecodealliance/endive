@@ -861,7 +861,14 @@ public final class Shaded {
         var st = instance.module().typeSection().getSubType(typeIdx).compType().structType();
         var fields = new long[st.fieldTypes().length];
         var fieldRefs = new Object[st.fieldTypes().length];
-        // numeric fields default to 0 (already), ref fields default to null (already)
+        for (int i = 0; i < st.fieldTypes().length; i++) {
+            var ft = st.fieldTypes()[i];
+            if (ft.storageType().valType() != null
+                    && ft.storageType().valType().isReference()
+                    && !ft.storageType().isGcReference()) {
+                fields[i] = REF_NULL_VALUE;
+            }
+        }
         return new WasmStruct(typeIdx, fields, fieldRefs);
     }
 
@@ -948,7 +955,13 @@ public final class Shaded {
     public static Object arrayNewDefault(int len, int typeIdx, Instance instance) {
         var elems = new long[len];
         var elemRefs = new Object[len];
-        // numeric defaults to 0 (already), ref defaults to null (already)
+        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+        var ft = at.fieldType();
+        if (ft.storageType().valType() != null
+                && ft.storageType().valType().isReference()
+                && !ft.storageType().isGcReference()) {
+            Arrays.fill(elems, REF_NULL_VALUE);
+        }
         return new WasmArray(typeIdx, elems, elemRefs);
     }
 
@@ -1323,10 +1336,7 @@ public final class Shaded {
         if (ref instanceof Integer) {
             return (Integer) ref;
         }
-        // Non-null GC ref (struct, array, i31, etc.) converted to externref.
-        // Return a non-null sentinel since the externref is opaque.
-        int hash = System.identityHashCode(ref);
-        return hash == REF_NULL_VALUE ? 0 : hash;
+        return System.identityHashCode(ref);
     }
 
     public static void dataDrop(int segment, Instance instance) {

@@ -178,12 +178,20 @@ final class Emitters {
         for (int i = 0; i < types.size(); i++) {
             ValType valType = types.get(i);
 
-            asm.dup(); // Duplicate the array reference
-            asm.iconst(i); // Array index
-            asm.load(slot, asmType(valType)); // Load value from local
+            if (valType.isGcReference()) {
+                // Object refs can't be stored in long[] — store 0L as placeholder
+                asm.dup();
+                asm.iconst(i);
+                asm.lconst(0L);
+                asm.astore(LONG_TYPE);
+            } else {
+                asm.dup();
+                asm.iconst(i);
+                asm.load(slot, asmType(valType));
+                emitJvmToLong(asm, valType);
+                asm.astore(LONG_TYPE);
+            }
             slot += slotCount(valType);
-            emitJvmToLong(asm, valType); // Convert to long
-            asm.astore(LONG_TYPE); // Store in array
         }
     }
 

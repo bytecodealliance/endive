@@ -205,18 +205,6 @@ final class CompilerUtil {
         }
     }
 
-    /**
-     * Returns true if a multi-value return contains any GC references.
-     */
-    public static boolean hasGcRefReturns(FunctionType type) {
-        for (ValType ret : type.returns()) {
-            if (ret.isGcReference()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public static Object defaultValue(ValType type) {
         switch (type.opcode()) {
             case ValType.ID.I32:
@@ -238,14 +226,6 @@ final class CompilerUtil {
             default:
                 throw new IllegalArgumentException("Unsupported ValType: " + type);
         }
-    }
-
-    /**
-     * Returns true if the given ValType is a GC reference type (struct/array/i31/anyref/eqref),
-     * which is represented as Object on the JVM.
-     */
-    public static boolean isGcRef(ValType type) {
-        return type.isGcReference();
     }
 
     public static int slotCount(ValType type) {

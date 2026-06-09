@@ -44,6 +44,7 @@ public final class ValType {
     private int resolvedFunctionTypeHash;
     private final int resolvedFunctionTypeId;
     private boolean gcReference;
+    private boolean objectRef;
 
     private ValType(int opcode) {
         this(opcode, NULL_TYPEIDX, -1);
@@ -114,6 +115,7 @@ public final class ValType {
             }
         }
         this.gcReference = computeIsGcReference(typeSection);
+        this.objectRef = gcReference || computeIsExternRef();
         return this;
     }
 
@@ -272,6 +274,23 @@ public final class ValType {
 
     public boolean isGcReference() {
         return gcReference;
+    }
+
+    /**
+     * Returns true if this type is an Object reference on the JVM: GC refs AND externref,
+     * but NOT funcref (which stays as int for call_indirect dispatch).
+     */
+    public boolean isObjectRef() {
+        return objectRef;
+    }
+
+    private boolean computeIsExternRef() {
+        int op = opcode();
+        if (op != ID.Ref && op != ID.RefNull) {
+            return false;
+        }
+        int ht = typeIdx();
+        return ht == TypeIdxCode.EXTERN.code() || ht == TypeIdxCode.NOEXTERN.code();
     }
 
     // https://webassembly.github.io/gc/core/binary/types.html#heap-types
@@ -750,6 +769,25 @@ public final class ValType {
                 default:
                     return false;
             }
+        }
+
+        public boolean isObjectRef() {
+            return isObjectRef(null);
+        }
+
+        public boolean isObjectRef(TypeSection ts) {
+            return isGcReference(ts) || isExternRef();
+        }
+
+        private boolean isExternRef() {
+            if (!isReference()) {
+                return false;
+            }
+            if (opcode == ID.Ref || opcode == ID.RefNull) {
+                return typeIdx == TypeIdxCode.EXTERN.code()
+                        || typeIdx == TypeIdxCode.NOEXTERN.code();
+            }
+            return false;
         }
 
         @Deprecated(since = "use .build.resolve(typeSection) instead")

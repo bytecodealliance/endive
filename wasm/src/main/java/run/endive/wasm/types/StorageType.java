@@ -35,6 +35,10 @@ public final class StorageType {
         return valType != null && valType.isGcReference();
     }
 
+    public boolean isObjectRef() {
+        return valType != null && valType.isObjectRef();
+    }
+
     public int byteSize() {
         if (packedType != null) {
             switch (packedType) {

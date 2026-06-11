@@ -792,23 +792,28 @@ public class WasmModuleTest {
                         .withImportValues(imports)
                         .build();
 
-        var roundTrip = instance.exports().function("process_externref").apply(123L)[0];
-        assertEquals(123L, roundTrip);
+        var roundTripResult = instance.exports().function("process_externref").applyGc(123L);
+        assertNotNull(roundTripResult);
+        assertEquals(123L, ((Number) roundTripResult[0]).longValue());
 
         // object has not been created yet
-        var isNull1 = instance.exports().function("is_null").apply(123L)[0];
-        assertEquals(1L, isNull1);
+        var isNull1Result = instance.exports().function("is_null").applyGc(123L);
+        assertNotNull(isNull1Result);
+        assertEquals(1, ((Number) isNull1Result[0]).intValue());
 
         // now we create the test object
-        var ref = instance.exports().function("get_host_object").apply()[0];
-        assertEquals(123L, ref);
+        var refResult = instance.exports().function("get_host_object").applyGc();
+        assertNotNull(refResult);
+        assertEquals(123L, ((Number) refResult[0]).longValue());
 
-        var isNull2 = instance.exports().function("is_null").apply(123L)[0];
-        assertEquals(0L, isNull2);
+        var isNull2Result = instance.exports().function("is_null").applyGc(123L);
+        assertNotNull(isNull2Result);
+        assertEquals(0, ((Number) isNull2Result[0]).intValue());
 
         // verify against a reference that doesn't exist
-        var isNull3 = instance.exports().function("is_null").apply(1L)[0];
-        assertEquals(1L, isNull3);
+        var isNull3Result = instance.exports().function("is_null").applyGc(1L);
+        assertNotNull(isNull3Result);
+        assertEquals(1, ((Number) isNull3Result[0]).intValue());
     }
 
     @Test

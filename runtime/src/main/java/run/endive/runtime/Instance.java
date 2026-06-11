@@ -137,7 +137,7 @@ public class Instance {
             } else {
                 this.tables[i] = new TableInstance(tables[i], initValue);
             }
-            if (tables[i].elementType().isGcReference() && result.ref() != null) {
+            if (tables[i].elementType().isObjectRef() && result.ref() != null) {
                 var tbl = this.tables[i];
                 for (int j = 0; j < tbl.size(); j++) {
                     tbl.setObjRef(j, result.ref(), this);
@@ -189,14 +189,14 @@ public class Instance {
                         || (offset + initializers.size() - 1) >= table.size()) {
                     throw new UninstantiableException("out of bounds table access");
                 }
-                boolean isGcTable = table.elementType().isGcReference();
+                boolean isObjRefTable = table.elementType().isObjectRef();
                 for (int i = 0; i < initializers.size(); i++) {
                     final List<Instruction> init = initializers.get(i);
                     int index = offset + i;
                     var inst = computeConstantInstance(this, init);
 
                     assert ae.type().isReference();
-                    if (isGcTable) {
+                    if (isObjRefTable) {
                         var result = computeConstant(this, init);
                         table.setObjRef(index, result.ref(), inst);
                     } else {
@@ -279,20 +279,15 @@ public class Instance {
 
         public ExportFunction function(String name) {
             var export = getExport(FUNCTION, name);
-            var funcType = instance.type(instance.functionType(export.index()));
-            boolean hasGcReturns = funcType.returns().stream().anyMatch(ValType::isGcReference);
             return new ExportFunction() {
                 @Override
                 public long[] apply(long... args) {
-                    var result = instance.machine.call(export.index(), args);
-                    if (hasGcReturns) {
-                        throw new UnsupportedOperationException(
-                                "Function '"
-                                        + name
-                                        + "' returns GC references."
-                                        + " Use applyGc() instead.");
-                    }
-                    return result;
+                    return instance.machine.call(export.index(), args);
+                }
+
+                @Override
+                public CallResult applyWithRefs(long[] args, Object[] refArgs) {
+                    return instance.machine.callWithRefs(export.index(), args, refArgs);
                 }
 
                 @Override

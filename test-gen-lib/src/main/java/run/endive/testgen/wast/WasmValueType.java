@@ -64,4 +64,8 @@ public enum WasmValueType {
                 return false;
         }
     }
+
+    public boolean isObjectRef() {
+        return isGcReference() || this == EXTERN_REF || this == NULL_EXTERN_REF;
+    }
 }

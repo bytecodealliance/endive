@@ -379,14 +379,14 @@ public class JavaTestGen {
     private static boolean needsGcCall(Command cmd) {
         if (cmd.action() != null && cmd.action().args() != null) {
             for (var arg : cmd.action().args()) {
-                if (arg.type().isGcReference()) {
+                if (arg.type().isObjectRef()) {
                     return true;
                 }
             }
         }
         if (cmd.expected() != null) {
             for (var expected : cmd.expected()) {
-                if (expected.type().isGcReference()) {
+                if (expected.type().isObjectRef()) {
                     return true;
                 }
             }

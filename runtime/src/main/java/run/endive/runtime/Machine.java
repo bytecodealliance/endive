@@ -11,6 +11,11 @@ public interface Machine {
         return call(funcId, args);
     }
 
+    default CallResult callWithRefs(int funcId, long[] args, Object[] refArgs)
+            throws WasmEngineException {
+        return new CallResult(call(funcId, args, refArgs), null);
+    }
+
     default Object[] callGc(int funcId, Object[] args) throws WasmEngineException {
         throw new UnsupportedOperationException("This Machine does not support GC references");
     }

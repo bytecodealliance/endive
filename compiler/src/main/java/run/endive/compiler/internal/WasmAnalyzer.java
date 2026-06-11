@@ -1328,7 +1328,7 @@ final class WasmAnalyzer {
                     var fillValType = stack.peek().resolve(module.typeSection());
                     stack.pop(fillValType);
                     stack.pop(ValType.I32);
-                    long[] fillOps = {ins.operand(0), fillValType.isGcReference() ? 1 : 0};
+                    long[] fillOps = {ins.operand(0), fillValType.isObjectRef() ? 1 : 0};
                     out.add(new CompilerInstruction(CompilerOpCode.TABLE_FILL, fillOps));
                     return;
                 }
@@ -1339,7 +1339,7 @@ final class WasmAnalyzer {
                     var tableElemType = tableTypes.get((int) ins.operand(0));
                     tableElemType.resolve(module.typeSection());
                     stack.push(tableElemType);
-                    long[] getOps = {ins.operand(0), tableElemType.isGcReference() ? 1 : 0};
+                    long[] getOps = {ins.operand(0), tableElemType.isObjectRef() ? 1 : 0};
                     out.add(new CompilerInstruction(CompilerOpCode.TABLE_GET, getOps));
                     return;
                 }
@@ -1350,7 +1350,7 @@ final class WasmAnalyzer {
                     var growValType = stack.peek().resolve(module.typeSection());
                     stack.pop(growValType);
                     stack.push(ValType.I32);
-                    long[] growOps = {ins.operand(0), growValType.isGcReference() ? 1 : 0};
+                    long[] growOps = {ins.operand(0), growValType.isObjectRef() ? 1 : 0};
                     out.add(new CompilerInstruction(CompilerOpCode.TABLE_GROW, growOps));
                     return;
                 }
@@ -1360,7 +1360,7 @@ final class WasmAnalyzer {
                     var setValType = stack.peek().resolve(module.typeSection());
                     stack.pop(setValType);
                     stack.pop(ValType.I32);
-                    long[] setOps = {ins.operand(0), setValType.isGcReference() ? 1 : 0};
+                    long[] setOps = {ins.operand(0), setValType.isObjectRef() ? 1 : 0};
                     out.add(new CompilerInstruction(CompilerOpCode.TABLE_SET, setOps));
                     return;
                 }

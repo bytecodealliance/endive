@@ -819,12 +819,12 @@ public final class OpcodeImpl {
             throw new WasmRuntimeException("out of bounds table access");
         }
 
-        boolean isGcTable = dest.elementType().isGcReference();
+        boolean isObjRefTable = dest.elementType().isObjectRef();
 
         for (int i = size - 1; i >= 0; i--) {
             if (d <= s) {
                 var inst = src.instance(s);
-                if (isGcTable) {
+                if (isObjRefTable) {
                     dest.setObjRef(d, src.objRef(s), inst);
                 } else {
                     dest.setRef(d, src.ref(s), inst);
@@ -833,7 +833,7 @@ public final class OpcodeImpl {
                 d++;
             } else {
                 var inst = src.instance(s + i);
-                if (isGcTable) {
+                if (isObjRefTable) {
                     dest.setObjRef(d + i, src.objRef(s + i), inst);
                 } else {
                     dest.setRef(d + i, src.ref(s + i), inst);
@@ -868,10 +868,10 @@ public final class OpcodeImpl {
         }
 
         int end = (int) endL;
-        boolean isGcTable = table.elementType().isGcReference();
+        boolean isObjRefTable = table.elementType().isObjectRef();
         for (int i = offset; i < end; i++) {
             var elem = instance.element(elementidx);
-            if (isGcTable) {
+            if (isObjRefTable) {
                 var result =
                         ConstantEvaluators.computeConstant(
                                 instance, elem.initializers().get(elemidx++));

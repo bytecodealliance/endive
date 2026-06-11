@@ -94,7 +94,7 @@ final class Emitters {
                         .withTypeIdx(srcHeapType)
                         .build()
                         .resolve(ctx.typeSection());
-        return srcType.isGcReference();
+        return srcType.isObjectRef();
     }
 
     public static void DROP_KEEP(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -178,7 +178,7 @@ final class Emitters {
         for (int i = 0; i < types.size(); i++) {
             ValType valType = types.get(i);
 
-            if (valType.isGcReference()) {
+            if (valType.isObjectRef()) {
                 // Object refs can't be stored in long[] — store 0L as placeholder
                 asm.dup();
                 asm.iconst(i);
@@ -219,7 +219,7 @@ final class Emitters {
         slot = ctx.tempSlot();
         for (int i = 0; i < types.size(); i++) {
             ValType valType = types.get(i);
-            if (!valType.isGcReference()) {
+            if (!valType.isObjectRef()) {
                 asm.dup();
                 asm.iconst(i);
                 asm.load(slot, asmType(valType));
@@ -236,7 +236,7 @@ final class Emitters {
         slot = ctx.tempSlot();
         for (int i = 0; i < types.size(); i++) {
             ValType valType = types.get(i);
-            if (valType.isGcReference()) {
+            if (valType.isObjectRef()) {
                 asm.dup();
                 asm.iconst(i);
                 asm.load(slot, asmType(valType));
@@ -340,7 +340,7 @@ final class Emitters {
                         .withTypeIdx((int) ins.operand(0))
                         .build()
                         .resolve(ctx.typeSection());
-        if (type.isGcReference()) {
+        if (type.isObjectRef()) {
             asm.aconst(null);
         } else {
             asm.iconst(REF_NULL_VALUE);
@@ -350,7 +350,7 @@ final class Emitters {
     public static void REF_IS_NULL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         // operand(0) is the ValType id of the ref on stack
         var type = valType(ins.operand(0), ctx);
-        if (type.isGcReference()) {
+        if (type.isObjectRef()) {
             emitInvokeStatic(asm, ShadedRefs.GC_REF_IS_NULL);
         } else {
             emitInvokeStatic(asm, ShadedRefs.REF_IS_NULL);
@@ -365,7 +365,7 @@ final class Emitters {
     public static void REF_AS_NON_NULL(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         var type = valType(ins.operand(0), ctx);
-        if (type.isGcReference()) {
+        if (type.isObjectRef()) {
             emitInvokeStatic(asm, ShadedRefs.GC_REF_AS_NON_NULL);
         } else {
             emitInvokeStatic(asm, ShadedRefs.REF_AS_NON_NULL);
@@ -401,7 +401,7 @@ final class Emitters {
         asm.iconst(globalIndex);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
 
-        if (globalType.isGcReference()) {
+        if (globalType.isObjectRef()) {
             // GC refs: returns Object directly
             emitInvokeStatic(asm, ShadedRefs.READ_GLOBAL_REF);
         } else {
@@ -415,7 +415,7 @@ final class Emitters {
         int globalIndex = (int) ins.operand(0);
         var globalType = ctx.globalTypes().get(globalIndex);
 
-        if (globalType.isGcReference()) {
+        if (globalType.isObjectRef()) {
             // GC refs: Object on stack
             asm.iconst(globalIndex);
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
@@ -1318,7 +1318,7 @@ final class Emitters {
         int tagNumber = (int) ins.operand(0);
         var type = ctx.tagFunctionType(tagNumber);
 
-        boolean hasGcRefs = type.params().stream().anyMatch(ValType::isGcReference);
+        boolean hasGcRefs = type.params().stream().anyMatch(ValType::isObjectRef);
         if (hasGcRefs) {
             emitBoxFieldsForStruct(ctx, asm, type.params());
             asm.iconst(tagNumber);
@@ -1419,7 +1419,7 @@ final class Emitters {
         var tag = (int) ins.operand(0);
         var tagFuncType = ctx.tagFunctionType(tag);
         if (!tagFuncType.params().isEmpty()) {
-            boolean hasGcRefs = tagFuncType.params().stream().anyMatch(ValType::isGcReference);
+            boolean hasGcRefs = tagFuncType.params().stream().anyMatch(ValType::isObjectRef);
             int longArraySlot = ctx.tempSlot() + 1;
             int refArraySlot = ctx.tempSlot() + 2;
 
@@ -1446,7 +1446,7 @@ final class Emitters {
             // Unbox each argument
             for (int i = 0; i < tagFuncType.params().size(); i++) {
                 var param = tagFuncType.params().get(i);
-                if (param.isGcReference()) {
+                if (param.isObjectRef()) {
                     asm.load(refArraySlot, OBJECT_TYPE);
                     asm.iconst(i);
                     asm.aload(OBJECT_TYPE);
@@ -1570,7 +1570,7 @@ final class Emitters {
         asm.iconst(fieldIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
 
-        if (ft.storageType().isGcReference()) {
+        if (ft.storageType().isObjectRef()) {
             // returns Object
             emitInvokeStatic(asm, ShadedRefs.STRUCT_GET_REF);
         } else {
@@ -1621,7 +1621,7 @@ final class Emitters {
         var st = ctx.typeSection().getSubType(typeIdx).compType().structType();
         var ft = st.fieldTypes()[fieldIdx];
 
-        if (ft.storageType().isGcReference()) {
+        if (ft.storageType().isObjectRef()) {
             // val is Object on stack
             asm.iconst(typeIdx);
             asm.iconst(fieldIdx);
@@ -1645,7 +1645,7 @@ final class Emitters {
         int typeIdx = (int) ins.operand(0);
         var at = ctx.typeSection().getSubType(typeIdx).compType().arrayType();
 
-        if (at.fieldType().storageType().isGcReference()) {
+        if (at.fieldType().storageType().isObjectRef()) {
             // stack: [initVal (Object), len]
             asm.store(ctx.tempSlot(), INT_TYPE);
             // initVal is Object on stack
@@ -1684,7 +1684,7 @@ final class Emitters {
         int len = (int) ins.operand(1);
         var at = ctx.typeSection().getSubType(typeIdx).compType().arrayType();
 
-        if (at.fieldType().storageType().isGcReference()) {
+        if (at.fieldType().storageType().isObjectRef()) {
             // Elements are Object refs, box into Object[]
             emitBoxRefsOnStack(ctx, asm, len);
             asm.iconst(typeIdx);
@@ -1744,7 +1744,7 @@ final class Emitters {
         asm.iconst(typeIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
 
-        if (at.fieldType().storageType().isGcReference()) {
+        if (at.fieldType().storageType().isObjectRef()) {
             emitInvokeStatic(asm, ShadedRefs.ARRAY_GET_REF);
         } else {
             emitInvokeStatic(asm, ShadedRefs.ARRAY_GET);
@@ -1782,7 +1782,7 @@ final class Emitters {
         // stack: [ref (Object), idx, val]
         var at = ctx.typeSection().getSubType(typeIdx).compType().arrayType();
 
-        if (at.fieldType().storageType().isGcReference()) {
+        if (at.fieldType().storageType().isObjectRef()) {
             // val is Object on stack
             asm.iconst(typeIdx);
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
@@ -1809,7 +1809,7 @@ final class Emitters {
         int typeIdx = (int) ins.operand(0);
         var at = ctx.typeSection().getSubType(typeIdx).compType().arrayType();
 
-        if (at.fieldType().storageType().isGcReference()) {
+        if (at.fieldType().storageType().isObjectRef()) {
             // stack: [ref (Object), offset, val (Object), len]
             asm.store(ctx.tempSlot(), INT_TYPE);
             // stack: [ref, offset, val]
@@ -1936,7 +1936,7 @@ final class Emitters {
     public static void BR_ON_NULL_CHECK(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         var type = valType(ins.operand(0), ctx);
-        boolean isGcRef = type.isGcReference();
+        boolean isGcRef = type.isObjectRef();
         asm.dup();
         var isNull = new Label();
         var end = new Label();
@@ -1956,7 +1956,7 @@ final class Emitters {
     public static void BR_ON_NON_NULL_CHECK(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         var type = valType(ins.operand(0), ctx);
-        boolean isGcRef = type.isGcReference();
+        boolean isGcRef = type.isObjectRef();
         asm.dup();
         var isNull = new Label();
         var end = new Label();

@@ -1081,7 +1081,7 @@ public final class Compiler {
             // unbox the arguments from long[] (and Object[] refArgs for GC refs)
             for (int i = 0; i < type.params().size(); i++) {
                 var param = type.params().get(i);
-                if (param.isGcReference()) {
+                if (param.isObjectRef()) {
                     // GC ref args: load from Object[] refArgs
                     asm.load(3, OBJECT_TYPE); // refArgs
                     asm.iconst(i);
@@ -1396,7 +1396,7 @@ public final class Compiler {
             asm.iconst(i);
             ValType valType = types.get(i);
             asm.load(slot, asmType(valType));
-            if (valType.isGcReference()) {
+            if (valType.isObjectRef()) {
                 asm.visitInsn(Opcodes.POP);
                 asm.lconst(0L);
             } else {
@@ -1489,10 +1489,15 @@ public final class Compiler {
             // unbox the arguments from long[]
             for (int i = 0; i < type.params().size(); i++) {
                 var param = type.params().get(i);
-                asm.load(0, OBJECT_TYPE);
-                asm.iconst(i);
-                asm.aload(LONG_TYPE);
-                emitLongToJvm(asm, param);
+                if (param.isObjectRef()) {
+                    // Object refs can't be stored in long[] — use null as default
+                    asm.aconst(null);
+                } else {
+                    asm.load(0, OBJECT_TYPE);
+                    asm.iconst(i);
+                    asm.aload(LONG_TYPE);
+                    emitLongToJvm(asm, param);
+                }
                 asm.store(ctx.localSlotIndex(i), asmType(param));
             }
             // since we just converted the arguments to long[].

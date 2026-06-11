@@ -969,7 +969,7 @@ public final class ShadedRefs {
             REF_I31 = Shaded.class.getMethod("refI31", int.class);
             I31_GET_S = Shaded.class.getMethod("i31GetS", Object.class);
             I31_GET_U = Shaded.class.getMethod("i31GetU", Object.class);
-            ANY_CONVERT_EXTERN = Shaded.class.getMethod("anyConvertExtern", int.class);
+            ANY_CONVERT_EXTERN = Shaded.class.getMethod("anyConvertExtern", Object.class);
             EXTERN_CONVERT_ANY = Shaded.class.getMethod("externConvertAny", Object.class);
             DATA_DROP = Shaded.class.getMethod("dataDrop", int.class, Instance.class);
 

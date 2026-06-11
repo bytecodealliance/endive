@@ -58,7 +58,7 @@ final class CompilerUtil {
                 return int.class;
             case ValType.ID.Ref:
             case ValType.ID.RefNull:
-                return type.isGcReference() ? Object.class : int.class;
+                return type.isObjectRef() ? Object.class : int.class;
             case ValType.ID.I64:
                 return long.class;
             case ValType.ID.F32:
@@ -79,7 +79,7 @@ final class CompilerUtil {
                 return INT_TYPE;
             case ValType.ID.Ref:
             case ValType.ID.RefNull:
-                return type.isGcReference() ? OBJECT_ASM_TYPE : INT_TYPE;
+                return type.isObjectRef() ? OBJECT_ASM_TYPE : INT_TYPE;
             case ValType.ID.I64:
                 return LONG_TYPE;
             case ValType.ID.F32:
@@ -107,7 +107,7 @@ final class CompilerUtil {
                 return;
             case ValType.ID.Ref:
             case ValType.ID.RefNull:
-                if (type.isGcReference()) {
+                if (type.isObjectRef()) {
                     // GC refs are Objects - this conversion should not be called for them
                     // when unboxing from long[]. They come from Object[] instead.
                     return;
@@ -135,7 +135,7 @@ final class CompilerUtil {
                 return;
             case ValType.ID.Ref:
             case ValType.ID.RefNull:
-                if (type.isGcReference()) {
+                if (type.isObjectRef()) {
                     // GC refs are Objects - this conversion should not be called for them
                     // when boxing into long[]. They go into Object[] instead.
                     return;
@@ -156,7 +156,7 @@ final class CompilerUtil {
     }
 
     public static MethodType valueMethodType(List<ValType> types) {
-        boolean hasGcRef = types.stream().anyMatch(t -> t.isGcReference());
+        boolean hasGcRef = types.stream().anyMatch(t -> t.isObjectRef());
         Class<?> returnType = hasGcRef ? Object[].class : long[].class;
         return methodType(returnType, jvmTypes(types));
     }
@@ -197,7 +197,7 @@ final class CompilerUtil {
             default:
                 // If any return value is a GC ref (Object), use Object[] instead of long[]
                 for (ValType ret : type.returns()) {
-                    if (ret.isGcReference()) {
+                    if (ret.isObjectRef()) {
                         return Object[].class;
                     }
                 }
@@ -217,7 +217,7 @@ final class CompilerUtil {
                 return 0.0d;
             case ValType.ID.Ref:
             case ValType.ID.RefNull:
-                if (type.isGcReference()) {
+                if (type.isObjectRef()) {
                     return null; // GC refs use null as their default
                 }
                 return REF_NULL_VALUE;
@@ -250,7 +250,7 @@ final class CompilerUtil {
     }
 
     public static void emitPop(MethodVisitor asm, ValType type) {
-        if (type.isGcReference()) {
+        if (type.isObjectRef()) {
             asm.visitInsn(Opcodes.POP); // Object refs are always 1 slot
         } else {
             asm.visitInsn(slotCount(type) == 1 ? Opcodes.POP : Opcodes.POP2);

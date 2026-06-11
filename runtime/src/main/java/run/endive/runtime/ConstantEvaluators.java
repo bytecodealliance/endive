@@ -158,7 +158,7 @@ public final class ConstantEvaluators {
                         for (int i = fieldCount - 1; i >= 0; i--) {
                             var entry = stack.pop();
                             var ft = structType.fieldTypes()[i];
-                            if (ft.storageType().isGcReference()) {
+                            if (ft.storageType().isObjectRef()) {
                                 fieldRefs[i] = entry.ref();
                             } else {
                                 fields[i] = entry.longValue();
@@ -185,7 +185,7 @@ public final class ConstantEvaluators {
                             var ft = structType.fieldTypes()[i];
                             if (ft.storageType().valType() != null
                                     && ft.storageType().valType().isReference()
-                                    && !ft.storageType().isGcReference()) {
+                                    && !ft.storageType().isObjectRef()) {
                                 fields[i] = Value.REF_NULL_VALUE;
                             }
                         }
@@ -206,7 +206,7 @@ public final class ConstantEvaluators {
                                         .arrayType();
                         var elements = new long[len];
                         var elementRefs = new Object[len];
-                        if (at.fieldType().storageType().isGcReference()) {
+                        if (at.fieldType().storageType().isObjectRef()) {
                             Arrays.fill(elementRefs, fillEntry.ref());
                         } else {
                             Arrays.fill(elements, fillEntry.longValue());
@@ -230,7 +230,7 @@ public final class ConstantEvaluators {
                         var ft = at.fieldType();
                         if (ft.storageType().valType() != null
                                 && ft.storageType().valType().isReference()
-                                && !ft.storageType().isGcReference()) {
+                                && !ft.storageType().isObjectRef()) {
                             Arrays.fill(elements, Value.REF_NULL_VALUE);
                         }
                         var array = new WasmArray(typeIdx, elements, elementRefs);
@@ -249,7 +249,7 @@ public final class ConstantEvaluators {
                                         .arrayType();
                         var elements = new long[len];
                         var elementRefs = new Object[len];
-                        boolean isGcRef = at.fieldType().storageType().isGcReference();
+                        boolean isGcRef = at.fieldType().storageType().isObjectRef();
                         for (int i = len - 1; i >= 0; i--) {
                             var entry = stack.pop();
                             if (isGcRef) {

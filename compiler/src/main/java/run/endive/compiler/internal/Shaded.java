@@ -865,7 +865,7 @@ public final class Shaded {
             var ft = st.fieldTypes()[i];
             if (ft.storageType().valType() != null
                     && ft.storageType().valType().isReference()
-                    && !ft.storageType().isGcReference()) {
+                    && !ft.storageType().isObjectRef()) {
                 fields[i] = REF_NULL_VALUE;
             }
         }
@@ -959,7 +959,7 @@ public final class Shaded {
         var ft = at.fieldType();
         if (ft.storageType().valType() != null
                 && ft.storageType().valType().isReference()
-                && !ft.storageType().isGcReference()) {
+                && !ft.storageType().isObjectRef()) {
             Arrays.fill(elems, REF_NULL_VALUE);
         }
         return new WasmArray(typeIdx, elems, elemRefs);
@@ -997,7 +997,7 @@ public final class Shaded {
             throw new TrapException("out of bounds table access");
         }
         var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
-        boolean isRef = at.fieldType().storageType().isGcReference();
+        boolean isRef = at.fieldType().storageType().isObjectRef();
         var elems = new long[len];
         var elemRefs = new Object[len];
         for (int i = 0; i < len; i++) {
@@ -1207,7 +1207,7 @@ public final class Shaded {
             return;
         }
         var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
-        boolean isRef = at.fieldType().storageType().isGcReference();
+        boolean isRef = at.fieldType().storageType().isObjectRef();
         for (int i = 0; i < len; i++) {
             var init = element.initializers().get(srcOff + i);
             var result = ConstantEvaluators.computeConstant(instance, init);
@@ -1322,21 +1322,12 @@ public final class Shaded {
         return val;
     }
 
-    public static Object anyConvertExtern(int ref) {
-        if (ref == REF_NULL_VALUE) {
-            return null;
-        }
-        return Integer.valueOf(ref);
+    public static Object anyConvertExtern(Object ref) {
+        return ref;
     }
 
-    public static int externConvertAny(Object ref) {
-        if (ref == null) {
-            return REF_NULL_VALUE;
-        }
-        if (ref instanceof Integer) {
-            return (Integer) ref;
-        }
-        return System.identityHashCode(ref);
+    public static Object externConvertAny(Object ref) {
+        return ref;
     }
 
     public static void dataDrop(int segment, Instance instance) {

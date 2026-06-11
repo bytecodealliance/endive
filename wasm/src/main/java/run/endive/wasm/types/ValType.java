@@ -103,6 +103,11 @@ public final class ValType {
         this.resolvedFunctionTypeHash = resolvedFunctionTypeHash;
 
         this.id = createId(opcode, typeIdx);
+
+        // Pre-compute gcReference and objectRef for well-known types
+        // (these don't need a TypeSection)
+        this.gcReference = computeIsGcReference(null);
+        this.objectRef = this.gcReference || computeIsExternRef();
     }
 
     public ValType resolve(TypeSection typeSection) {
@@ -782,6 +787,9 @@ public final class ValType {
         private boolean isExternRef() {
             if (!isReference()) {
                 return false;
+            }
+            if (opcode == ID.ExternRef || opcode == ID.NoExternRef) {
+                return true;
             }
             if (opcode == ID.Ref || opcode == ID.RefNull) {
                 return typeIdx == TypeIdxCode.EXTERN.code()

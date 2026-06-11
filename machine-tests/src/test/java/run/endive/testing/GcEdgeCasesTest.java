@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -40,13 +39,13 @@ public class GcEdgeCasesTest {
         assertEquals(1, result[0]);
     }
 
-    // TODO: compiler uses int for externref — extern.convert_any round-trip is lossy.
-    // Fix requires making externref Object in the compiler (isObjectRef).
-    @Test
-    public void externRoundTripInterpreter() {
-        var instance = Instance.builder(MODULE).withMachineFactory(InterpreterMachine::new).build();
-        var result = instance.export("extern_roundtrip").apply();
-        assertEquals(42, result[0]);
+    @ParameterizedTest
+    @MethodSource("machineImplementations")
+    public void externRoundTrip(Function<Instance.Builder, Instance.Builder> machineInject) {
+        var instance = machineInject.apply(Instance.builder(MODULE)).build();
+        var result = instance.export("extern_roundtrip").applyGc(42L);
+        assertNotNull(result);
+        assertEquals(42, ((Number) result[0]).intValue());
     }
 
     @ParameterizedTest

@@ -76,21 +76,24 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
             var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
             var args = (long[]) extracted[0];
             var refArgs = (Object[]) extracted[1];
-            boolean hasGcReturns = type.returns().stream().anyMatch(ValType::isGcReference);
+            boolean hasObjectRefs = type.returns().stream().anyMatch(ValType::isObjectRef);
 
             try {
-                if (hasGcReturns) {
-                    var gcResults =
-                            instance.getMachine()
-                                    .callGc(funcId, mergeArgsForCallGc(args, refArgs, type));
-                    if (gcResults != null) {
-                        for (int i = 0; i < type.returns().size(); i++) {
-                            var retType = type.returns().get(i);
-                            if (retType.isGcReference()) {
-                                stack.pushRef(gcResults[i]);
-                            } else if (gcResults[i] instanceof Number) {
-                                stack.push(((Number) gcResults[i]).longValue());
-                            }
+                if (hasObjectRefs) {
+                    var cr = instance.getMachine().callWithRefs(funcId, args, refArgs);
+                    int slot = 0;
+                    for (int i = 0; i < type.returns().size(); i++) {
+                        var retType = type.returns().get(i);
+                        if (retType.isObjectRef()) {
+                            stack.pushRef(cr.refResult(slot));
+                            slot++;
+                        } else if (retType.equals(ValType.V128)) {
+                            stack.push(cr.longResult(slot));
+                            stack.push(cr.longResult(slot + 1));
+                            slot += 2;
+                        } else {
+                            stack.push(cr.longResult(slot));
+                            slot++;
                         }
                     }
                 } else {
@@ -107,21 +110,6 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
                 THROW_REF(instance, instance.registerException(e), stack, stackFrame, callStack);
             }
         }
-    }
-
-    private static Object[] mergeArgsForCallGc(long[] args, Object[] refArgs, FunctionType type) {
-        var gcArgs = new Object[type.params().size()];
-        int slot = 0;
-        for (int i = 0; i < type.params().size(); i++) {
-            var param = type.params().get(i);
-            if (param.isGcReference()) {
-                gcArgs[i] = (refArgs != null) ? refArgs[slot] : null;
-            } else {
-                gcArgs[i] = args[slot];
-            }
-            slot += (param.equals(ValType.V128)) ? 2 : 1;
-        }
-        return gcArgs;
     }
 
     @Override

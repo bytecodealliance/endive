@@ -27,7 +27,7 @@ public class TableInstance {
     }
 
     private boolean isGcTable() {
-        return table.elementType().isGcReference();
+        return table.elementType().isObjectRef();
     }
 
     public int size() {
@@ -98,7 +98,7 @@ public class TableInstance {
 
     public Object objRef(int index) {
         if (index < 0 || index >= this.refs.length) {
-            throw new WasmEngineException("undefined element");
+            throw new WasmEngineException("out of bounds table access");
         }
         return (objRefs != null) ? objRefs[index] : null;
     }

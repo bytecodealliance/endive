@@ -7,8 +7,15 @@ package run.endive.runtime;
 public interface WasmFunctionHandle {
     long[] apply(Instance instance, long... args);
 
-    default Object[] applyGc(Instance instance, Object... args) {
-        throw new UnsupportedOperationException(
-                "This host function does not support GC references");
+    /**
+     * Call this host function with separate long and Object ref arguments.
+     * Override this method for host functions that need to receive/return
+     * externref or GC reference values as Objects.
+     *
+     * <p>The default implementation delegates to {@link #apply(Instance, long...)}
+     * which discards Object refs but preserves backward compatibility.
+     */
+    default CallResult applyWithRefs(Instance instance, long[] args, Object[] refArgs) {
+        return new CallResult(apply(instance, args), null);
     }
 }

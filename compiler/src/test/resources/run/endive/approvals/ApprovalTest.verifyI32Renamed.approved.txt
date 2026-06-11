@@ -54,14 +54,6 @@ public final class FOO implements run/endive/runtime/Machine {
     INVOKESTATIC FOOShaded.throwCallStackExhausted (Ljava/lang/StackOverflowError;)Ljava/lang/RuntimeException;
     ATHROW
 
-  public callGc(I[Ljava/lang/Object;)[Ljava/lang/Object;
-    ALOAD 0
-    GETFIELD FOO.compilerInterpreterMachine : Lrun/endive/runtime/internal/CompilerInterpreterMachine;
-    ILOAD 1
-    ALOAD 2
-    INVOKEVIRTUAL run/endive/runtime/internal/CompilerInterpreterMachine.callGc (I[Ljava/lang/Object;)[Ljava/lang/Object;
-    ARETURN
-
   public static call_indirect_0(IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)V
     INVOKESTATIC FOOShaded.checkInterruption ()V
     ALOAD 3

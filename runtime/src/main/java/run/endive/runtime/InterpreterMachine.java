@@ -84,6 +84,22 @@ public class InterpreterMachine implements Machine {
             verifyIndirectCall(type, callType, instance.module().typeSection());
         }
 
+        // When called via call(int, long[]) with no refArgs and the function
+        // has externref params, populate refArgs from longs so the ref stack
+        // is set up correctly. Uses WasmExternRef (the proper externref type).
+        if (refArgs == null && type.params().stream().anyMatch(ValType::isObjectRef)) {
+            refArgs = new Object[args.length];
+            int slot = 0;
+            for (int pi = 0; pi < type.params().size(); pi++) {
+                var param = type.params().get(pi);
+                if (param.isObjectRef()) {
+                    long val = args[slot];
+                    refArgs[slot] = (val == REF_NULL_VALUE) ? null : new WasmExternRef(val);
+                }
+                slot += param.equals(ValType.V128) ? 2 : 1;
+            }
+        }
+
         var func = instance.function(funcId);
         if (func != null) {
             var stackFrame =
@@ -108,24 +124,6 @@ public class InterpreterMachine implements Machine {
                 }
             }
         } else {
-            // For host functions, convert Object refArgs back to longs
-            // since host function interface only accepts long[]
-            if (refArgs != null) {
-                int slot = 0;
-                for (int pi = 0; pi < type.params().size(); pi++) {
-                    var param = type.params().get(pi);
-                    if (param.isObjectRef() && refArgs[slot] != null) {
-                        if (refArgs[slot] instanceof Number) {
-                            args[slot] = ((Number) refArgs[slot]).longValue();
-                        } else {
-                            args[slot] = System.identityHashCode(refArgs[slot]);
-                        }
-                    } else if (param.isObjectRef() && refArgs[slot] == null) {
-                        args[slot] = REF_NULL_VALUE;
-                    }
-                    slot += param.equals(ValType.V128) ? 2 : 1;
-                }
-            }
             var stackFrame = new StackFrame(instance, funcId, args);
             stackFrame.pushCtrl(OpCode.CALL, 0, sizeOf(type.returns()), stack.size());
             callStack.push(stackFrame);
@@ -133,29 +131,31 @@ public class InterpreterMachine implements Machine {
             var imprt = instance.imports().function(funcId);
 
             try {
-                var results = imprt.handle().apply(instance, args);
-                // a host function can return null or an array of ints
-                // which we will push onto the stack
-                if (results != null) {
+                boolean hasObjectRefs =
+                        type.params().stream().anyMatch(ValType::isObjectRef)
+                                || type.returns().stream().anyMatch(ValType::isObjectRef);
+                if (hasObjectRefs) {
+                    var cr = imprt.handle().applyWithRefs(instance, args, refArgs);
                     int slot = 0;
-                    for (int ri = 0; ri < type.returns().size() && slot < results.length; ri++) {
+                    for (int ri = 0; ri < type.returns().size(); ri++) {
                         var retType = type.returns().get(ri);
                         if (retType.isObjectRef()) {
-                            // Host function returns long for externref — wrap as Object
-                            long val = results[slot];
-                            if (val == REF_NULL_VALUE) {
-                                stack.pushRef(null);
-                            } else {
-                                stack.pushRef(Long.valueOf(val));
-                            }
+                            stack.pushRef(cr.refResult(slot));
                             slot++;
                         } else if (retType.equals(ValType.V128)) {
-                            stack.push(results[slot]);
-                            stack.push(results[slot + 1]);
+                            stack.push(cr.longResult(slot));
+                            stack.push(cr.longResult(slot + 1));
                             slot += 2;
                         } else {
-                            stack.push(results[slot]);
+                            stack.push(cr.longResult(slot));
                             slot++;
+                        }
+                    }
+                } else {
+                    var results = imprt.handle().apply(instance, args);
+                    if (results != null) {
+                        for (var result : results) {
+                            stack.push(result);
                         }
                     }
                 }
@@ -188,14 +188,14 @@ public class InterpreterMachine implements Machine {
             var retType = type.returns().get(r);
             if (retType.isObjectRef()) {
                 slot--;
+                // Object refs are on the ref stack; callers wanting the actual
+                // Object should use callWithRefs(). For the long[] path, extract
+                // the long value for backward compat with externref host functions.
                 var ref = stack.popRef();
-                if (ref == null) {
-                    results[slot] = Value.REF_NULL_VALUE;
-                } else if (ref instanceof Number) {
-                    results[slot] = ((Number) ref).longValue();
-                } else {
-                    results[slot] = System.identityHashCode(ref);
-                }
+                // Object refs are on the ref stack; callers wanting the actual
+                // Object should use callWithRefs(). For the long[] path, return 0
+                // (non-null indicator) or REF_NULL_VALUE.
+                results[slot] = (ref == null) ? Value.REF_NULL_VALUE : 0;
             } else if (retType.equals(ValType.V128)) {
                 slot -= 2;
                 results[slot + 1] = stack.pop();
@@ -244,93 +244,6 @@ public class InterpreterMachine implements Machine {
             }
         }
         return new CallResult(longResults, refResults);
-    }
-
-    @Override
-    public Object[] callGc(int funcId, Object[] gcArgs) throws WasmEngineException {
-        checkInterruption();
-        var typeId = instance.functionType(funcId);
-        var type = instance.type(typeId);
-
-        var longArgs = new long[sizeOf(type.params())];
-        Object[] refArgs = null;
-        int slot = 0;
-        for (int i = 0; i < type.params().size(); i++) {
-            var param = type.params().get(i);
-            if (param.isObjectRef()) {
-                if (refArgs == null) {
-                    refArgs = new Object[longArgs.length];
-                }
-                Object gcArg = (gcArgs != null && i < gcArgs.length) ? gcArgs[i] : null;
-                // Convert REF_NULL_VALUE sentinel to null for Object refs
-                if (gcArg instanceof Number
-                        && ((Number) gcArg).longValue() == Value.REF_NULL_VALUE) {
-                    gcArg = null;
-                }
-                refArgs[slot] = gcArg;
-                slot++;
-            } else if (param.equals(ValType.V128)) {
-                if (gcArgs != null && i < gcArgs.length && gcArgs[i] instanceof long[]) {
-                    var v = (long[]) gcArgs[i];
-                    longArgs[slot] = v[0];
-                    longArgs[slot + 1] = v.length > 1 ? v[1] : 0;
-                }
-                slot += 2;
-            } else {
-                if (gcArgs != null && i < gcArgs.length) {
-                    if (gcArgs[i] instanceof Number) {
-                        longArgs[slot] = ((Number) gcArgs[i]).longValue();
-                    } else if (gcArgs[i] == null && param.isReference()) {
-                        longArgs[slot] = Value.REF_NULL_VALUE;
-                    }
-                }
-                slot++;
-            }
-        }
-
-        var cr = callWithRefs(funcId, longArgs, refArgs);
-
-        if (type.returns().isEmpty()) {
-            return null;
-        }
-
-        var results = new Object[type.returns().size()];
-        int resultSlot = 0;
-        for (int r = 0; r < type.returns().size(); r++) {
-            var retType = type.returns().get(r);
-            if (retType.isObjectRef()) {
-                results[r] = cr.refResult(resultSlot);
-                resultSlot++;
-            } else if (retType.isReference()) {
-                long val = cr.longResult(resultSlot);
-                results[r] = (val == Value.REF_NULL_VALUE) ? null : val;
-                resultSlot++;
-            } else if (retType.equals(ValType.V128)) {
-                long lo = cr.longResult(resultSlot);
-                long hi = cr.longResult(resultSlot + 1);
-                results[r] = new long[] {lo, hi};
-                resultSlot += 2;
-            } else {
-                results[r] = boxReturnValue(retType, cr.longResult(resultSlot));
-                resultSlot++;
-            }
-        }
-        return results;
-    }
-
-    private static Object boxReturnValue(ValType type, long raw) {
-        switch (type.opcode()) {
-            case ValType.ID.I32:
-                return (int) raw;
-            case ValType.ID.I64:
-                return raw;
-            case ValType.ID.F32:
-                return Value.longToFloat(raw);
-            case ValType.ID.F64:
-                return Value.longToDouble(raw);
-            default:
-                return raw;
-        }
     }
 
     protected Instance instance() {

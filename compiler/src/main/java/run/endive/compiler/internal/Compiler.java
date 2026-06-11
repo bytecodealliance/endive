@@ -560,32 +560,6 @@ public final class Compiler {
                 false,
                 asm -> compileMachineCall(internalClassName, asm, 3));
 
-        // Machine.callGc(int, Object[]) implementation
-        // Delegates to compilerInterpreterMachine.callGc() which handles
-        // arg splitting, interpreter execution, and result boxing.
-        // Locals: 0=this, 1=funcId, 2=args
-        emitFunction(
-                classWriter,
-                "callGc",
-                methodType(Object[].class, int.class, Object[].class),
-                false,
-                asm -> {
-                    asm.load(0, OBJECT_TYPE);
-                    asm.getfield(
-                            internalClassName,
-                            "compilerInterpreterMachine",
-                            getDescriptor(CompilerInterpreterMachine.class));
-                    asm.load(1, INT_TYPE);
-                    asm.load(2, OBJECT_TYPE);
-                    asm.invokevirtual(
-                            AOT_INTERPRETER_MACHINE_TYPE.getInternalName(),
-                            "callGc",
-                            methodType(Object[].class, int.class, Object[].class)
-                                    .toMethodDescriptorString(),
-                            false);
-                    asm.areturn(OBJECT_TYPE);
-                });
-
         // call_indirect_xxx() bridges for native CALL_INDIRECT
         // When using bridge classes, these methods are on separate classes
         if (!useBridgeClasses) {
@@ -711,7 +685,7 @@ public final class Compiler {
         asm.load(1, OBJECT_TYPE);
         asm.putfield(internalClassName, "instance", getDescriptor(Instance.class));
 
-        // Always create compilerInterpreterMachine for callGc support
+        // Always create compilerInterpreterMachine for callWithRefs support
         asm.load(0, OBJECT_TYPE);
         asm.anew(AOT_INTERPRETER_MACHINE_TYPE);
         asm.dup();
@@ -1107,7 +1081,7 @@ public final class Compiler {
             asm.aconst(null);
         } else if (returnType == Object.class) {
             // GC ref return: discard the Object result and return a dummy long[]{0}.
-            // GC ref results should be accessed via callGc() which goes through the
+            // GC ref results should be accessed via callWithRefs() which goes through the
             // interpreter path and handles Object results natively.
             asm.pop();
             asm.iconst(1);

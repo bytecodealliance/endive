@@ -5,7 +5,7 @@
   <parent>
     <groupId>run.endive</groupId>
     <artifactId>endive</artifactId>
-    <version>0.0.1</version>
+    <version>999-SNAPSHOT</version>
   </parent>
   <artifactId>wabt</artifactId>
   <packaging>jar</packaging>

@@ -5,7 +5,7 @@
   <parent>
     <groupId>run.endive</groupId>
     <artifactId>endive</artifactId>
-    <version>0.0.1</version>
+    <version>999-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <artifactId>annotations-it</artifactId>

@@ -12,8 +12,4 @@ public interface ExportFunction {
     default CallResult applyWithRefs(long[] args, Object[] refArgs) throws WasmEngineException {
         throw new UnsupportedOperationException("This function does not support applyWithRefs");
     }
-
-    default Object[] applyGc(Object... args) throws WasmEngineException {
-        throw new UnsupportedOperationException("This function does not support GC references");
-    }
 }

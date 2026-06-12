@@ -72,6 +72,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.InstructionAdapter;
 import run.endive.compiler.InterpreterFallback;
+import run.endive.runtime.CallResult;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.runtime.Memory;
@@ -559,6 +560,36 @@ public final class Compiler {
                 methodType(long[].class, int.class, long[].class, Object[].class),
                 false,
                 asm -> compileMachineCall(internalClassName, asm, 3));
+
+        // Machine.callWithRefs(int, long[], Object[]) implementation
+        // Delegates to compilerInterpreterMachine.callWithRefs() so that
+        // Object ref results (GC refs and externref) are properly returned
+        // in the CallResult refs array.
+        emitFunction(
+                classWriter,
+                "callWithRefs",
+                methodType(CallResult.class, int.class, long[].class, Object[].class),
+                false,
+                asm -> {
+                    asm.load(0, OBJECT_TYPE);
+                    asm.getfield(
+                            internalClassName,
+                            "compilerInterpreterMachine",
+                            getDescriptor(CompilerInterpreterMachine.class));
+                    asm.load(1, INT_TYPE);
+                    asm.load(2, OBJECT_TYPE);
+                    asm.load(3, OBJECT_TYPE);
+                    asm.invokevirtual(
+                            AOT_INTERPRETER_MACHINE_TYPE.getInternalName(),
+                            "callWithRefs",
+                            Type.getMethodDescriptor(
+                                    Type.getType(CallResult.class),
+                                    INT_TYPE,
+                                    LONG_ARRAY_TYPE,
+                                    Type.getType(Object[].class)),
+                            false);
+                    asm.areturn(OBJECT_TYPE);
+                });
 
         // call_indirect_xxx() bridges for native CALL_INDIRECT
         // When using bridge classes, these methods are on separate classes

@@ -43,9 +43,10 @@ public class GcEdgeCasesTest {
     @MethodSource("machineImplementations")
     public void externRoundTrip(Function<Instance.Builder, Instance.Builder> machineInject) {
         var instance = machineInject.apply(Instance.builder(MODULE)).build();
-        var result = instance.export("extern_roundtrip").applyGc(42L);
-        assertNotNull(result);
-        assertEquals(42, ((Number) result[0]).intValue());
+        // extern_roundtrip takes no args: it creates a struct internally,
+        // converts to extern and back, then returns the x field (42).
+        var result = instance.export("extern_roundtrip").apply();
+        assertEquals(42, (int) result[0]);
     }
 
     @ParameterizedTest
@@ -55,11 +56,12 @@ public class GcEdgeCasesTest {
         var makePoint = instance.export("make_point");
         var getX = instance.export("get_x");
 
-        var point = makePoint.applyGc((Object) 99L);
-        assertNotNull(point);
-        assertNotNull(point[0]);
+        // make_point(i32) -> (ref $Point)
+        var pointResult = makePoint.applyWithRefs(new long[] {99}, null);
+        assertNotNull(pointResult.refResult(0));
 
-        var x = getX.applyGc(point[0]);
-        assertEquals(99, (int) (Integer) x[0]);
+        // get_x((ref $Point)) -> i32
+        var xResult = getX.applyWithRefs(new long[] {0}, new Object[] {pointResult.refResult(0)});
+        assertEquals(99, (int) xResult.longResult(0));
     }
 }

@@ -280,18 +280,17 @@ public class Instance {
         public ExportFunction function(String name) {
             var export = getExport(FUNCTION, name);
             var funcType = instance.type(instance.functionType(export.index()));
-            boolean hasObjectRefParams = funcType.params().stream().anyMatch(ValType::isObjectRef);
-            boolean hasObjectRefReturns =
-                    funcType.returns().stream().anyMatch(ValType::isObjectRef);
+            boolean hasGcRefParams = funcType.params().stream().anyMatch(ValType::isGcReference);
+            boolean hasGcRefReturns = funcType.returns().stream().anyMatch(ValType::isGcReference);
             return new ExportFunction() {
                 @Override
                 public long[] apply(long... args) {
-                    if (hasObjectRefParams || hasObjectRefReturns) {
+                    if (hasGcRefParams || hasGcRefReturns) {
                         throw new UnsupportedOperationException(
                                 "Function '"
                                         + name
-                                        + "' uses GC/externref types."
-                                        + " Use applyWithRefs() or applyGc().");
+                                        + "' uses GC reference types."
+                                        + " Use applyWithRefs().");
                     }
                     return instance.machine.call(export.index(), args);
                 }
@@ -300,116 +299,7 @@ public class Instance {
                 public CallResult applyWithRefs(long[] args, Object[] refArgs) {
                     return instance.machine.callWithRefs(export.index(), args, refArgs);
                 }
-
-                @Override
-                public Object[] applyGc(Object... gcArgs) {
-                    // Boxing/unboxing lives here in the Exports layer,
-                    // not in Machine or InterpreterMachine.
-                    var longArgs = new long[ValType.sizeOf(funcType.params())];
-                    Object[] refArgs = null;
-                    int slot = 0;
-                    for (int i = 0; i < funcType.params().size(); i++) {
-                        var param = funcType.params().get(i);
-                        if (param.isObjectRef()) {
-                            if (refArgs == null) {
-                                refArgs = new Object[longArgs.length];
-                            }
-                            Object gcArg = (gcArgs != null && i < gcArgs.length) ? gcArgs[i] : null;
-                            if (gcArg instanceof WasmExternRef) {
-                                // WasmExternRef: put value in both arrays
-                                longArgs[slot] = ((WasmExternRef) gcArg).value();
-                                refArgs[slot] = gcArg;
-                            } else if (gcArg instanceof Number) {
-                                // Numeric externref value: put in longArgs for
-                                // backward-compat host functions using apply(long...),
-                                // and wrap as WasmExternRef in refArgs.
-                                long val = ((Number) gcArg).longValue();
-                                longArgs[slot] = val;
-                                refArgs[slot] = new WasmExternRef(val);
-                            } else {
-                                // GC ref (struct, array, i31, null, etc.)
-                                refArgs[slot] = gcArg;
-                            }
-                            slot++;
-                        } else if (param.equals(ValType.V128)) {
-                            if (gcArgs != null
-                                    && i < gcArgs.length
-                                    && gcArgs[i] instanceof long[]) {
-                                var v = (long[]) gcArgs[i];
-                                longArgs[slot] = v[0];
-                                longArgs[slot + 1] = v.length > 1 ? v[1] : 0;
-                            }
-                            slot += 2;
-                        } else {
-                            if (gcArgs != null && i < gcArgs.length && gcArgs[i] != null) {
-                                longArgs[slot] = ((Number) gcArgs[i]).longValue();
-                            } else if (gcArgs != null
-                                    && i < gcArgs.length
-                                    && gcArgs[i] == null
-                                    && param.isReference()) {
-                                longArgs[slot] = Value.REF_NULL_VALUE;
-                            }
-                            slot++;
-                        }
-                    }
-
-                    var cr = applyWithRefs(longArgs, refArgs);
-
-                    if (funcType.returns().isEmpty()) {
-                        return null;
-                    }
-
-                    var results = new Object[funcType.returns().size()];
-                    int rSlot = 0;
-                    for (int r = 0; r < funcType.returns().size(); r++) {
-                        var ret = funcType.returns().get(r);
-                        if (ret.isObjectRef()) {
-                            Object ref = cr.refResult(rSlot);
-                            if (ref == null && cr.refs() == null) {
-                                // Host used apply(long...) default path —
-                                // externref value is in the long result
-                                long val = cr.longResult(rSlot);
-                                results[r] = (val == Value.REF_NULL_VALUE) ? null : val;
-                            } else if (ref instanceof WasmExternRef) {
-                                // Unwrap WasmExternRef so callers get the inner value
-                                var ext = (WasmExternRef) ref;
-                                results[r] = ext.isObjectRef() ? ext.objectValue() : ext.value();
-                            } else {
-                                results[r] = ref;
-                            }
-                            rSlot++;
-                        } else if (ret.isReference()) {
-                            long val = cr.longResult(rSlot);
-                            results[r] = (val == Value.REF_NULL_VALUE) ? null : val;
-                            rSlot++;
-                        } else if (ret.equals(ValType.V128)) {
-                            long lo = cr.longResult(rSlot);
-                            long hi = cr.longResult(rSlot + 1);
-                            results[r] = new long[] {lo, hi};
-                            rSlot += 2;
-                        } else {
-                            results[r] = boxReturnValue(ret, cr.longResult(rSlot));
-                            rSlot++;
-                        }
-                    }
-                    return results;
-                }
             };
-        }
-
-        private static Object boxReturnValue(ValType type, long raw) {
-            switch (type.opcode()) {
-                case ValType.ID.I32:
-                    return (int) raw;
-                case ValType.ID.I64:
-                    return raw;
-                case ValType.ID.F32:
-                    return Value.longToFloat(raw);
-                case ValType.ID.F64:
-                    return Value.longToDouble(raw);
-                default:
-                    return raw;
-            }
         }
 
         public GlobalInstance global(String name) {
@@ -567,7 +457,8 @@ public class Instance {
     @Deprecated
     public long[] array(int idx) {
         throw new UnsupportedOperationException(
-                "GcRefStore has been removed. Use applyGc() to get WasmArray objects directly.");
+                "GcRefStore has been removed. Use applyWithRefs() to get WasmArray objects"
+                        + " directly.");
     }
 
     @Deprecated
@@ -579,7 +470,7 @@ public class Instance {
     @Deprecated
     public WasmGcRef gcRef(int idx) {
         throw new UnsupportedOperationException(
-                "GcRefStore has been removed. Use applyGc() to get GC references directly.");
+                "GcRefStore has been removed. Use applyWithRefs() to get GC references directly.");
     }
 
     public boolean heapTypeMatch(

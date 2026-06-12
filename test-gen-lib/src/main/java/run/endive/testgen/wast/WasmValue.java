@@ -289,111 +289,12 @@ public class WasmValue {
     }
 
     /**
-     * Generate an arg value for use with applyGc(Object...).
-     * Numeric types are boxed, GC ref types use null or the value directly.
-     */
-    public String toGcArgsValue() {
-        switch (type) {
-            case I32:
-                return "(Object) (long) (int) Integer.parseInt(\"" + value[0] + "\")";
-            case F32:
-                if (value[0] != null) {
-                    switch (value[0]) {
-                        case "nan:canonical":
-                        case "nan:arithmetic":
-                            return "(Object) (long) (int) (int) Float.NaN";
-                        default:
-                            return "(Object) (long) (int) Integer.parseUnsignedInt(\""
-                                    + value[0]
-                                    + "\")";
-                    }
-                } else {
-                    return "null";
-                }
-            case I64:
-                return "(Object) (long) Long.parseLong(\"" + value[0] + "\")";
-            case F64:
-                if (value[0] != null) {
-                    switch (value[0]) {
-                        case "nan:canonical":
-                        case "nan:arithmetic":
-                            return "(Object) (long) (long) Double.NaN";
-                        default:
-                            return "(Object) (long) Long.parseUnsignedLong(\"" + value[0] + "\")";
-                    }
-                } else {
-                    return "null";
-                }
-            case EXTERN_REF:
-            case EXN_REF:
-            case FUNC_REF:
-            case NULL_FUNC_REF:
-            case NULL_EXTERN_REF:
-                if (value[0].equals("null")) {
-                    return "(Object) Value.REF_NULL_VALUE";
-                }
-                return "(Object) (long) Long.parseLong(\"" + value[0] + "\")";
-            case STRUCT_REF:
-            case ANY_REF:
-            case NULL_REF:
-            case ARRAY_REF:
-            case EQ_REF:
-            case I31_REF:
-            case REF_NULL:
-                if (value[0].equals("null")) {
-                    return "(Object) null";
-                }
-                return "(Object) (long) Long.parseLong(\"" + value[0] + "\")";
-            default:
-                throw new IllegalArgumentException("Type not recognized for GC args: " + type);
-        }
-    }
-
-    /**
-     * Generate the result extraction expression for Object[] results from applyGc.
-     * callGc uses boxReturnValue which returns:
-     *   I32 -> Integer, I64 -> Long, F32 -> Float, F64 -> Double
-     * GC ref types are returned as Objects directly via popRef().
-     */
-    public String toGcResultValue(String result) {
-        switch (type) {
-            case I64:
-                return "(long)(Long) " + result;
-            case I32:
-                return "(int)(Integer) " + result;
-            case F32:
-                return "(float)(Float) " + result + ", 0.0";
-            case F64:
-                return "(double)(Double) " + result + ", 0.0";
-            case EXTERN_REF:
-            case EXN_REF:
-            case FUNC_REF:
-            case NULL_FUNC_REF:
-            case NULL_EXTERN_REF:
-            case STRUCT_REF:
-            case ANY_REF:
-            case NULL_REF:
-            case ARRAY_REF:
-            case EQ_REF:
-            case I31_REF:
-            case REF_NULL:
-                // All ref types are returned as Objects
-                return result;
-            case V128:
-                return toResultValue(result);
-            default:
-                throw new IllegalArgumentException("Type not recognized " + type);
-        }
-    }
-
-    /**
-     * Generate assertion for Object[] results from applyGc.
+     * Generate assertion for CallResult from applyWithRefs.
      *
-     * GC ref types (anyref, structref, etc.) are returned via popRef() as Java Objects,
-     * so null refs are Java null. Non-GC ref types (externref, funcref) are returned
-     * via boxReturnValue() as Long values, so null refs are REF_NULL_VALUE (-1).
+     * Object ref types use cr.refResult(i) and compare with Java null/not-null.
+     * Numeric types use cr.longResult(i) and compare with expected values.
      */
-    public NameExpr toGcAssertion(String resultVar, String moduleName) {
+    public NameExpr toRefAssertion(String resultVar, String moduleName) {
         if (value == null) {
             // Type-only assertion (no specific value)
             switch (type) {
@@ -550,6 +451,72 @@ public class WasmValue {
                 }
                 sb.append(" })");
                 return sb.toString();
+            default:
+                throw new IllegalArgumentException("Type not recognized " + type);
+        }
+    }
+
+    /**
+     * Generate the Object expression for use with ArgsAdapter.addRef().
+     * Only called for types where isObjectRef() is true.
+     *
+     * <p>In the wast spec test format, non-null values for anyref/externref/etc.
+     * represent host objects (ref.host N or ref.extern N) which are encoded
+     * as WasmExternRef on the JVM side.
+     */
+    public String toRefArgsValue() {
+        if (value[0].equals("null")) {
+            return "null";
+        }
+        switch (type) {
+            case EXTERN_REF:
+            case NULL_EXTERN_REF:
+            case ANY_REF:
+            case EQ_REF:
+            case STRUCT_REF:
+            case ARRAY_REF:
+            case I31_REF:
+            case NULL_REF:
+            case REF_NULL:
+                // Non-null host references in wast tests are encoded as
+                // WasmExternRef wrapping the numeric value
+                return "new run.endive.runtime.WasmExternRef(Long.parseLong(\"" + value[0] + "\"))";
+            case FUNC_REF:
+            case NULL_FUNC_REF:
+                return "null";
+            default:
+                throw new IllegalArgumentException("Type not recognized for ref args: " + type);
+        }
+    }
+
+    /**
+     * Generate result extraction expression for CallResult.
+     * For numeric types, uses cr.longResult(i).
+     * For ref types, uses cr.refResult(i).
+     */
+    public String toRefResultValue(String crVar, int index) {
+        switch (type) {
+            case I64:
+                return crVar + ".longResult(" + index + ")";
+            case I32:
+                return "(int) " + crVar + ".longResult(" + index + ")";
+            case F32:
+                return "Float.intBitsToFloat((int) " + crVar + ".longResult(" + index + ")), 0.0";
+            case F64:
+                return "Double.longBitsToDouble(" + crVar + ".longResult(" + index + ")), 0.0";
+            case EXTERN_REF:
+            case EXN_REF:
+            case FUNC_REF:
+            case NULL_FUNC_REF:
+            case NULL_EXTERN_REF:
+            case STRUCT_REF:
+            case ANY_REF:
+            case NULL_REF:
+            case ARRAY_REF:
+            case EQ_REF:
+            case I31_REF:
+            case REF_NULL:
+                return crVar + ".refResult(" + index + ")";
             default:
                 throw new IllegalArgumentException("Type not recognized " + type);
         }

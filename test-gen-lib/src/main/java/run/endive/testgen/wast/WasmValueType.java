@@ -50,7 +50,7 @@ public enum WasmValueType {
         return value;
     }
 
-    public boolean isGcReference() {
+    public boolean isObjectRef() {
         switch (this) {
             case STRUCT_REF:
             case ANY_REF:
@@ -59,13 +59,11 @@ public enum WasmValueType {
             case EQ_REF:
             case I31_REF:
             case REF_NULL:
+            case EXTERN_REF:
+            case NULL_EXTERN_REF:
                 return true;
             default:
                 return false;
         }
-    }
-
-    public boolean isObjectRef() {
-        return isGcReference() || this == EXTERN_REF || this == NULL_EXTERN_REF;
     }
 }

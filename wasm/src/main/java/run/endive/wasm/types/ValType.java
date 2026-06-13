@@ -43,6 +43,7 @@ public final class ValType {
     // This is useful when validating import function values.
     private int resolvedFunctionTypeHash;
     private final int resolvedFunctionTypeId;
+    private boolean gcReference;
 
     private ValType(int opcode) {
         this(opcode, NULL_TYPEIDX, -1);
@@ -112,7 +113,42 @@ public final class ValType {
                 throw new InvalidException("unknown type: " + resolvedFunctionTypeId);
             }
         }
+        this.gcReference = computeIsGcReference(typeSection);
         return this;
+    }
+
+    private boolean computeIsGcReference(TypeSection ts) {
+        int op = opcode();
+        switch (op) {
+            case ID.AnyRef:
+            case ID.EqRef:
+            case ID.i31:
+            case ID.StructRef:
+            case ID.ArrayRef:
+            case ID.NoneRef:
+                return true;
+            case ID.Ref:
+            case ID.RefNull:
+                int ht = typeIdx();
+                if (ht == TypeIdxCode.FUNC.code()
+                        || ht == TypeIdxCode.NOFUNC.code()
+                        || ht == TypeIdxCode.EXTERN.code()
+                        || ht == TypeIdxCode.NOEXTERN.code()
+                        || ht == TypeIdxCode.EXN.code()) {
+                    return false;
+                }
+                if (ht >= 0 && ts != null) {
+                    return isConcreteInAnyHierarchy(ht, ts);
+                }
+                return ht == TypeIdxCode.ANY.code()
+                        || ht == TypeIdxCode.EQ.code()
+                        || ht == TypeIdxCode.I31.code()
+                        || ht == TypeIdxCode.STRUCT.code()
+                        || ht == TypeIdxCode.ARRAY.code()
+                        || ht == TypeIdxCode.NONE.code();
+            default:
+                return false;
+        }
     }
 
     private static long createId(int opcode, int typeIdx) {
@@ -232,6 +268,10 @@ public final class ValType {
 
     public boolean isReference() {
         return isReference(this.opcode());
+    }
+
+    public boolean isGcReference() {
+        return gcReference;
     }
 
     // https://webassembly.github.io/gc/core/binary/types.html#heap-types
@@ -670,6 +710,46 @@ public final class ValType {
 
         public boolean isReference() {
             return ValType.isReference(opcode);
+        }
+
+        public boolean isGcReference() {
+            return isGcReference(null);
+        }
+
+        public boolean isGcReference(TypeSection ts) {
+            if (!isReference()) {
+                return false;
+            }
+            switch (opcode) {
+                case ID.AnyRef:
+                case ID.EqRef:
+                case ID.i31:
+                case ID.StructRef:
+                case ID.ArrayRef:
+                case ID.NoneRef:
+                    return true;
+                case ID.Ref:
+                case ID.RefNull:
+                    if (typeIdx == TypeIdxCode.FUNC.code()
+                            || typeIdx == TypeIdxCode.NOFUNC.code()
+                            || typeIdx == TypeIdxCode.EXTERN.code()
+                            || typeIdx == TypeIdxCode.NOEXTERN.code()
+                            || typeIdx == TypeIdxCode.EXN.code()) {
+                        return false;
+                    }
+                    if (typeIdx >= 0 && ts != null) {
+                        return isConcreteInAnyHierarchy(typeIdx, ts);
+                    }
+                    return typeIdx >= 0
+                            || typeIdx == TypeIdxCode.ANY.code()
+                            || typeIdx == TypeIdxCode.EQ.code()
+                            || typeIdx == TypeIdxCode.I31.code()
+                            || typeIdx == TypeIdxCode.STRUCT.code()
+                            || typeIdx == TypeIdxCode.ARRAY.code()
+                            || typeIdx == TypeIdxCode.NONE.code();
+                default:
+                    return false;
+            }
         }
 
         @Deprecated(since = "use .build.resolve(typeSection) instead")

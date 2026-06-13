@@ -87,7 +87,7 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ICONST_4
     IRETURN
 
-  public static call_0(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
+  public static call_0(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
     ALOAD 2
     ICONST_0
     LALOAD
@@ -96,12 +96,12 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ALOAD 0
     INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_0 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
-    LSTORE 3
+    LSTORE 4
     ICONST_1
     NEWARRAY T_LONG
     DUP
     ICONST_0
-    LLOAD 3
+    LLOAD 4
     LASTORE
     ARETURN
 
@@ -120,7 +120,7 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ICONST_0
     IRETURN
 
-  public static call_1(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
+  public static call_1(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
     ALOAD 2
     ICONST_0
     LALOAD
@@ -129,12 +129,12 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ALOAD 0
     INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_1 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
-    LSTORE 3
+    LSTORE 4
     ICONST_1
     NEWARRAY T_LONG
     DUP
     ICONST_0
-    LLOAD 3
+    LLOAD 4
     LASTORE
     ARETURN
 
@@ -172,7 +172,7 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ICONST_1
     IRETURN
 
-  public static call_2(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
+  public static call_2(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
     ALOAD 2
     ICONST_0
     LALOAD
@@ -181,12 +181,12 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ALOAD 0
     INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_2 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
-    LSTORE 3
+    LSTORE 4
     ICONST_1
     NEWARRAY T_LONG
     DUP
     ICONST_0
-    LLOAD 3
+    LLOAD 4
     LASTORE
     ARETURN
 }

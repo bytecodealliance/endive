@@ -288,6 +288,168 @@ public class WasmValue {
         return Integer.toUnsignedString((int) (0xFFFFFFFF & longValue)) + "L";
     }
 
+    /**
+     * Generate an arg value for use with applyGc(Object...).
+     * Numeric types are boxed, GC ref types use null or the value directly.
+     */
+    public String toGcArgsValue() {
+        switch (type) {
+            case I32:
+                return "(Object) (long) (int) Integer.parseInt(\"" + value[0] + "\")";
+            case F32:
+                if (value[0] != null) {
+                    switch (value[0]) {
+                        case "nan:canonical":
+                        case "nan:arithmetic":
+                            return "(Object) (long) (int) (int) Float.NaN";
+                        default:
+                            return "(Object) (long) (int) Integer.parseUnsignedInt(\""
+                                    + value[0]
+                                    + "\")";
+                    }
+                } else {
+                    return "null";
+                }
+            case I64:
+                return "(Object) (long) Long.parseLong(\"" + value[0] + "\")";
+            case F64:
+                if (value[0] != null) {
+                    switch (value[0]) {
+                        case "nan:canonical":
+                        case "nan:arithmetic":
+                            return "(Object) (long) (long) Double.NaN";
+                        default:
+                            return "(Object) (long) Long.parseUnsignedLong(\"" + value[0] + "\")";
+                    }
+                } else {
+                    return "null";
+                }
+            case EXTERN_REF:
+            case EXN_REF:
+            case FUNC_REF:
+            case NULL_FUNC_REF:
+            case NULL_EXTERN_REF:
+                if (value[0].equals("null")) {
+                    return "(Object) Value.REF_NULL_VALUE";
+                }
+                return "(Object) (long) Long.parseLong(\"" + value[0] + "\")";
+            case STRUCT_REF:
+            case ANY_REF:
+            case NULL_REF:
+            case ARRAY_REF:
+            case EQ_REF:
+            case I31_REF:
+            case REF_NULL:
+                if (value[0].equals("null")) {
+                    return "(Object) null";
+                }
+                return "(Object) (long) Long.parseLong(\"" + value[0] + "\")";
+            default:
+                throw new IllegalArgumentException("Type not recognized for GC args: " + type);
+        }
+    }
+
+    /**
+     * Generate the result extraction expression for Object[] results from applyGc.
+     * callGc uses boxReturnValue which returns:
+     *   I32 -> Integer, I64 -> Long, F32 -> Float, F64 -> Double
+     * GC ref types are returned as Objects directly via popRef().
+     */
+    public String toGcResultValue(String result) {
+        switch (type) {
+            case I64:
+                return "(long)(Long) " + result;
+            case I32:
+                return "(int)(Integer) " + result;
+            case F32:
+                return "(float)(Float) " + result + ", 0.0";
+            case F64:
+                return "(double)(Double) " + result + ", 0.0";
+            case EXTERN_REF:
+            case EXN_REF:
+            case FUNC_REF:
+            case NULL_FUNC_REF:
+            case NULL_EXTERN_REF:
+            case STRUCT_REF:
+            case ANY_REF:
+            case NULL_REF:
+            case ARRAY_REF:
+            case EQ_REF:
+            case I31_REF:
+            case REF_NULL:
+                // All ref types are returned as Objects
+                return result;
+            case V128:
+                return toResultValue(result);
+            default:
+                throw new IllegalArgumentException("Type not recognized " + type);
+        }
+    }
+
+    /**
+     * Generate assertion for Object[] results from applyGc.
+     *
+     * GC ref types (anyref, structref, etc.) are returned via popRef() as Java Objects,
+     * so null refs are Java null. Non-GC ref types (externref, funcref) are returned
+     * via boxReturnValue() as Long values, so null refs are REF_NULL_VALUE (-1).
+     */
+    public NameExpr toGcAssertion(String resultVar, String moduleName) {
+        if (value == null) {
+            // Type-only assertion (no specific value)
+            switch (type) {
+                case FUNC_REF:
+                    return new NameExpr("assertNotNull(" + resultVar + ")");
+                case EXTERN_REF:
+                    return new NameExpr("assertNotNull(" + resultVar + ")");
+                case REF_NULL:
+                case NULL_REF:
+                    // These are GC null types -> Java null from popRef()
+                    return new NameExpr("assertNull(" + resultVar + ")");
+                case NULL_FUNC_REF:
+                case NULL_EXTERN_REF:
+                    return new NameExpr("assertNull(" + resultVar + ")");
+                case STRUCT_REF:
+                case ANY_REF:
+                case I31_REF:
+                case ARRAY_REF:
+                case EQ_REF:
+                    return new NameExpr("assertNotNull(" + resultVar + ")");
+                default:
+                    throw new IllegalArgumentException(
+                            "cannot generate GC assertion for WasmValue: " + this);
+            }
+        }
+
+        // Value-based assertion
+        switch (type) {
+            case STRUCT_REF:
+            case ANY_REF:
+            case NULL_REF:
+            case ARRAY_REF:
+            case EQ_REF:
+            case I31_REF:
+            case REF_NULL:
+                // GC ref types: null -> Java null, non-null -> assertNotNull
+                if (value[0].equals("null")) {
+                    return new NameExpr("assertNull(" + resultVar + ")");
+                }
+                return new NameExpr("assertNotNull(" + resultVar + ")");
+            case EXTERN_REF:
+            case EXN_REF:
+            case FUNC_REF:
+            case NULL_FUNC_REF:
+            case NULL_EXTERN_REF:
+                if (value[0].equals("null")) {
+                    return new NameExpr("assertNull(" + resultVar + ")");
+                }
+                return new NameExpr("assertNotNull(" + resultVar + ")");
+            default:
+                // Numeric types in GC path
+                var expectedVar = toExpectedValue();
+                return new NameExpr("assertEquals(" + expectedVar + ", " + resultVar + ")");
+        }
+    }
+
     public String toArgsValue() {
         switch (type) {
             case I32:

@@ -2,6 +2,7 @@ package run.endive.runtime;
 
 import static java.util.Objects.requireNonNullElse;
 import static java.util.Objects.requireNonNullElseGet;
+import static run.endive.runtime.ConstantEvaluators.computeConstant;
 import static run.endive.runtime.ConstantEvaluators.computeConstantInstance;
 import static run.endive.runtime.ConstantEvaluators.computeConstantValue;
 import static run.endive.wasm.types.ExternalType.FUNCTION;
@@ -17,7 +18,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import run.endive.runtime.internal.GcRefStore;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.UninstantiableException;
 import run.endive.wasm.UnlinkableException;
@@ -73,7 +73,6 @@ public class Instance {
     private final Exports fluentExports;
 
     private final Map<Integer, WasmException> exnRefs;
-    private final GcRefStore gcRefs;
 
     private TailCallPending tailCallPending;
 
@@ -129,15 +128,20 @@ public class Instance {
         this.fluentExports = new Exports(this);
 
         this.exnRefs = new HashMap<>();
-        this.gcRefs = new GcRefStore(this);
 
         for (int i = 0; i < tables.length; i++) {
-            long rawValue = computeConstantValue(this, tables[i].initialize())[0];
-            var initValue = OpcodeImpl.boxForTable(rawValue, this);
+            var result = computeConstant(this, tables[i].initialize());
+            int initValue = (int) result.longValue();
             if (tableFactory != null) {
                 this.tables[i] = tableFactory.create(tables[i], initValue);
             } else {
                 this.tables[i] = new TableInstance(tables[i], initValue);
+            }
+            if (tables[i].elementType().isGcReference() && result.ref() != null) {
+                var tbl = this.tables[i];
+                for (int j = 0; j < tbl.size(); j++) {
+                    tbl.setObjRef(j, result.ref(), this);
+                }
             }
         }
 
@@ -151,7 +155,8 @@ public class Instance {
         // because segment offsets can reference local globals via global.get.
         for (var i = 0; i < globalInitializers.length; i++) {
             var g = globalInitializers[i];
-            var values = computeConstantValue(this, g.initInstructions());
+            var result = computeConstant(this, g.initInstructions());
+            var values = result.longs();
             if (globalFactory != null) {
                 globals[i] =
                         globalFactory.create(
@@ -168,6 +173,9 @@ public class Instance {
                                 g.mutabilityType());
             }
             globals[i].setInstance(this);
+            if (g.valueType().isReference()) {
+                globals[i].setRefValue(result.ref());
+            }
         }
 
         for (var el : elements) {
@@ -181,14 +189,20 @@ public class Instance {
                         || (offset + initializers.size() - 1) >= table.size()) {
                     throw new UninstantiableException("out of bounds table access");
                 }
+                boolean isGcTable = table.elementType().isGcReference();
                 for (int i = 0; i < initializers.size(); i++) {
                     final List<Instruction> init = initializers.get(i);
                     int index = offset + i;
-                    var value = computeConstantValue(this, init);
                     var inst = computeConstantInstance(this, init);
 
                     assert ae.type().isReference();
-                    table.setRef(index, OpcodeImpl.boxForTable(value[0], this), inst);
+                    if (isGcTable) {
+                        var result = computeConstant(this, init);
+                        table.setObjRef(index, result.ref(), inst);
+                    } else {
+                        var value = computeConstantValue(this, init);
+                        table.setRef(index, (int) value[0], inst);
+                    }
                 }
             }
         }
@@ -233,9 +247,6 @@ public class Instance {
             }
         }
 
-        // Safe point: wasm stack is empty after init
-        gcSafePoint();
-
         return this;
     }
 
@@ -268,11 +279,25 @@ public class Instance {
 
         public ExportFunction function(String name) {
             var export = getExport(FUNCTION, name);
-            return args -> {
-                try {
-                    return instance.machine.call(export.index(), args);
-                } finally {
-                    instance.gcSafePoint();
+            var funcType = instance.type(instance.functionType(export.index()));
+            boolean hasGcReturns = funcType.returns().stream().anyMatch(ValType::isGcReference);
+            return new ExportFunction() {
+                @Override
+                public long[] apply(long... args) {
+                    var result = instance.machine.call(export.index(), args);
+                    if (hasGcReturns) {
+                        throw new UnsupportedOperationException(
+                                "Function '"
+                                        + name
+                                        + "' returns GC references."
+                                        + " Use applyGc() instead.");
+                    }
+                    return result;
+                }
+
+                @Override
+                public Object[] applyGc(Object... args) {
+                    return instance.machine.callGc(export.index(), args);
                 }
             };
         }
@@ -429,20 +454,22 @@ public class Instance {
         return exnRefs.get(idx);
     }
 
+    @Deprecated
     public long[] array(int idx) {
-        var gcRef = gcRefs.get(idx);
-        if (gcRef instanceof WasmArray) {
-            return ((WasmArray) gcRef).elements();
-        }
-        return null;
+        throw new UnsupportedOperationException(
+                "GcRefStore has been removed. Use applyGc() to get WasmArray objects directly.");
     }
 
+    @Deprecated
     public int registerGcRef(WasmGcRef ref) {
-        return gcRefs.put(ref);
+        throw new UnsupportedOperationException(
+                "GcRefStore has been removed. GC references are managed by Java GC.");
     }
 
+    @Deprecated
     public WasmGcRef gcRef(int idx) {
-        return gcRefs.get(idx);
+        throw new UnsupportedOperationException(
+                "GcRefStore has been removed. Use applyGc() to get GC references directly.");
     }
 
     public boolean heapTypeMatch(
@@ -467,15 +494,36 @@ public class Instance {
             var funcTypeIdx = functionType((int) ref);
             return heapTypeSubOf(funcTypeIdx, targetHeapType);
         }
-        // ANY hierarchy: i31, struct, array, or internalized externref
-        if (Value.isI31(ref)) {
-            return heapTypeSubOf(ValType.TypeIdxCode.I31.code(), targetHeapType);
+        // Concrete function type source (sourceHeapType >= 0 and is a func type)
+        if (sourceHeapType >= 0
+                && module.typeSection() != null
+                && module.typeSection().getSubType(sourceHeapType).compType().funcType() != null) {
+            var funcTypeIdx = functionType((int) ref);
+            return heapTypeSubOf(funcTypeIdx, targetHeapType);
         }
-        var gc = gcRef((int) ref);
-        if (gc != null) {
-            return heapTypeSubOf(gc.typeIdx(), targetHeapType);
+        // For non-GC ref values (int on JVM), the only remaining possibility is externref.
+        // In the new GC design, GC refs are Objects and should not reach this method.
+        // Return false for type mismatches.
+        return false;
+    }
+
+    public boolean heapTypeMatchRef(
+            Object ref, boolean nullable, int targetHeapType, int sourceHeapType) {
+        if (ref == null) {
+            return nullable;
         }
-        // Internalized externref (via any.convert_extern)
+        if (targetHeapType == ValType.TypeIdxCode.NONE.code()
+                || targetHeapType == ValType.TypeIdxCode.NOFUNC.code()
+                || targetHeapType == ValType.TypeIdxCode.NOEXTERN.code()) {
+            return false;
+        }
+        if (targetHeapType == ValType.TypeIdxCode.FUNC.code()
+                || targetHeapType == ValType.TypeIdxCode.EXTERN.code()) {
+            return true;
+        }
+        if (ref instanceof WasmGcRef) {
+            return heapTypeSubOf(((WasmGcRef) ref).typeIdx(), targetHeapType);
+        }
         return targetHeapType == ValType.TypeIdxCode.ANY.code();
     }
 
@@ -484,11 +532,6 @@ public class Instance {
             return true;
         }
         return ValType.heapTypeSubtype(actual, target, module.typeSection());
-    }
-
-    /** Epoch-based GC safe point. Call when the wasm stack is guaranteed empty. */
-    void gcSafePoint() {
-        gcRefs.safePoint();
     }
 
     public Machine getMachine() {

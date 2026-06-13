@@ -19,6 +19,7 @@ public final class ShadedRefs {
     static final Method READ_GLOBAL;
     static final Method READ_GLOBAL_REF;
     static final Method WRITE_GLOBAL;
+    static final Method WRITE_GLOBAL_REF;
     static final Method INSTANCE_SET_ELEMENT;
     static final Method INSTANCE_TABLE;
     static final Method MEMORY_COPY;
@@ -49,12 +50,18 @@ public final class ShadedRefs {
     static final Method MEMORY_ATOMIC_LONG_READ;
     static final Method I32_GE_U;
     static final Method REF_IS_NULL;
+    static final Method GC_REF_IS_NULL;
     static final Method REF_AS_NON_NULL;
+    static final Method GC_REF_AS_NON_NULL;
     static final Method TABLE_GET;
+    static final Method TABLE_GET_REF;
     static final Method TABLE_SET;
+    static final Method TABLE_SET_REF;
     static final Method TABLE_SIZE;
     static final Method TABLE_GROW;
+    static final Method TABLE_GROW_REF;
     static final Method TABLE_FILL;
+    static final Method TABLE_FILL_REF;
     static final Method TABLE_COPY;
     static final Method TABLE_INIT;
     static final Method TABLE_REQUIRED_REF;
@@ -69,6 +76,7 @@ public final class ShadedRefs {
 
     // Exception handling methods
     static final Method CREATE_WASM_EXCEPTION;
+    static final Method CREATE_WASM_EXCEPTION_GC;
     static final Method INSTANCE_GET_EXCEPTION;
     static final Method EXCEPTION_MATCHES;
 
@@ -144,20 +152,27 @@ public final class ShadedRefs {
     static final Method STRUCT_NEW;
     static final Method STRUCT_NEW_DEFAULT;
     static final Method STRUCT_GET;
+    static final Method STRUCT_GET_REF;
     static final Method STRUCT_GET_S;
     static final Method STRUCT_GET_U;
     static final Method STRUCT_SET;
+    static final Method STRUCT_SET_REF;
     static final Method ARRAY_NEW;
+    static final Method ARRAY_NEW_REF;
     static final Method ARRAY_NEW_DEFAULT;
     static final Method ARRAY_NEW_FIXED;
+    static final Method ARRAY_NEW_FIXED_REFS;
     static final Method ARRAY_NEW_DATA;
     static final Method ARRAY_NEW_ELEM;
     static final Method ARRAY_GET;
+    static final Method ARRAY_GET_REF;
     static final Method ARRAY_GET_S;
     static final Method ARRAY_GET_U;
     static final Method ARRAY_SET;
+    static final Method ARRAY_SET_REF;
     static final Method ARRAY_LEN;
     static final Method ARRAY_FILL;
+    static final Method ARRAY_FILL_REF;
     static final Method ARRAY_COPY;
     static final Method ARRAY_INIT_DATA;
     static final Method ARRAY_INIT_ELEM;
@@ -166,10 +181,18 @@ public final class ShadedRefs {
     static final Method CAST_TEST;
     static final Method CAST_TEST_NULL;
     static final Method HEAP_TYPE_MATCH;
+    // int-based variants for funcref/externref (non-GC refs, int on JVM stack)
+    static final Method REF_TEST_INT;
+    static final Method REF_TEST_NULL_INT;
+    static final Method CAST_TEST_INT;
+    static final Method CAST_TEST_NULL_INT;
+    static final Method HEAP_TYPE_MATCH_INT;
     static final Method REF_EQ;
     static final Method REF_I31;
     static final Method I31_GET_S;
     static final Method I31_GET_U;
+    static final Method ANY_CONVERT_EXTERN;
+    static final Method EXTERN_CONVERT_ANY;
     static final Method DATA_DROP;
 
     static {
@@ -189,6 +212,9 @@ public final class ShadedRefs {
             READ_GLOBAL_REF = Shaded.class.getMethod("readGlobalRef", int.class, Instance.class);
             WRITE_GLOBAL =
                     Shaded.class.getMethod("writeGlobal", long.class, int.class, Instance.class);
+            WRITE_GLOBAL_REF =
+                    Shaded.class.getMethod(
+                            "writeGlobalRef", Object.class, int.class, Instance.class);
             INSTANCE_SET_ELEMENT = Instance.class.getMethod("setElement", int.class, Element.class);
             INSTANCE_TABLE = Instance.class.getMethod("table", int.class);
             MEMORY_COPY =
@@ -264,20 +290,38 @@ public final class ShadedRefs {
                             "memoryAtomicLongIntRead", int.class, int.class, Memory.class);
             I32_GE_U = Shaded.class.getMethod("i32_ge_u", int.class, int.class);
             REF_IS_NULL = Shaded.class.getMethod("isRefNull", int.class);
+            GC_REF_IS_NULL = Shaded.class.getMethod("isGcRefNull", Object.class);
             REF_AS_NON_NULL = Shaded.class.getMethod("refAsNonNull", int.class);
+            GC_REF_AS_NON_NULL = Shaded.class.getMethod("gcRefAsNonNull", Object.class);
             TABLE_GET = Shaded.class.getMethod("tableGet", int.class, int.class, Instance.class);
+            TABLE_GET_REF =
+                    Shaded.class.getMethod("tableGetRef", int.class, int.class, Instance.class);
             TABLE_SET =
                     Shaded.class.getMethod(
                             "tableSet", int.class, int.class, int.class, Instance.class);
+            TABLE_SET_REF =
+                    Shaded.class.getMethod(
+                            "tableSetRef", int.class, Object.class, int.class, Instance.class);
             TABLE_SIZE = Shaded.class.getMethod("tableSize", int.class, Instance.class);
             TABLE_GROW =
                     Shaded.class.getMethod(
                             "tableGrow", int.class, int.class, int.class, Instance.class);
+            TABLE_GROW_REF =
+                    Shaded.class.getMethod(
+                            "tableGrowRef", Object.class, int.class, int.class, Instance.class);
             TABLE_FILL =
                     Shaded.class.getMethod(
                             "tableFill",
                             int.class,
                             int.class,
+                            int.class,
+                            int.class,
+                            Instance.class);
+            TABLE_FILL_REF =
+                    Shaded.class.getMethod(
+                            "tableFillRef",
+                            int.class,
+                            Object.class,
                             int.class,
                             int.class,
                             Instance.class);
@@ -318,6 +362,13 @@ public final class ShadedRefs {
             CREATE_WASM_EXCEPTION =
                     Shaded.class.getMethod(
                             "createWasmException", long[].class, int.class, Instance.class);
+            CREATE_WASM_EXCEPTION_GC =
+                    Shaded.class.getMethod(
+                            "createWasmExceptionGc",
+                            long[].class,
+                            Object[].class,
+                            int.class,
+                            Instance.class);
             INSTANCE_GET_EXCEPTION = Instance.class.getMethod("exn", int.class);
             EXCEPTION_MATCHES =
                     Shaded.class.getMethod(
@@ -736,34 +787,52 @@ public final class ShadedRefs {
 
             // GC
             STRUCT_NEW =
-                    Shaded.class.getMethod("structNew", long[].class, int.class, Instance.class);
+                    Shaded.class.getMethod(
+                            "structNew", long[].class, Object[].class, int.class, Instance.class);
             STRUCT_NEW_DEFAULT =
                     Shaded.class.getMethod("structNewDefault", int.class, Instance.class);
             STRUCT_GET =
                     Shaded.class.getMethod(
-                            "structGet", int.class, int.class, int.class, Instance.class);
+                            "structGet", Object.class, int.class, int.class, Instance.class);
+            STRUCT_GET_REF =
+                    Shaded.class.getMethod(
+                            "structGetRef", Object.class, int.class, int.class, Instance.class);
             STRUCT_GET_S =
                     Shaded.class.getMethod(
-                            "structGetS", int.class, int.class, int.class, Instance.class);
+                            "structGetS", Object.class, int.class, int.class, Instance.class);
             STRUCT_GET_U =
                     Shaded.class.getMethod(
-                            "structGetU", int.class, int.class, int.class, Instance.class);
+                            "structGetU", Object.class, int.class, int.class, Instance.class);
             STRUCT_SET =
                     Shaded.class.getMethod(
                             "structSet",
-                            int.class,
+                            Object.class,
                             long.class,
+                            int.class,
+                            int.class,
+                            Instance.class);
+            STRUCT_SET_REF =
+                    Shaded.class.getMethod(
+                            "structSetRef",
+                            Object.class,
+                            Object.class,
                             int.class,
                             int.class,
                             Instance.class);
             ARRAY_NEW =
                     Shaded.class.getMethod(
                             "arrayNew", long.class, int.class, int.class, Instance.class);
+            ARRAY_NEW_REF =
+                    Shaded.class.getMethod(
+                            "arrayNewRef", Object.class, int.class, int.class, Instance.class);
             ARRAY_NEW_DEFAULT =
                     Shaded.class.getMethod("arrayNewDefault", int.class, int.class, Instance.class);
             ARRAY_NEW_FIXED =
                     Shaded.class.getMethod(
                             "arrayNewFixed", long[].class, int.class, Instance.class);
+            ARRAY_NEW_FIXED_REFS =
+                    Shaded.class.getMethod(
+                            "arrayNewFixedRefs", Object[].class, int.class, Instance.class);
             ARRAY_NEW_DATA =
                     Shaded.class.getMethod(
                             "arrayNewData",
@@ -782,44 +851,64 @@ public final class ShadedRefs {
                             Instance.class);
             ARRAY_GET =
                     Shaded.class.getMethod(
-                            "arrayGet", int.class, int.class, int.class, Instance.class);
+                            "arrayGet", Object.class, int.class, int.class, Instance.class);
+            ARRAY_GET_REF =
+                    Shaded.class.getMethod(
+                            "arrayGetRef", Object.class, int.class, int.class, Instance.class);
             ARRAY_GET_S =
                     Shaded.class.getMethod(
-                            "arrayGetS", int.class, int.class, int.class, Instance.class);
+                            "arrayGetS", Object.class, int.class, int.class, Instance.class);
             ARRAY_GET_U =
                     Shaded.class.getMethod(
-                            "arrayGetU", int.class, int.class, int.class, Instance.class);
+                            "arrayGetU", Object.class, int.class, int.class, Instance.class);
             ARRAY_SET =
                     Shaded.class.getMethod(
                             "arraySet",
-                            int.class,
+                            Object.class,
                             int.class,
                             long.class,
                             int.class,
                             Instance.class);
-            ARRAY_LEN = Shaded.class.getMethod("arrayLen", int.class, Instance.class);
+            ARRAY_SET_REF =
+                    Shaded.class.getMethod(
+                            "arraySetRef",
+                            Object.class,
+                            int.class,
+                            Object.class,
+                            int.class,
+                            Instance.class);
+            ARRAY_LEN = Shaded.class.getMethod("arrayLen", Object.class, Instance.class);
             ARRAY_FILL =
                     Shaded.class.getMethod(
                             "arrayFill",
-                            int.class,
+                            Object.class,
                             int.class,
                             long.class,
+                            int.class,
+                            int.class,
+                            Instance.class);
+            ARRAY_FILL_REF =
+                    Shaded.class.getMethod(
+                            "arrayFillRef",
+                            Object.class,
+                            int.class,
+                            Object.class,
                             int.class,
                             int.class,
                             Instance.class);
             ARRAY_COPY =
                     Shaded.class.getMethod(
                             "arrayCopy",
+                            Object.class,
                             int.class,
-                            int.class,
-                            int.class,
+                            Object.class,
                             int.class,
                             int.class,
                             Instance.class);
             ARRAY_INIT_DATA =
                     Shaded.class.getMethod(
                             "arrayInitData",
-                            int.class,
+                            Object.class,
                             int.class,
                             int.class,
                             int.class,
@@ -829,7 +918,7 @@ public final class ShadedRefs {
             ARRAY_INIT_ELEM =
                     Shaded.class.getMethod(
                             "arrayInitElem",
-                            int.class,
+                            Object.class,
                             int.class,
                             int.class,
                             int.class,
@@ -838,28 +927,50 @@ public final class ShadedRefs {
                             Instance.class);
             REF_TEST =
                     Shaded.class.getMethod(
-                            "refTest", int.class, int.class, int.class, Instance.class);
+                            "refTest", Object.class, int.class, int.class, Instance.class);
             REF_TEST_NULL =
                     Shaded.class.getMethod(
-                            "refTestNull", int.class, int.class, int.class, Instance.class);
+                            "refTestNull", Object.class, int.class, int.class, Instance.class);
             CAST_TEST =
                     Shaded.class.getMethod(
-                            "castTest", int.class, int.class, int.class, Instance.class);
+                            "castTest", Object.class, int.class, int.class, Instance.class);
             CAST_TEST_NULL =
                     Shaded.class.getMethod(
-                            "castTestNull", int.class, int.class, int.class, Instance.class);
+                            "castTestNull", Object.class, int.class, int.class, Instance.class);
             HEAP_TYPE_MATCH =
                     Shaded.class.getMethod(
                             "heapTypeMatch",
+                            Object.class,
+                            boolean.class,
+                            int.class,
+                            int.class,
+                            Instance.class);
+            REF_TEST_INT =
+                    Shaded.class.getMethod(
+                            "refTestInt", int.class, int.class, int.class, Instance.class);
+            REF_TEST_NULL_INT =
+                    Shaded.class.getMethod(
+                            "refTestNullInt", int.class, int.class, int.class, Instance.class);
+            CAST_TEST_INT =
+                    Shaded.class.getMethod(
+                            "castTestInt", int.class, int.class, int.class, Instance.class);
+            CAST_TEST_NULL_INT =
+                    Shaded.class.getMethod(
+                            "castTestNullInt", int.class, int.class, int.class, Instance.class);
+            HEAP_TYPE_MATCH_INT =
+                    Shaded.class.getMethod(
+                            "heapTypeMatchInt",
                             int.class,
                             boolean.class,
                             int.class,
                             int.class,
                             Instance.class);
-            REF_EQ = Shaded.class.getMethod("refEq", int.class, int.class, Instance.class);
-            REF_I31 = Shaded.class.getMethod("refI31", int.class, Instance.class);
-            I31_GET_S = Shaded.class.getMethod("i31GetS", int.class, Instance.class);
-            I31_GET_U = Shaded.class.getMethod("i31GetU", int.class, Instance.class);
+            REF_EQ = Shaded.class.getMethod("refEq", Object.class, Object.class);
+            REF_I31 = Shaded.class.getMethod("refI31", int.class);
+            I31_GET_S = Shaded.class.getMethod("i31GetS", Object.class);
+            I31_GET_U = Shaded.class.getMethod("i31GetU", Object.class);
+            ANY_CONVERT_EXTERN = Shaded.class.getMethod("anyConvertExtern", int.class);
+            EXTERN_CONVERT_ANY = Shaded.class.getMethod("externConvertAny", Object.class);
             DATA_DROP = Shaded.class.getMethod("dataDrop", int.class, Instance.class);
 
         } catch (NoSuchMethodException e) {

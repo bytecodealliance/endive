@@ -2,38 +2,53 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
 
   private final Lrun/endive/runtime/Instance; instance
 
+  private final Lrun/endive/runtime/internal/CompilerInterpreterMachine; compilerInterpreterMachine
+
   public <init>(Lrun/endive/runtime/Instance;)V
     ALOAD 0
     INVOKESPECIAL java/lang/Object.<init> ()V
     ALOAD 0
     ALOAD 1
     PUTFIELD run/endive/$gen/CompiledMachine.instance : Lrun/endive/runtime/Instance;
+    ALOAD 0
+    NEW run/endive/runtime/internal/CompilerInterpreterMachine
+    DUP
+    ALOAD 1
+    ICONST_0
+    NEWARRAY T_INT
+    INVOKESPECIAL run/endive/runtime/internal/CompilerInterpreterMachine.<init> (Lrun/endive/runtime/Instance;[I)V
+    PUTFIELD run/endive/$gen/CompiledMachine.compilerInterpreterMachine : Lrun/endive/runtime/internal/CompilerInterpreterMachine;
     RETURN
 
   public call(I[J)[J
     TRYCATCHBLOCK L0 L1 L2 java/lang/StackOverflowError
+    ACONST_NULL
+    ASTORE 3
    L0
     ALOAD 0
     GETFIELD run/endive/$gen/CompiledMachine.instance : Lrun/endive/runtime/Instance;
-    ASTORE 3
+    ASTORE 4
    L3
-    ALOAD 3
+    ALOAD 4
     DUP
     INVOKEVIRTUAL run/endive/runtime/Instance.memory ()Lrun/endive/runtime/Memory;
     ILOAD 1
     ALOAD 2
-    INVOKESTATIC run/endive/$gen/CompiledMachineMachineCall.call (Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;I[J)[J
     ALOAD 3
+    INVOKESTATIC run/endive/$gen/CompiledMachineMachineCall.call (Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;I[J[Ljava/lang/Object;)[J
+    ALOAD 4
     INVOKEVIRTUAL run/endive/runtime/Instance.isTailCallPending ()Z
     IFEQ L1
     POP
-    ALOAD 3
+    ALOAD 4
     INVOKEVIRTUAL run/endive/runtime/Instance.tailCallFuncId ()I
     ISTORE 1
-    ALOAD 3
+    ALOAD 4
     INVOKEVIRTUAL run/endive/runtime/Instance.tailCallArgs ()[J
     ASTORE 2
-    ALOAD 3
+    ACONST_NULL
+    ASTORE 3
+    ALOAD 4
     INVOKEVIRTUAL run/endive/runtime/Instance.clearTailCall ()V
     GOTO L3
    L1
@@ -41,6 +56,49 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
    L2
     INVOKESTATIC run/endive/$gen/CompiledMachineShaded.throwCallStackExhausted (Ljava/lang/StackOverflowError;)Ljava/lang/RuntimeException;
     ATHROW
+
+  public call(I[J[Ljava/lang/Object;)[J
+    TRYCATCHBLOCK L0 L1 L2 java/lang/StackOverflowError
+   L0
+    ALOAD 0
+    GETFIELD run/endive/$gen/CompiledMachine.instance : Lrun/endive/runtime/Instance;
+    ASTORE 4
+   L3
+    ALOAD 4
+    DUP
+    INVOKEVIRTUAL run/endive/runtime/Instance.memory ()Lrun/endive/runtime/Memory;
+    ILOAD 1
+    ALOAD 2
+    ALOAD 3
+    INVOKESTATIC run/endive/$gen/CompiledMachineMachineCall.call (Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;I[J[Ljava/lang/Object;)[J
+    ALOAD 4
+    INVOKEVIRTUAL run/endive/runtime/Instance.isTailCallPending ()Z
+    IFEQ L1
+    POP
+    ALOAD 4
+    INVOKEVIRTUAL run/endive/runtime/Instance.tailCallFuncId ()I
+    ISTORE 1
+    ALOAD 4
+    INVOKEVIRTUAL run/endive/runtime/Instance.tailCallArgs ()[J
+    ASTORE 2
+    ACONST_NULL
+    ASTORE 3
+    ALOAD 4
+    INVOKEVIRTUAL run/endive/runtime/Instance.clearTailCall ()V
+    GOTO L3
+   L1
+    ARETURN
+   L2
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.throwCallStackExhausted (Ljava/lang/StackOverflowError;)Ljava/lang/RuntimeException;
+    ATHROW
+
+  public callGc(I[Ljava/lang/Object;)[Ljava/lang/Object;
+    ALOAD 0
+    GETFIELD run/endive/$gen/CompiledMachine.compilerInterpreterMachine : Lrun/endive/runtime/internal/CompilerInterpreterMachine;
+    ILOAD 1
+    ALOAD 2
+    INVOKEVIRTUAL run/endive/runtime/internal/CompilerInterpreterMachine.callGc (I[Ljava/lang/Object;)[Ljava/lang/Object;
+    ARETURN
 
   public static call_indirect_0(IIIIILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     INVOKESTATIC run/endive/$gen/CompiledMachineShaded.checkInterruption ()V
@@ -157,7 +215,7 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
    L1
     IRETURN
 
-  public static call_0(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
+  public static call_0(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
     ALOAD 2
     ICONST_0
     LALOAD
@@ -174,12 +232,12 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ALOAD 0
     INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_0 (IIILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
-    LSTORE 3
+    LSTORE 4
     ICONST_1
     NEWARRAY T_LONG
     DUP
     ICONST_0
-    LLOAD 3
+    LLOAD 4
     LASTORE
     ARETURN
 }
@@ -191,16 +249,17 @@ final class run/endive/$gen/CompiledMachineMachineCall {
     INVOKESPECIAL java/lang/Object.<init> ()V
     RETURN
 
-  public static call(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;I[J)[J
+  public static call(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;I[J[Ljava/lang/Object;)[J
     ALOAD 0
     ALOAD 1
     ALOAD 3
+    ALOAD 4
     ILOAD 2
     TABLESWITCH
       0: L0
       default: L1
    L0
-    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.call_0 (Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.call_0 (Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
     ARETURN
    L1
     ILOAD 2

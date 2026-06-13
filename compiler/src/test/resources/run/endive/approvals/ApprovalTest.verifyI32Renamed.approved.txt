@@ -2,15 +2,43 @@ public final class FOO implements run/endive/runtime/Machine {
 
   private final Lrun/endive/runtime/Instance; instance
 
+  private final Lrun/endive/runtime/internal/CompilerInterpreterMachine; compilerInterpreterMachine
+
   public <init>(Lrun/endive/runtime/Instance;)V
     ALOAD 0
     INVOKESPECIAL java/lang/Object.<init> ()V
     ALOAD 0
     ALOAD 1
     PUTFIELD FOO.instance : Lrun/endive/runtime/Instance;
+    ALOAD 0
+    NEW run/endive/runtime/internal/CompilerInterpreterMachine
+    DUP
+    ALOAD 1
+    ICONST_0
+    NEWARRAY T_INT
+    INVOKESPECIAL run/endive/runtime/internal/CompilerInterpreterMachine.<init> (Lrun/endive/runtime/Instance;[I)V
+    PUTFIELD FOO.compilerInterpreterMachine : Lrun/endive/runtime/internal/CompilerInterpreterMachine;
     RETURN
 
   public call(I[J)[J
+    TRYCATCHBLOCK L0 L1 L1 java/lang/StackOverflowError
+    ACONST_NULL
+    ASTORE 3
+   L0
+    ALOAD 0
+    GETFIELD FOO.instance : Lrun/endive/runtime/Instance;
+    DUP
+    INVOKEVIRTUAL run/endive/runtime/Instance.memory ()Lrun/endive/runtime/Memory;
+    ILOAD 1
+    ALOAD 2
+    ALOAD 3
+    INVOKESTATIC FOOMachineCall.call (Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;I[J[Ljava/lang/Object;)[J
+    ARETURN
+   L1
+    INVOKESTATIC FOOShaded.throwCallStackExhausted (Ljava/lang/StackOverflowError;)Ljava/lang/RuntimeException;
+    ATHROW
+
+  public call(I[J[Ljava/lang/Object;)[J
     TRYCATCHBLOCK L0 L1 L1 java/lang/StackOverflowError
    L0
     ALOAD 0
@@ -19,11 +47,20 @@ public final class FOO implements run/endive/runtime/Machine {
     INVOKEVIRTUAL run/endive/runtime/Instance.memory ()Lrun/endive/runtime/Memory;
     ILOAD 1
     ALOAD 2
-    INVOKESTATIC FOOMachineCall.call (Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;I[J)[J
+    ALOAD 3
+    INVOKESTATIC FOOMachineCall.call (Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;I[J[Ljava/lang/Object;)[J
     ARETURN
    L1
     INVOKESTATIC FOOShaded.throwCallStackExhausted (Ljava/lang/StackOverflowError;)Ljava/lang/RuntimeException;
     ATHROW
+
+  public callGc(I[Ljava/lang/Object;)[Ljava/lang/Object;
+    ALOAD 0
+    GETFIELD FOO.compilerInterpreterMachine : Lrun/endive/runtime/internal/CompilerInterpreterMachine;
+    ILOAD 1
+    ALOAD 2
+    INVOKEVIRTUAL run/endive/runtime/internal/CompilerInterpreterMachine.callGc (I[Ljava/lang/Object;)[Ljava/lang/Object;
+    ARETURN
 
   public static call_indirect_0(IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)V
     INVOKESTATIC FOOShaded.checkInterruption ()V

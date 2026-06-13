@@ -83,6 +83,20 @@ final class Emitters {
         return ValType.builder().fromId(id).build().resolve(ctx.typeSection());
     }
 
+    /**
+     * Determines whether a source heap type represents a GC reference (Object on JVM stack)
+     * or a non-GC reference (int on JVM stack, e.g. funcref/externref).
+     */
+    private static boolean isSourceGcRef(int srcHeapType, Context ctx) {
+        var srcType =
+                ValType.builder()
+                        .withOpcode(ValType.ID.RefNull)
+                        .withTypeIdx(srcHeapType)
+                        .build()
+                        .resolve(ctx.typeSection());
+        return srcType.isGcReference();
+    }
+
     public static void DROP_KEEP(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int keepStart = (int) ins.operand(0) + 1;
 
@@ -173,6 +187,84 @@ final class Emitters {
         }
     }
 
+    /**
+     * Builds both long[] and Object[] from field values on the JVM stack.
+     * Numeric fields go into long[], GC ref fields go into Object[].
+     * Both arrays are indexed by field index.
+     * After this method, the stack has: [..., long[], Object[]]
+     */
+    private static void emitBoxFieldsForStruct(
+            Context ctx, InstructionAdapter asm, List<ValType> types) {
+
+        // Store values from stack to locals in reverse order
+        int slot = ctx.tempSlot() + types.stream().mapToInt(CompilerUtil::slotCount).sum();
+        for (int i = types.size() - 1; i >= 0; i--) {
+            ValType valType = types.get(i);
+            slot -= slotCount(valType);
+            asm.store(slot, asmType(valType));
+        }
+
+        // Create long[] for numeric fields
+        asm.iconst(types.size());
+        asm.newarray(LONG_TYPE);
+
+        slot = ctx.tempSlot();
+        for (int i = 0; i < types.size(); i++) {
+            ValType valType = types.get(i);
+            if (!valType.isGcReference()) {
+                asm.dup();
+                asm.iconst(i);
+                asm.load(slot, asmType(valType));
+                emitJvmToLong(asm, valType);
+                asm.astore(LONG_TYPE);
+            }
+            slot += slotCount(valType);
+        }
+
+        // Create Object[] for ref fields
+        asm.iconst(types.size());
+        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+
+        slot = ctx.tempSlot();
+        for (int i = 0; i < types.size(); i++) {
+            ValType valType = types.get(i);
+            if (valType.isGcReference()) {
+                asm.dup();
+                asm.iconst(i);
+                asm.load(slot, asmType(valType));
+                asm.astore(OBJECT_TYPE);
+            }
+            slot += slotCount(valType);
+        }
+    }
+
+    /**
+     * Boxes ref-typed element values into Object[].
+     * After this method, the stack has: [..., Object[]]
+     */
+    private static void emitBoxRefsOnStack(Context ctx, InstructionAdapter asm, int count) {
+
+        // Store values from stack to locals in reverse order
+        int slot = ctx.tempSlot() + count; // Object refs are 1 slot each
+        for (int i = count - 1; i >= 0; i--) {
+            slot--;
+            asm.store(slot, OBJECT_TYPE);
+        }
+
+        // Create Object[]
+        asm.iconst(count);
+        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+
+        slot = ctx.tempSlot();
+        for (int i = 0; i < count; i++) {
+            asm.dup();
+            asm.iconst(i);
+            asm.load(slot, OBJECT_TYPE);
+            asm.astore(OBJECT_TYPE);
+            slot++;
+        }
+    }
+
     public static void CALL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int funcId = (int) ins.operand(0);
         FunctionType functionType = ctx.functionTypes().get(funcId);
@@ -233,21 +325,43 @@ final class Emitters {
     }
 
     public static void REF_NULL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        asm.iconst(REF_NULL_VALUE);
+        // operand(0) is the heap type index
+        var type =
+                ValType.builder()
+                        .withOpcode(ValType.ID.RefNull)
+                        .withTypeIdx((int) ins.operand(0))
+                        .build()
+                        .resolve(ctx.typeSection());
+        if (type.isGcReference()) {
+            asm.aconst(null);
+        } else {
+            asm.iconst(REF_NULL_VALUE);
+        }
     }
 
     public static void REF_IS_NULL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        emitInvokeStatic(asm, ShadedRefs.REF_IS_NULL);
+        // operand(0) is the ValType id of the ref on stack
+        var type = valType(ins.operand(0), ctx);
+        if (type.isGcReference()) {
+            emitInvokeStatic(asm, ShadedRefs.GC_REF_IS_NULL);
+        } else {
+            emitInvokeStatic(asm, ShadedRefs.REF_IS_NULL);
+        }
     }
 
     public static void REF_EQ(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+        // stack: [Object, Object] -> [int]
         emitInvokeStatic(asm, ShadedRefs.REF_EQ);
     }
 
     public static void REF_AS_NON_NULL(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        emitInvokeStatic(asm, ShadedRefs.REF_AS_NON_NULL);
+        var type = valType(ins.operand(0), ctx);
+        if (type.isGcReference()) {
+            emitInvokeStatic(asm, ShadedRefs.GC_REF_AS_NON_NULL);
+        } else {
+            emitInvokeStatic(asm, ShadedRefs.REF_AS_NON_NULL);
+        }
     }
 
     public static void LOCAL_GET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -279,10 +393,11 @@ final class Emitters {
         asm.iconst(globalIndex);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
 
-        if (globalType.isReference()) {
-            // Use readGlobalRef to handle i31 tagged-long values from constant initializers
+        if (globalType.isGcReference()) {
+            // GC refs: returns Object directly
             emitInvokeStatic(asm, ShadedRefs.READ_GLOBAL_REF);
         } else {
+            // Numeric types and non-GC refs (funcref, externref, exnref)
             emitInvokeStatic(asm, ShadedRefs.READ_GLOBAL);
             emitLongToJvm(asm, globalType);
         }
@@ -290,23 +405,35 @@ final class Emitters {
 
     public static void GLOBAL_SET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int globalIndex = (int) ins.operand(0);
+        var globalType = ctx.globalTypes().get(globalIndex);
 
-        emitJvmToLong(asm, ctx.globalTypes().get(globalIndex));
-        asm.iconst(globalIndex);
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.WRITE_GLOBAL);
+        if (globalType.isGcReference()) {
+            // GC refs: Object on stack
+            asm.iconst(globalIndex);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.WRITE_GLOBAL_REF);
+        } else {
+            emitJvmToLong(asm, globalType);
+            asm.iconst(globalIndex);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.WRITE_GLOBAL);
+        }
     }
 
     public static void TABLE_GET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        asm.iconst((int) ins.operand(0));
+        int tableIdx = (int) ins.operand(0);
+        boolean isGcRef = ins.operand(1) != 0;
+        asm.iconst(tableIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.TABLE_GET);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.TABLE_GET_REF : ShadedRefs.TABLE_GET);
     }
 
     public static void TABLE_SET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        asm.iconst((int) ins.operand(0));
+        int tableIdx = (int) ins.operand(0);
+        boolean isGcRef = ins.operand(1) != 0;
+        asm.iconst(tableIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.TABLE_SET);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.TABLE_SET_REF : ShadedRefs.TABLE_SET);
     }
 
     public static void TABLE_SIZE(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -316,15 +443,19 @@ final class Emitters {
     }
 
     public static void TABLE_GROW(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        asm.iconst((int) ins.operand(0));
+        int tableIdx = (int) ins.operand(0);
+        boolean isGcRef = ins.operand(1) != 0;
+        asm.iconst(tableIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.TABLE_GROW);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.TABLE_GROW_REF : ShadedRefs.TABLE_GROW);
     }
 
     public static void TABLE_FILL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        asm.iconst((int) ins.operand(0));
+        int tableIdx = (int) ins.operand(0);
+        boolean isGcRef = ins.operand(1) != 0;
+        asm.iconst(tableIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.TABLE_FILL);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.TABLE_FILL_REF : ShadedRefs.TABLE_FILL);
     }
 
     public static void TABLE_COPY(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -1074,7 +1205,10 @@ final class Emitters {
             asm.areturn(getType(void.class));
         } else if (type.returns().size() == 1) {
             Object defaultVal = CompilerUtil.defaultValue(type.returns().get(0));
-            if (defaultVal instanceof Integer) {
+            if (defaultVal == null) {
+                // GC ref types default to null (Object)
+                asm.aconst(null);
+            } else if (defaultVal instanceof Integer) {
                 asm.iconst((int) defaultVal);
             } else if (defaultVal instanceof Long) {
                 asm.lconst((long) defaultVal);
@@ -1176,12 +1310,18 @@ final class Emitters {
         int tagNumber = (int) ins.operand(0);
         var type = ctx.tagFunctionType(tagNumber);
 
-        // emmit:
-        // call createWasmException(long[] args, int tagNumber, Instance instance)
-        emitBoxValuesOnStack(ctx, asm, type.params());
-        asm.iconst(tagNumber);
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.CREATE_WASM_EXCEPTION);
+        boolean hasGcRefs = type.params().stream().anyMatch(ValType::isGcReference);
+        if (hasGcRefs) {
+            emitBoxFieldsForStruct(ctx, asm, type.params());
+            asm.iconst(tagNumber);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.CREATE_WASM_EXCEPTION_GC);
+        } else {
+            emitBoxValuesOnStack(ctx, asm, type.params());
+            asm.iconst(tagNumber);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.CREATE_WASM_EXCEPTION);
+        }
         asm.athrow();
     }
 
@@ -1269,22 +1409,46 @@ final class Emitters {
     public static void CATCH_UNBOX_PARAMS(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         var tag = (int) ins.operand(0);
-        // Get the tag type to know what
-        // parameter types to unbox
         var tagFuncType = ctx.tagFunctionType(tag);
         if (!tagFuncType.params().isEmpty()) {
-            // unbox the exception args
+            boolean hasGcRefs = tagFuncType.params().stream().anyMatch(ValType::isGcReference);
+            int longArraySlot = ctx.tempSlot() + 1;
+            int refArraySlot = ctx.tempSlot() + 2;
+
+            // Load long[] args
             asm.load(ctx.tempSlot(), OBJECT_TYPE);
             asm.invokevirtual(
                     getInternalName(WasmException.class),
                     "args",
                     getMethodDescriptor(getType(long[].class)),
                     false);
+            asm.store(longArraySlot, OBJECT_TYPE);
 
-            // Store the array in a local variable
-            // Unbox each argument from the
-            // long[] array and push onto stack
-            emitUnboxResult(asm, tagFuncType.params(), ctx.tempSlot() + 1);
+            // Load Object[] refArgs if needed
+            if (hasGcRefs) {
+                asm.load(ctx.tempSlot(), OBJECT_TYPE);
+                asm.invokevirtual(
+                        getInternalName(WasmException.class),
+                        "refArgs",
+                        getMethodDescriptor(getType(Object[].class)),
+                        false);
+                asm.store(refArraySlot, OBJECT_TYPE);
+            }
+
+            // Unbox each argument
+            for (int i = 0; i < tagFuncType.params().size(); i++) {
+                var param = tagFuncType.params().get(i);
+                if (param.isGcReference()) {
+                    asm.load(refArraySlot, OBJECT_TYPE);
+                    asm.iconst(i);
+                    asm.aload(OBJECT_TYPE);
+                } else {
+                    asm.load(longArraySlot, OBJECT_TYPE);
+                    asm.iconst(i);
+                    asm.aload(LONG_TYPE);
+                    emitLongToJvm(asm, param);
+                }
+            }
         }
     }
 
@@ -1359,7 +1523,7 @@ final class Emitters {
         var st = ctx.typeSection().getSubType(typeIdx).compType().structType();
         var fieldCount = st.fieldTypes().length;
 
-        // Collect all field values into long[]
+        // Collect field types
         var fieldTypes = new java.util.ArrayList<ValType>(fieldCount);
         for (int i = 0; i < fieldCount; i++) {
             var ft = st.fieldTypes()[i];
@@ -1370,7 +1534,9 @@ final class Emitters {
                 fieldTypes.add(ValType.I32);
             }
         }
-        emitBoxValuesOnStack(ctx, asm, fieldTypes);
+
+        // Build both long[] (numeric fields) and Object[] (ref fields)
+        emitBoxFieldsForStruct(ctx, asm, fieldTypes);
 
         asm.iconst(typeIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
@@ -1388,13 +1554,22 @@ final class Emitters {
     public static void STRUCT_GET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int typeIdx = (int) ins.operand(0);
         int fieldIdx = (int) ins.operand(1);
-        // stack: [ref]
+        // stack: [ref (Object)]
+        var st = ctx.typeSection().getSubType(typeIdx).compType().structType();
+        var ft = st.fieldTypes()[fieldIdx];
+
         asm.iconst(typeIdx);
         asm.iconst(fieldIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.STRUCT_GET);
-        // returns long, convert to proper JVM type
-        emitStructGetResult(ctx, asm, typeIdx, fieldIdx);
+
+        if (ft.storageType().isGcReference()) {
+            // returns Object
+            emitInvokeStatic(asm, ShadedRefs.STRUCT_GET_REF);
+        } else {
+            // returns long, convert to proper JVM type
+            emitInvokeStatic(asm, ShadedRefs.STRUCT_GET);
+            emitStructGetResult(ctx, asm, typeIdx, fieldIdx);
+        }
     }
 
     public static void STRUCT_GET_S(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -1434,37 +1609,56 @@ final class Emitters {
     public static void STRUCT_SET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int typeIdx = (int) ins.operand(0);
         int fieldIdx = (int) ins.operand(1);
-        // stack: [ref, val]
+        // stack: [ref (Object), val]
         var st = ctx.typeSection().getSubType(typeIdx).compType().structType();
         var ft = st.fieldTypes()[fieldIdx];
-        if (ft.storageType().valType() != null) {
-            emitJvmToLong(asm, ft.storageType().valType());
+
+        if (ft.storageType().isGcReference()) {
+            // val is Object on stack
+            asm.iconst(typeIdx);
+            asm.iconst(fieldIdx);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.STRUCT_SET_REF);
         } else {
-            // packed types come as I32
-            asm.visitInsn(Opcodes.I2L);
+            if (ft.storageType().valType() != null) {
+                emitJvmToLong(asm, ft.storageType().valType());
+            } else {
+                // packed types come as I32
+                asm.visitInsn(Opcodes.I2L);
+            }
+            asm.iconst(typeIdx);
+            asm.iconst(fieldIdx);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.STRUCT_SET);
         }
-        asm.iconst(typeIdx);
-        asm.iconst(fieldIdx);
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.STRUCT_SET);
     }
 
     public static void ARRAY_NEW(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int typeIdx = (int) ins.operand(0);
-        // stack: [initVal, len]
-        // save len to temp
-        asm.store(ctx.tempSlot(), INT_TYPE);
-        // convert initVal to long
         var at = ctx.typeSection().getSubType(typeIdx).compType().arrayType();
-        if (at.fieldType().storageType().valType() != null) {
-            emitJvmToLong(asm, at.fieldType().storageType().valType());
+
+        if (at.fieldType().storageType().isGcReference()) {
+            // stack: [initVal (Object), len]
+            asm.store(ctx.tempSlot(), INT_TYPE);
+            // initVal is Object on stack
+            asm.load(ctx.tempSlot(), INT_TYPE);
+            asm.iconst(typeIdx);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.ARRAY_NEW_REF);
         } else {
-            asm.visitInsn(Opcodes.I2L);
+            // stack: [initVal, len]
+            asm.store(ctx.tempSlot(), INT_TYPE);
+            // convert initVal to long
+            if (at.fieldType().storageType().valType() != null) {
+                emitJvmToLong(asm, at.fieldType().storageType().valType());
+            } else {
+                asm.visitInsn(Opcodes.I2L);
+            }
+            asm.load(ctx.tempSlot(), INT_TYPE);
+            asm.iconst(typeIdx);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.ARRAY_NEW);
         }
-        asm.load(ctx.tempSlot(), INT_TYPE);
-        asm.iconst(typeIdx);
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.ARRAY_NEW);
     }
 
     public static void ARRAY_NEW_DEFAULT(
@@ -1481,20 +1675,29 @@ final class Emitters {
         int typeIdx = (int) ins.operand(0);
         int len = (int) ins.operand(1);
         var at = ctx.typeSection().getSubType(typeIdx).compType().arrayType();
-        ValType elemType;
-        if (at.fieldType().storageType().valType() != null) {
-            elemType = at.fieldType().storageType().valType();
+
+        if (at.fieldType().storageType().isGcReference()) {
+            // Elements are Object refs, box into Object[]
+            emitBoxRefsOnStack(ctx, asm, len);
+            asm.iconst(typeIdx);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.ARRAY_NEW_FIXED_REFS);
         } else {
-            elemType = ValType.I32;
+            ValType elemType;
+            if (at.fieldType().storageType().valType() != null) {
+                elemType = at.fieldType().storageType().valType();
+            } else {
+                elemType = ValType.I32;
+            }
+            var types = new java.util.ArrayList<ValType>(len);
+            for (int i = 0; i < len; i++) {
+                types.add(elemType);
+            }
+            emitBoxValuesOnStack(ctx, asm, types);
+            asm.iconst(typeIdx);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.ARRAY_NEW_FIXED);
         }
-        var types = new java.util.ArrayList<ValType>(len);
-        for (int i = 0; i < len; i++) {
-            types.add(elemType);
-        }
-        emitBoxValuesOnStack(ctx, asm, types);
-        asm.iconst(typeIdx);
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.ARRAY_NEW_FIXED);
     }
 
     public static void ARRAY_NEW_DATA(
@@ -1528,11 +1731,17 @@ final class Emitters {
 
     public static void ARRAY_GET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int typeIdx = (int) ins.operand(0);
-        // stack: [ref, idx]
+        var at = ctx.typeSection().getSubType(typeIdx).compType().arrayType();
+        // stack: [ref (Object), idx]
         asm.iconst(typeIdx);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.ARRAY_GET);
-        emitArrayGetResult(ctx, asm, typeIdx);
+
+        if (at.fieldType().storageType().isGcReference()) {
+            emitInvokeStatic(asm, ShadedRefs.ARRAY_GET_REF);
+        } else {
+            emitInvokeStatic(asm, ShadedRefs.ARRAY_GET);
+            emitArrayGetResult(ctx, asm, typeIdx);
+        }
     }
 
     public static void ARRAY_GET_S(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -1562,16 +1771,24 @@ final class Emitters {
 
     public static void ARRAY_SET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int typeIdx = (int) ins.operand(0);
-        // stack: [ref, idx, val]
+        // stack: [ref (Object), idx, val]
         var at = ctx.typeSection().getSubType(typeIdx).compType().arrayType();
-        if (at.fieldType().storageType().valType() != null) {
-            emitJvmToLong(asm, at.fieldType().storageType().valType());
+
+        if (at.fieldType().storageType().isGcReference()) {
+            // val is Object on stack
+            asm.iconst(typeIdx);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.ARRAY_SET_REF);
         } else {
-            asm.visitInsn(Opcodes.I2L);
+            if (at.fieldType().storageType().valType() != null) {
+                emitJvmToLong(asm, at.fieldType().storageType().valType());
+            } else {
+                asm.visitInsn(Opcodes.I2L);
+            }
+            asm.iconst(typeIdx);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.ARRAY_SET);
         }
-        asm.iconst(typeIdx);
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.ARRAY_SET);
     }
 
     public static void ARRAY_LEN(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -1582,21 +1799,30 @@ final class Emitters {
 
     public static void ARRAY_FILL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int typeIdx = (int) ins.operand(0);
-        // stack: [ref, offset, val, len]
-        // save len to temp
-        asm.store(ctx.tempSlot(), INT_TYPE);
-        // stack: [ref, offset, val]
         var at = ctx.typeSection().getSubType(typeIdx).compType().arrayType();
-        if (at.fieldType().storageType().valType() != null) {
-            emitJvmToLong(asm, at.fieldType().storageType().valType());
+
+        if (at.fieldType().storageType().isGcReference()) {
+            // stack: [ref (Object), offset, val (Object), len]
+            asm.store(ctx.tempSlot(), INT_TYPE);
+            // stack: [ref, offset, val]
+            // val is already Object
+            asm.load(ctx.tempSlot(), INT_TYPE);
+            asm.iconst(typeIdx);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.ARRAY_FILL_REF);
         } else {
-            asm.visitInsn(Opcodes.I2L);
+            // stack: [ref (Object), offset, val, len]
+            asm.store(ctx.tempSlot(), INT_TYPE);
+            if (at.fieldType().storageType().valType() != null) {
+                emitJvmToLong(asm, at.fieldType().storageType().valType());
+            } else {
+                asm.visitInsn(Opcodes.I2L);
+            }
+            asm.load(ctx.tempSlot(), INT_TYPE);
+            asm.iconst(typeIdx);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.ARRAY_FILL);
         }
-        // stack: [ref, offset, val_as_long]
-        asm.load(ctx.tempSlot(), INT_TYPE);
-        asm.iconst(typeIdx);
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.ARRAY_FILL);
     }
 
     public static void ARRAY_COPY(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -1630,81 +1856,88 @@ final class Emitters {
     public static void REF_TEST(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int heapType = (int) ins.operand(0);
         int srcHeapType = (int) ins.operand(1);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         // stack: [ref]
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.REF_TEST);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.REF_TEST : ShadedRefs.REF_TEST_INT);
     }
 
     public static void REF_TEST_NULL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int heapType = (int) ins.operand(0);
         int srcHeapType = (int) ins.operand(1);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.REF_TEST_NULL);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.REF_TEST_NULL : ShadedRefs.REF_TEST_NULL_INT);
     }
 
     public static void CAST_TEST(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int heapType = (int) ins.operand(0);
         int srcHeapType = (int) ins.operand(1);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.CAST_TEST);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.CAST_TEST : ShadedRefs.CAST_TEST_INT);
     }
 
     public static void CAST_TEST_NULL(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int heapType = (int) ins.operand(0);
         int srcHeapType = (int) ins.operand(1);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.CAST_TEST_NULL);
+        emitInvokeStatic(asm, isGcRef ? ShadedRefs.CAST_TEST_NULL : ShadedRefs.CAST_TEST_NULL_INT);
     }
 
     public static void REF_I31(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        // stack: [val]
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+        // stack: [val (int)]
         emitInvokeStatic(asm, ShadedRefs.REF_I31);
+        // returns Object (WasmI31Ref)
     }
 
     public static void I31_GET_S(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        // stack: [ref]
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+        // stack: [ref (Object)]
         emitInvokeStatic(asm, ShadedRefs.I31_GET_S);
     }
 
     public static void I31_GET_U(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        // stack: [ref]
-        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+        // stack: [ref (Object)]
         emitInvokeStatic(asm, ShadedRefs.I31_GET_U);
     }
 
     public static void ANY_CONVERT_EXTERN(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        // identity - no-op at runtime
+        // externref (int on JVM) -> anyref (Object on JVM)
+        // Box the int into an Object for use in the GC ref hierarchy.
+        emitInvokeStatic(asm, ShadedRefs.ANY_CONVERT_EXTERN);
     }
 
     public static void EXTERN_CONVERT_ANY(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        // identity - no-op at runtime
+        // anyref (Object on JVM) -> externref (int on JVM)
+        // Unbox back to int. Non-null GC refs get a unique non-null int value.
+        emitInvokeStatic(asm, ShadedRefs.EXTERN_CONVERT_ANY);
     }
 
     public static void BR_ON_NULL_CHECK(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        // stack: [ref]
-        // DUP the ref, compare against REF_NULL_VALUE
+        var type = valType(ins.operand(0), ctx);
+        boolean isGcRef = type.isGcReference();
         asm.dup();
-        asm.iconst(REF_NULL_VALUE);
-        // result is used by following IFEQ/IFNE
-        // if ref == null -> 0 (equal), used with IFEQ to branch
-        // we want: push 1 if null, 0 if not null
         var isNull = new Label();
         var end = new Label();
-        asm.ificmpeq(isNull);
+        if (isGcRef) {
+            asm.ifnull(isNull);
+        } else {
+            asm.iconst(REF_NULL_VALUE);
+            asm.ificmpeq(isNull);
+        }
         asm.iconst(0); // not null
         asm.goTo(end);
         asm.mark(isNull);
@@ -1714,12 +1947,17 @@ final class Emitters {
 
     public static void BR_ON_NON_NULL_CHECK(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        // stack: [ref]
+        var type = valType(ins.operand(0), ctx);
+        boolean isGcRef = type.isGcReference();
         asm.dup();
-        asm.iconst(REF_NULL_VALUE);
         var isNull = new Label();
         var end = new Label();
-        asm.ificmpeq(isNull);
+        if (isGcRef) {
+            asm.ifnull(isNull);
+        } else {
+            asm.iconst(REF_NULL_VALUE);
+            asm.ificmpeq(isNull);
+        }
         asm.iconst(1); // non-null
         asm.goTo(end);
         asm.mark(isNull);
@@ -1733,13 +1971,15 @@ final class Emitters {
         boolean nullable = ins.operand(0) != 0;
         int heapType = (int) ins.operand(1);
         int srcHeapType = (int) ins.operand(2);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         // stack: [ref]
         asm.dup();
         asm.iconst(nullable ? 1 : 0);
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.HEAP_TYPE_MATCH);
+        emitInvokeStatic(
+                asm, isGcRef ? ShadedRefs.HEAP_TYPE_MATCH : ShadedRefs.HEAP_TYPE_MATCH_INT);
         // result: boolean on stack (1 if matches, 0 if not)
     }
 
@@ -1749,13 +1989,15 @@ final class Emitters {
         boolean nullable = ins.operand(0) != 0;
         int heapType = (int) ins.operand(1);
         int srcHeapType = (int) ins.operand(2);
+        boolean isGcRef = isSourceGcRef(srcHeapType, ctx);
         // stack: [ref]
         asm.dup();
         asm.iconst(nullable ? 1 : 0);
         asm.iconst(heapType);
         asm.iconst(srcHeapType);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-        emitInvokeStatic(asm, ShadedRefs.HEAP_TYPE_MATCH);
+        emitInvokeStatic(
+                asm, isGcRef ? ShadedRefs.HEAP_TYPE_MATCH : ShadedRefs.HEAP_TYPE_MATCH_INT);
         // invert: 1 if NOT matching (branch), 0 if matching (don't branch)
         var wasTrue = new Label();
         var end = new Label();

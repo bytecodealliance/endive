@@ -3,6 +3,8 @@ private final Lrun/endive/runtime/Instance; instance
   private final Lrun/endive/runtime/internal/CompilerInterpreterMachine; compilerInterpreterMachine
 }
 
+  public final static INNERCLASS run/endive/runtime/ConstantEvaluators$ConstantResult run/endive/runtime/ConstantEvaluators ConstantResult
+
   private final static Z memCopyWorkaround
 }
 

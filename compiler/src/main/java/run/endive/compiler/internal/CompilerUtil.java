@@ -54,10 +54,11 @@ final class CompilerUtil {
     public static Class<?> jvmType(ValType type) {
         switch (type.opcode()) {
             case ValType.ID.I32:
-            case ValType.ID.Ref:
-            case ValType.ID.RefNull:
             case ValType.ID.ExnRef:
                 return int.class;
+            case ValType.ID.Ref:
+            case ValType.ID.RefNull:
+                return type.isGcReference() ? Object.class : int.class;
             case ValType.ID.I64:
                 return long.class;
             case ValType.ID.F32:
@@ -69,13 +70,16 @@ final class CompilerUtil {
         }
     }
 
+    private static final Type OBJECT_ASM_TYPE = Type.getType(Object.class);
+
     public static Type asmType(ValType type) {
         switch (type.opcode()) {
             case ValType.ID.I32:
-            case ValType.ID.Ref:
-            case ValType.ID.RefNull:
             case ValType.ID.ExnRef:
                 return INT_TYPE;
+            case ValType.ID.Ref:
+            case ValType.ID.RefNull:
+                return type.isGcReference() ? OBJECT_ASM_TYPE : INT_TYPE;
             case ValType.ID.I64:
                 return LONG_TYPE;
             case ValType.ID.F32:
@@ -98,9 +102,16 @@ final class CompilerUtil {
     public static void emitLongToJvm(MethodVisitor asm, ValType type) {
         switch (type.opcode()) {
             case ValType.ID.I32:
+            case ValType.ID.ExnRef:
+                asm.visitInsn(Opcodes.L2I);
+                return;
             case ValType.ID.Ref:
             case ValType.ID.RefNull:
-            case ValType.ID.ExnRef:
+                if (type.isGcReference()) {
+                    // GC refs are Objects - this conversion should not be called for them
+                    // when unboxing from long[]. They come from Object[] instead.
+                    return;
+                }
                 asm.visitInsn(Opcodes.L2I);
                 return;
             case ValType.ID.I64:
@@ -119,9 +130,16 @@ final class CompilerUtil {
     public static void emitJvmToLong(MethodVisitor asm, ValType type) {
         switch (type.opcode()) {
             case ValType.ID.I32:
+            case ValType.ID.ExnRef:
+                asm.visitInsn(Opcodes.I2L);
+                return;
             case ValType.ID.Ref:
             case ValType.ID.RefNull:
-            case ValType.ID.ExnRef:
+                if (type.isGcReference()) {
+                    // GC refs are Objects - this conversion should not be called for them
+                    // when boxing into long[]. They go into Object[] instead.
+                    return;
+                }
                 asm.visitInsn(Opcodes.I2L);
                 return;
             case ValType.ID.I64:
@@ -138,7 +156,9 @@ final class CompilerUtil {
     }
 
     public static MethodType valueMethodType(List<ValType> types) {
-        return methodType(long[].class, jvmTypes(types));
+        boolean hasGcRef = types.stream().anyMatch(t -> t.isGcReference());
+        Class<?> returnType = hasGcRef ? Object[].class : long[].class;
+        return methodType(returnType, jvmTypes(types));
     }
 
     public static MethodType callIndirectMethodType(FunctionType functionType) {
@@ -161,7 +181,7 @@ final class CompilerUtil {
     }
 
     public static Class<?>[] jvmTypes(List<ValType> types) {
-        return types.stream().map(CompilerUtil::jvmType).toArray(Class[]::new);
+        return types.stream().map(t -> jvmType(t)).toArray(Class[]::new);
     }
 
     public static Class<?>[] jvmParameterTypes(FunctionType type) {
@@ -175,8 +195,26 @@ final class CompilerUtil {
             case 1:
                 return jvmType(type.returns().get(0));
             default:
+                // If any return value is a GC ref (Object), use Object[] instead of long[]
+                for (ValType ret : type.returns()) {
+                    if (ret.isGcReference()) {
+                        return Object[].class;
+                    }
+                }
                 return long[].class;
         }
+    }
+
+    /**
+     * Returns true if a multi-value return contains any GC references.
+     */
+    public static boolean hasGcRefReturns(FunctionType type) {
+        for (ValType ret : type.returns()) {
+            if (ret.isGcReference()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static Object defaultValue(ValType type) {
@@ -191,11 +229,23 @@ final class CompilerUtil {
                 return 0.0d;
             case ValType.ID.Ref:
             case ValType.ID.RefNull:
+                if (type.isGcReference()) {
+                    return null; // GC refs use null as their default
+                }
+                return REF_NULL_VALUE;
             case ValType.ID.ExnRef:
                 return REF_NULL_VALUE;
             default:
                 throw new IllegalArgumentException("Unsupported ValType: " + type);
         }
+    }
+
+    /**
+     * Returns true if the given ValType is a GC reference type (struct/array/i31/anyref/eqref),
+     * which is represented as Object on the JVM.
+     */
+    public static boolean isGcRef(ValType type) {
+        return type.isGcReference();
     }
 
     public static int slotCount(ValType type) {
@@ -220,7 +270,11 @@ final class CompilerUtil {
     }
 
     public static void emitPop(MethodVisitor asm, ValType type) {
-        asm.visitInsn(slotCount(type) == 1 ? Opcodes.POP : Opcodes.POP2);
+        if (type.isGcReference()) {
+            asm.visitInsn(Opcodes.POP); // Object refs are always 1 slot
+        } else {
+            asm.visitInsn(slotCount(type) == 1 ? Opcodes.POP : Opcodes.POP2);
+        }
     }
 
     public static void emitInvokeStatic(MethodVisitor asm, Method method) {

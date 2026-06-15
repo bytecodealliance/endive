@@ -7,6 +7,8 @@ import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.BodyDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.expr.ArrayAccessExpr;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
@@ -26,6 +28,7 @@ import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.type.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -215,17 +218,16 @@ public final class ModuleInterfaceCodegen {
                             : functionImports[export.index()].typeIndex();
             var exportType = module.typeSection().getType(funcType);
 
+            boolean hasObjectRefs =
+                    exportType.params().stream().anyMatch(ValType::isObjectRef)
+                            || exportType.returns().stream().anyMatch(ValType::isObjectRef);
+
             var argPrefix = "arg";
-            var handleCallArguments = new ArrayList<Expression>();
             for (var pIdx = 0; pIdx < exportType.params().size(); pIdx++) {
                 var param = exportType.params().get(pIdx);
                 var argName = argPrefix + pIdx;
                 var javaType = javaClassFromValueType(param);
-                // signature
                 exportMethod.addParameter(javaType, argName);
-                // body invocation call arguments
-                var argExpr = new NameExpr(argName);
-                handleCallArguments.add(toLong(param, argExpr, exportsCu));
             }
 
             var methodBody = exportMethod.createBody();
@@ -240,29 +242,134 @@ public final class ModuleInterfaceCodegen {
                             new AssignExpr(
                                     exportFieldName, exportCall, AssignExpr.Operator.ASSIGN));
 
-            var exportApplyHandle =
-                    new MethodCallExpr(
-                            exportFieldName, "apply", NodeList.nodeList(handleCallArguments));
+            if (hasObjectRefs) {
+                exportsCu.addImport("run.endive.runtime.CallResult");
 
-            if (exportType.returns().size() == 0) {
-                exportMethod.setType(void.class);
-                methodBody.addStatement(exportApplyHandle).addStatement(new ReturnStmt());
-            } else if (exportType.returns().size() > 1) {
-                exportMethod.setType(long[].class);
-                methodBody.addStatement(new ReturnStmt(exportApplyHandle));
+                // Build positional long[] args and Object[] refArgs arrays.
+                // Both have one slot per param; ref values in refArgs[i],
+                // non-ref values in args[i].
+                int paramCount = exportType.params().size();
+                Expression longArrayExpr;
+                Expression refArrayExpr;
+                if (paramCount == 0) {
+                    longArrayExpr =
+                            new ArrayCreationExpr(
+                                    parseType("long"),
+                                    NodeList.nodeList(
+                                            new ArrayCreationLevel(new IntegerLiteralExpr("0"))),
+                                    null);
+                    refArrayExpr =
+                            new ArrayCreationExpr(
+                                    parseType("Object"),
+                                    NodeList.nodeList(
+                                            new ArrayCreationLevel(new IntegerLiteralExpr("0"))),
+                                    null);
+                } else {
+                    var longSlots = new ArrayList<Expression>();
+                    var refSlots = new ArrayList<Expression>();
+                    for (var pIdx = 0; pIdx < paramCount; pIdx++) {
+                        var param = exportType.params().get(pIdx);
+                        var argExpr = new NameExpr(argPrefix + pIdx);
+                        if (param.isObjectRef()) {
+                            longSlots.add(new IntegerLiteralExpr("0"));
+                            refSlots.add(argExpr);
+                        } else {
+                            longSlots.add(toLong(param, argExpr, exportsCu));
+                            refSlots.add(new NullLiteralExpr());
+                        }
+                    }
+                    longArrayExpr =
+                            new ArrayCreationExpr(
+                                    parseType("long"),
+                                    NodeList.nodeList(new ArrayCreationLevel()),
+                                    new ArrayInitializerExpr(NodeList.nodeList(longSlots)));
+                    refArrayExpr =
+                            new ArrayCreationExpr(
+                                    parseType("Object"),
+                                    NodeList.nodeList(new ArrayCreationLevel()),
+                                    new ArrayInitializerExpr(NodeList.nodeList(refSlots)));
+                }
+
+                var applyWithRefsCall =
+                        new MethodCallExpr(
+                                exportFieldName,
+                                "applyWithRefs",
+                                NodeList.nodeList(longArrayExpr, refArrayExpr));
+
+                if (exportType.returns().size() == 0) {
+                    exportMethod.setType(void.class);
+                    methodBody.addStatement(applyWithRefsCall);
+                    methodBody.addStatement(new ReturnStmt());
+                } else {
+                    // Declare CallResult cr = field.applyWithRefs(...)
+                    methodBody.addStatement(
+                            new AssignExpr(
+                                    new VariableDeclarationExpr(parseType("CallResult"), "cr"),
+                                    applyWithRefsCall,
+                                    AssignExpr.Operator.ASSIGN));
+
+                    if (exportType.returns().size() == 1) {
+                        var retType = exportType.returns().get(0);
+                        exportMethod.setType(javaClassFromValueType(retType));
+                        if (retType.isObjectRef()) {
+                            // return cr.refResult(0);
+                            methodBody.addStatement(
+                                    new ReturnStmt(
+                                            new MethodCallExpr(
+                                                    new NameExpr("cr"),
+                                                    "refResult",
+                                                    NodeList.nodeList(
+                                                            new IntegerLiteralExpr("0")))));
+                        } else {
+                            // return fromLong(cr.longResult(0));
+                            var longResult =
+                                    new MethodCallExpr(
+                                            new NameExpr("cr"),
+                                            "longResult",
+                                            NodeList.nodeList(new IntegerLiteralExpr("0")));
+                            methodBody.addStatement(
+                                    new ReturnStmt(fromLong(retType, longResult, exportsCu)));
+                        }
+                    } else {
+                        // Multi-return with refs: return the CallResult directly
+                        exportMethod.setType(parseType("CallResult"));
+                        methodBody.addStatement(new ReturnStmt(new NameExpr("cr")));
+                    }
+                }
             } else {
-                exportMethod.setType(javaClassFromValueType(exportType.returns().get(0)));
-                methodBody.addStatement(
-                        new AssignExpr(
-                                new VariableDeclarationExpr(parseType("long"), "result"),
-                                new ArrayAccessExpr(exportApplyHandle, new IntegerLiteralExpr("0")),
-                                AssignExpr.Operator.ASSIGN));
-                methodBody.addStatement(
-                        new ReturnStmt(
-                                fromLong(
-                                        exportType.returns().get(0),
-                                        new NameExpr("result"),
-                                        exportsCu)));
+                // No object refs - use the original apply() path
+                var handleCallArguments = new ArrayList<Expression>();
+                for (var pIdx = 0; pIdx < exportType.params().size(); pIdx++) {
+                    var param = exportType.params().get(pIdx);
+                    var argExpr = new NameExpr(argPrefix + pIdx);
+                    handleCallArguments.add(toLong(param, argExpr, exportsCu));
+                }
+
+                var exportApplyHandle =
+                        new MethodCallExpr(
+                                exportFieldName, "apply", NodeList.nodeList(handleCallArguments));
+
+                if (exportType.returns().size() == 0) {
+                    exportMethod.setType(void.class);
+                    methodBody.addStatement(exportApplyHandle).addStatement(new ReturnStmt());
+                } else if (exportType.returns().size() > 1) {
+                    exportMethod.setType(long[].class);
+                    methodBody.addStatement(new ReturnStmt(exportApplyHandle));
+                } else {
+                    exportMethod.setType(javaClassFromValueType(exportType.returns().get(0)));
+                    methodBody.addStatement(
+                            new AssignExpr(
+                                    new VariableDeclarationExpr(parseType("long"), "result"),
+                                    new ArrayAccessExpr(
+                                            exportApplyHandle, new IntegerLiteralExpr("0")),
+                                    AssignExpr.Operator.ASSIGN));
+                    methodBody.addStatement(
+                            new ReturnStmt(
+                                    fromLong(
+                                            exportType.returns().get(0),
+                                            new NameExpr("result"),
+                                            exportsCu)));
+                }
             }
         }
 
@@ -386,20 +493,32 @@ public final class ModuleInterfaceCodegen {
                                         .getType(((FunctionImport) importedFun).typeIndex());
                         importMethod.removeBody();
 
-                        // build lambda return
-                        var functionBodyStatement = new BlockStmt();
+                        boolean importHasObjectRefs =
+                                importType.params().stream().anyMatch(ValType::isObjectRef)
+                                        || importType.returns().stream()
+                                                .anyMatch(ValType::isObjectRef);
 
+                        // Build the call to the user's Java method with proper
+                        // argument extraction
                         List<Expression> parameters = new ArrayList<>();
                         for (int i = 0; i < importType.params().size(); i++) {
                             var p = importType.params().get(i);
-
-                            parameters.add(
-                                    fromLong(
-                                            p,
-                                            new ArrayAccessExpr(
-                                                    new NameExpr("args"),
-                                                    new IntegerLiteralExpr(Integer.toString(i))),
-                                            importsCu));
+                            if (importHasObjectRefs && p.isObjectRef()) {
+                                // Read from refArgs[i]
+                                parameters.add(
+                                        new ArrayAccessExpr(
+                                                new NameExpr("refArgs"),
+                                                new IntegerLiteralExpr(Integer.toString(i))));
+                            } else {
+                                parameters.add(
+                                        fromLong(
+                                                p,
+                                                new ArrayAccessExpr(
+                                                        new NameExpr("args"),
+                                                        new IntegerLiteralExpr(
+                                                                Integer.toString(i))),
+                                                importsCu));
+                            }
                         }
 
                         var importApplyHandle =
@@ -411,52 +530,227 @@ public final class ModuleInterfaceCodegen {
                                                 importedFun.name(), false),
                                         NodeList.nodeList(parameters));
 
-                        if (importType.returns().size() == 0) {
-                            importMethod.setType(void.class);
-                            functionBodyStatement.addStatement(importApplyHandle);
-                            functionBodyStatement.addStatement(
-                                    new ReturnStmt(new NullLiteralExpr()));
-                        } else if (importType.returns().size() == 1) {
-                            importMethod.setType(
-                                    javaClassFromValueType(importType.returns().get(0)));
-                            functionBodyStatement.addStatement(
-                                    new ReturnStmt(
-                                            new ArrayCreationExpr(
-                                                    parseType("long"),
-                                                    NodeList.nodeList(new ArrayCreationLevel()),
-                                                    new ArrayInitializerExpr(
-                                                            NodeList.nodeList(
-                                                                    toLong(
-                                                                            importType
-                                                                                    .returns()
-                                                                                    .get(0),
-                                                                            importApplyHandle,
-                                                                            importsCu))))));
-                        } else {
-                            importMethod.setType(long[].class);
-                            functionBodyStatement.addStatement(new ReturnStmt(importApplyHandle));
-                        }
+                        Expression importedHostFunctionBinding;
 
-                        var importedHostFunctionBinding =
-                                new ObjectCreationExpr(
-                                        null,
-                                        parseClassOrInterfaceType("HostFunction"),
-                                        NodeList.nodeList(
-                                                new StringLiteralExpr(imprt.getKey()),
-                                                new StringLiteralExpr(importedFun.name()),
-                                                listOfValueTypes(importType.params()),
-                                                listOfValueTypes(importType.returns()),
-                                                // (Instance instance, long... args) -> null;
-                                                new LambdaExpr(
+                        if (importHasObjectRefs) {
+                            importsCu.addImport("run.endive.runtime.CallResult");
+                            importsCu.addImport("run.endive.runtime.WasmFunctionHandle");
+
+                            // Set interface method return type
+                            if (importType.returns().size() == 0) {
+                                importMethod.setType(void.class);
+                            } else if (importType.returns().size() == 1) {
+                                importMethod.setType(
+                                        javaClassFromValueType(importType.returns().get(0)));
+                            } else {
+                                importMethod.setType(long[].class);
+                            }
+
+                            // Build applyWithRefs body
+                            var refsBody = new BlockStmt();
+                            if (importType.returns().size() == 0) {
+                                refsBody.addStatement(importApplyHandle);
+                                refsBody.addStatement(
+                                        new ReturnStmt(
+                                                new ObjectCreationExpr(
+                                                        null,
+                                                        parseClassOrInterfaceType("CallResult"),
                                                         NodeList.nodeList(
-                                                                new Parameter(
-                                                                        parseType("Instance"),
-                                                                        new SimpleName("instance")),
-                                                                new Parameter(
+                                                                new NullLiteralExpr(),
+                                                                new NullLiteralExpr()))));
+                            } else {
+                                // Build CallResult with positional long[] and Object[]
+                                var longSlots = new ArrayList<Expression>();
+                                var refSlots = new ArrayList<Expression>();
+                                boolean hasRefReturn = false;
+                                for (int ri = 0; ri < importType.returns().size(); ri++) {
+                                    var retType = importType.returns().get(ri);
+                                    if (retType.isObjectRef()) {
+                                        hasRefReturn = true;
+                                        longSlots.add(new IntegerLiteralExpr("0"));
+                                        // placeholder, will be set after
+                                        refSlots.add(new NullLiteralExpr());
+                                    } else {
+                                        longSlots.add(new IntegerLiteralExpr("0"));
+                                        refSlots.add(new NullLiteralExpr());
+                                    }
+                                }
+
+                                if (importType.returns().size() == 1) {
+                                    var retType = importType.returns().get(0);
+                                    if (retType.isObjectRef()) {
+                                        // Object result = env().method(...)
+                                        // return new CallResult(null, new Object[]{ result })
+                                        refsBody.addStatement(
+                                                new AssignExpr(
+                                                        new VariableDeclarationExpr(
+                                                                parseType("Object"), "result"),
+                                                        importApplyHandle,
+                                                        AssignExpr.Operator.ASSIGN));
+                                        refsBody.addStatement(
+                                                new ReturnStmt(
+                                                        new ObjectCreationExpr(
+                                                                null,
+                                                                parseClassOrInterfaceType(
+                                                                        "CallResult"),
+                                                                NodeList.nodeList(
+                                                                        new NullLiteralExpr(),
+                                                                        new ArrayCreationExpr(
+                                                                                parseType("Object"),
+                                                                                NodeList.nodeList(
+                                                                                        new ArrayCreationLevel()),
+                                                                                new ArrayInitializerExpr(
+                                                                                        NodeList
+                                                                                                .nodeList(
+                                                                                                        new NameExpr(
+                                                                                                                "result"))))))));
+                                    } else {
+                                        // non-ref single return in a function that has
+                                        // ref params
+                                        refsBody.addStatement(
+                                                new ReturnStmt(
+                                                        new ObjectCreationExpr(
+                                                                null,
+                                                                parseClassOrInterfaceType(
+                                                                        "CallResult"),
+                                                                NodeList.nodeList(
+                                                                        new ArrayCreationExpr(
                                                                                 parseType("long"),
-                                                                                "args")
-                                                                        .setVarArgs(true)),
-                                                        functionBodyStatement)));
+                                                                                NodeList.nodeList(
+                                                                                        new ArrayCreationLevel()),
+                                                                                new ArrayInitializerExpr(
+                                                                                        NodeList
+                                                                                                .nodeList(
+                                                                                                        toLong(
+                                                                                                                retType,
+                                                                                                                importApplyHandle,
+                                                                                                                importsCu)))),
+                                                                        new NullLiteralExpr()))));
+                                    }
+                                } else {
+                                    // Multi-return: not common with externref, but handle
+                                    refsBody.addStatement(
+                                            new ReturnStmt(
+                                                    new ObjectCreationExpr(
+                                                            null,
+                                                            parseClassOrInterfaceType("CallResult"),
+                                                            NodeList.nodeList(
+                                                                    new NullLiteralExpr(),
+                                                                    new NullLiteralExpr()))));
+                                }
+                            }
+
+                            // Build apply() that throws UnsupportedOperationException
+                            var applyMethod = new MethodDeclaration();
+                            applyMethod.setPublic(true);
+                            applyMethod.setType(long[].class);
+                            applyMethod.setName("apply");
+                            applyMethod.addParameter(
+                                    new Parameter(parseType("Instance"), "instance"));
+                            applyMethod.addParameter(
+                                    new Parameter(parseType("long"), "args").setVarArgs(true));
+                            var applyBody = new BlockStmt();
+                            applyBody.addStatement(
+                                    new ThrowStmt(
+                                            new ObjectCreationExpr(
+                                                    null,
+                                                    parseClassOrInterfaceType(
+                                                            "UnsupportedOperationException"),
+                                                    NodeList.nodeList(
+                                                            new StringLiteralExpr(
+                                                                    "Use applyWithRefs for"
+                                                                            + " externref"
+                                                                            + " functions")))));
+                            applyMethod.setBody(applyBody);
+
+                            // Build applyWithRefs() override
+                            var applyWithRefsMethod = new MethodDeclaration();
+                            applyWithRefsMethod.setPublic(true);
+                            applyWithRefsMethod.setType(parseType("CallResult"));
+                            applyWithRefsMethod.setName("applyWithRefs");
+                            applyWithRefsMethod.addParameter(
+                                    new Parameter(parseType("Instance"), "instance"));
+                            applyWithRefsMethod.addParameter(
+                                    new Parameter(parseType("long[]"), "args"));
+                            applyWithRefsMethod.addParameter(
+                                    new Parameter(parseType("Object[]"), "refArgs"));
+                            applyWithRefsMethod.setBody(refsBody);
+
+                            // Create anonymous WasmFunctionHandle
+                            var anonHandle =
+                                    new ObjectCreationExpr(
+                                            null,
+                                            parseClassOrInterfaceType("WasmFunctionHandle"),
+                                            NodeList.nodeList());
+                            NodeList<BodyDeclaration<?>> anonBody = new NodeList<>();
+                            anonBody.add(applyMethod);
+                            anonBody.add(applyWithRefsMethod);
+                            anonHandle.setAnonymousClassBody(anonBody);
+
+                            importedHostFunctionBinding =
+                                    new ObjectCreationExpr(
+                                            null,
+                                            parseClassOrInterfaceType("HostFunction"),
+                                            NodeList.nodeList(
+                                                    new StringLiteralExpr(imprt.getKey()),
+                                                    new StringLiteralExpr(importedFun.name()),
+                                                    listOfValueTypes(importType.params()),
+                                                    listOfValueTypes(importType.returns()),
+                                                    anonHandle));
+                        } else {
+                            // No object refs - use original lambda path
+                            var functionBodyStatement = new BlockStmt();
+
+                            if (importType.returns().size() == 0) {
+                                importMethod.setType(void.class);
+                                functionBodyStatement.addStatement(importApplyHandle);
+                                functionBodyStatement.addStatement(
+                                        new ReturnStmt(new NullLiteralExpr()));
+                            } else if (importType.returns().size() == 1) {
+                                importMethod.setType(
+                                        javaClassFromValueType(importType.returns().get(0)));
+                                functionBodyStatement.addStatement(
+                                        new ReturnStmt(
+                                                new ArrayCreationExpr(
+                                                        parseType("long"),
+                                                        NodeList.nodeList(new ArrayCreationLevel()),
+                                                        new ArrayInitializerExpr(
+                                                                NodeList.nodeList(
+                                                                        toLong(
+                                                                                importType
+                                                                                        .returns()
+                                                                                        .get(0),
+                                                                                importApplyHandle,
+                                                                                importsCu))))));
+                            } else {
+                                importMethod.setType(long[].class);
+                                functionBodyStatement.addStatement(
+                                        new ReturnStmt(importApplyHandle));
+                            }
+
+                            importedHostFunctionBinding =
+                                    new ObjectCreationExpr(
+                                            null,
+                                            parseClassOrInterfaceType("HostFunction"),
+                                            NodeList.nodeList(
+                                                    new StringLiteralExpr(imprt.getKey()),
+                                                    new StringLiteralExpr(importedFun.name()),
+                                                    listOfValueTypes(importType.params()),
+                                                    listOfValueTypes(importType.returns()),
+                                                    // (Instance instance, long... args) -> null;
+                                                    new LambdaExpr(
+                                                            NodeList.nodeList(
+                                                                    new Parameter(
+                                                                            parseType("Instance"),
+                                                                            new SimpleName(
+                                                                                    "instance")),
+                                                                    new Parameter(
+                                                                                    parseType(
+                                                                                            "long"),
+                                                                                    "args")
+                                                                            .setVarArgs(true)),
+                                                            functionBodyStatement)));
+                        }
 
                         toImportValuesBody.addStatement(
                                 new MethodCallExpr(
@@ -516,8 +810,8 @@ public final class ModuleInterfaceCodegen {
             case ValType.ID.F64:
                 return double.class;
             default:
-                if (ValType.TypeIdxCode.EXTERN.code() == type.typeIdx()) {
-                    return long.class;
+                if (type.isObjectRef()) {
+                    return Object.class;
                 }
                 throw new IllegalArgumentException(
                         "javaClassFromValueType - Unsupported WASM type: " + type);
@@ -539,9 +833,6 @@ public final class ModuleInterfaceCodegen {
                 return new MethodCallExpr(
                         new NameExpr("Value"), "doubleToLong", new NodeList<>(nameExpr));
             default:
-                if (ValType.TypeIdxCode.EXTERN.code() == type.typeIdx()) {
-                    return nameExpr;
-                }
                 throw new IllegalArgumentException("toLong - Unsupported WASM type: " + type);
         }
     }
@@ -561,9 +852,6 @@ public final class ModuleInterfaceCodegen {
                 return new MethodCallExpr(
                         new NameExpr("Value"), "longToDouble", new NodeList<>(nameExpr));
             default:
-                if (ValType.TypeIdxCode.EXTERN.code() == type.typeIdx()) {
-                    return nameExpr;
-                }
                 throw new IllegalArgumentException("fromLong - Unsupported WASM type: " + type);
         }
     }

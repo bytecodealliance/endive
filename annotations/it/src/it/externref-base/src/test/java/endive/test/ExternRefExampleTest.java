@@ -1,6 +1,7 @@
 package endive.test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.Test;
 import run.endive.annotations.WasmModuleInterface;
@@ -34,16 +35,13 @@ class ExternRefExampleTest {
 
         private Object sampleObj = null;
 
-        public long getHostObject() {
+        public Object getHostObject() {
             sampleObj = new Object();
-            return 123;
+            return sampleObj;
         }
 
-        public int isNull(long arg0) {
-            if (arg0 != 123) {
-                throw new RuntimeException("unrecognized external ref");
-            }
-            return (sampleObj == null) ? 1 : 0;
+        public int isNull(Object arg0) {
+            return (arg0 == null) ? 1 : 0;
         }
     }
 
@@ -51,11 +49,11 @@ class ExternRefExampleTest {
     public void testExternRef() {
         var module = new TestModule();
 
-        assertEquals(1, module.exports().isNull(123L));
+        assertEquals(1, module.exports().isNull(null));
 
         var hostObj = module.exports().getHostObject();
-        assertEquals(123, hostObj);
+        assertNotNull(hostObj);
 
-        assertEquals(0, module.exports().isNull(123L));
+        assertEquals(0, module.exports().isNull(hostObj));
     }
 }

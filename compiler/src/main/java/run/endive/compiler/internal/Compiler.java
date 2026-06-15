@@ -40,8 +40,10 @@ import static run.endive.compiler.internal.CompilerUtil.valueMethodType;
 import static run.endive.compiler.internal.EmitterMap.EMITTERS;
 import static run.endive.compiler.internal.ShadedRefs.AOT_INTERPRETER_MACHINE_CALL;
 import static run.endive.compiler.internal.ShadedRefs.CALL_HOST_FUNCTION;
+import static run.endive.compiler.internal.ShadedRefs.CALL_HOST_FUNCTION_WITH_REFS;
 import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT;
 import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_ON_INTERPRETER;
+import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_WITH_REFS;
 import static run.endive.compiler.internal.ShadedRefs.CHECK_INTERRUPTION;
 import static run.endive.compiler.internal.ShadedRefs.INSTANCE_MEMORY;
 import static run.endive.compiler.internal.ShadedRefs.INSTANCE_TABLE;
@@ -91,6 +93,7 @@ public final class Compiler {
     public static final String DEFAULT_CLASS_NAME = "run.endive.$gen.CompiledMachine";
     private static final Type LONG_ARRAY_TYPE = Type.getType(long[].class);
     private static final Type INT_ARRAY_TYPE = Type.getType(int[].class);
+    private static final String CALL_RESULT_INTERNAL_NAME = Type.getInternalName(CallResult.class);
     private static final Type AOT_INTERPRETER_MACHINE_TYPE =
             Type.getType(CompilerInterpreterMachine.class);
     private static final Type INSTANCE_TYPE = Type.getType(Instance.class);
@@ -625,13 +628,19 @@ public final class Compiler {
             if (!seenValueMethods.add(methodName)) {
                 continue;
             }
+            boolean hasGcRef = types.stream().anyMatch(ValType::isObjectRef);
             emitFunction(
                     classWriter,
                     methodName,
                     valueMethodType(types),
                     true,
                     asm -> {
-                        emitBoxArguments(asm, types);
+                        if (hasGcRef) {
+                            // Object[] return: box numerics as Long, keep refs as Object
+                            emitBoxArgumentsAsObjectArray(asm, types);
+                        } else {
+                            emitBoxArguments(asm, types);
+                        }
                         asm.areturn(OBJECT_TYPE);
                     });
         }
@@ -897,8 +906,13 @@ public final class Compiler {
                 getMethodDescriptor(getType(long[].class)),
                 false);
         asm.store(2, OBJECT_TYPE);
-        // Clear refArgs for tail calls (tail call args don't carry Object[] refArgs)
-        asm.aconst(null);
+        // Load refArgs from tail call pending
+        asm.load(instanceLocal, OBJECT_TYPE);
+        asm.invokevirtual(
+                getInternalName(Instance.class),
+                "tailCallRefArgs",
+                getMethodDescriptor(getType(Object[].class)),
+                false);
         asm.store(refArgsSlot, OBJECT_TYPE);
         asm.load(instanceLocal, OBJECT_TYPE);
         asm.invokevirtual(
@@ -1056,15 +1070,27 @@ public final class Compiler {
             asm.areturn(OBJECT_TYPE);
         }
 
-        // return instance.callHostFunction(funcId, args);
+        // return instance.callHostFunctionWithRefs(funcId, args, refArgs)
+        // We always use WithRefs here since the generic dispatch doesn't know
+        // at emit time whether the function type has Object refs.
+        // CallResult.longs() is returned to the Machine.call() caller.
         if (functionImports > start) {
             asm.mark(hostLabel);
-            asm.pop(); // pop refArgs
+            // stack: instance, memory, args, refArgs
+            asm.pop(); // pop refArgs -> save it
+            // Actually we need the args: instance, memory, args, refArgs are local 0-4
+            // Pop all stacked values (instance, memory, args, refArgs were loaded)
             asm.pop();
             asm.pop();
-            asm.load(2, INT_TYPE);
-            asm.load(3, OBJECT_TYPE);
-            emitInvokeStatic(asm, CALL_HOST_FUNCTION);
+            asm.pop();
+            // Use locals directly
+            asm.load(0, OBJECT_TYPE); // instance
+            asm.load(2, INT_TYPE); // funcId
+            asm.load(3, OBJECT_TYPE); // args
+            asm.load(4, OBJECT_TYPE); // refArgs
+            emitInvokeStatic(asm, CALL_HOST_FUNCTION_WITH_REFS);
+            // CallResult on stack, extract longs() for the long[] return
+            asm.invokevirtual(CALL_RESULT_INTERNAL_NAME, "longs", "()[J", false);
             asm.areturn(OBJECT_TYPE);
         }
 
@@ -1314,18 +1340,38 @@ public final class Compiler {
         // other: call function in another module
         asm.mark(other);
 
-        if (hasTooManyParameters(type)) {
-            asm.load(0, LONG_ARRAY_TYPE);
+        boolean hasObjectRefParams = type.params().stream().anyMatch(ValType::isObjectRef);
+        boolean hasObjectRefReturns = type.returns().stream().anyMatch(ValType::isObjectRef);
+
+        if (hasObjectRefParams || hasObjectRefReturns) {
+            if (hasTooManyParameters(type)) {
+                asm.load(0, LONG_ARRAY_TYPE);
+                asm.aconst(null); // Object[] refArgs
+            } else {
+                emitBoxArgumentsWithRefs(asm, type.params());
+                // stack: long[], Object[]
+            }
+            asm.iconst(typeId);
+            asm.load(funcId, INT_TYPE);
+            asm.load(refInstance, OBJECT_TYPE);
+
+            emitInvokeStatic(asm, CALL_INDIRECT_WITH_REFS);
+            // returns CallResult
+            emitUnboxCallResult(type, asm);
         } else {
-            emitBoxArguments(asm, type.params());
+            if (hasTooManyParameters(type)) {
+                asm.load(0, LONG_ARRAY_TYPE);
+            } else {
+                emitBoxArguments(asm, type.params());
+            }
+            asm.iconst(typeId);
+            asm.load(funcId, INT_TYPE);
+            asm.load(refInstance, OBJECT_TYPE);
+
+            emitInvokeStatic(asm, CALL_INDIRECT);
+
+            emitUnboxResult(type, asm);
         }
-        asm.iconst(typeId);
-        asm.load(funcId, INT_TYPE);
-        asm.load(refInstance, OBJECT_TYPE);
-
-        emitInvokeStatic(asm, CALL_INDIRECT);
-
-        emitUnboxResult(type, asm);
     }
 
     private void compileCallIndirectApply(
@@ -1391,19 +1437,26 @@ public final class Compiler {
     private static void compileHostFunction(int funcId, FunctionType type, InstructionAdapter asm) {
 
         int slot = type.params().stream().mapToInt(CompilerUtil::slotCount).sum();
+        boolean hasObjectRefParams = type.params().stream().anyMatch(ValType::isObjectRef);
+        boolean hasObjectRefReturns = type.returns().stream().anyMatch(ValType::isObjectRef);
 
-        asm.load(slot + 1, OBJECT_TYPE); // instance
-        asm.iconst(funcId);
-        emitBoxArguments(asm, type.params());
-
-        emitInvokeStatic(asm, CALL_HOST_FUNCTION);
-
-        emitUnboxResult(type, asm);
+        if (hasObjectRefParams || hasObjectRefReturns) {
+            asm.load(slot + 1, OBJECT_TYPE); // instance
+            asm.iconst(funcId);
+            emitBoxArgumentsWithRefs(asm, type.params());
+            // stack: instance, funcId, long[], Object[]
+            emitInvokeStatic(asm, CALL_HOST_FUNCTION_WITH_REFS);
+            // returns CallResult
+            emitUnboxCallResult(type, asm);
+        } else {
+            asm.load(slot + 1, OBJECT_TYPE); // instance
+            asm.iconst(funcId);
+            emitBoxArguments(asm, type.params());
+            emitInvokeStatic(asm, CALL_HOST_FUNCTION);
+            emitUnboxResult(type, asm);
+        }
     }
 
-    // KNOWN LIMITATION (Bug 6): Object ref arguments are discarded when boxing into long[]
-    // for the cross-module/host call path. The proper fix requires a parallel Object[] for
-    // ref arguments in the host function call path.
     private static void emitBoxArguments(InstructionAdapter asm, List<ValType> types) {
         int slot = 0;
         asm.iconst(types.size());
@@ -1424,6 +1477,79 @@ public final class Compiler {
         }
     }
 
+    /**
+     * Boxes JVM locals into a single Object[] array.
+     * Numeric values are boxed as Long, Object refs stay as Object.
+     * Used for multi-value returns (value_xxx methods) when any return is a GC ref.
+     */
+    private static void emitBoxArgumentsAsObjectArray(InstructionAdapter asm, List<ValType> types) {
+        int slot = 0;
+        asm.iconst(types.size());
+        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+        for (int i = 0; i < types.size(); i++) {
+            asm.dup();
+            asm.iconst(i);
+            ValType valType = types.get(i);
+            asm.load(slot, asmType(valType));
+            if (valType.isObjectRef()) {
+                // Object ref: already on stack as Object
+            } else {
+                // Numeric: convert to long then box into Long
+                emitJvmToLong(asm, valType);
+                asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+            }
+            asm.astore(OBJECT_TYPE);
+            slot += slotCount(valType);
+        }
+    }
+
+    /**
+     * Boxes JVM locals into dual long[] + Object[] arrays.
+     * After this method, the stack has: [..., long[], Object[]]
+     * If no values are Object refs, Object[] will be null (zero overhead).
+     */
+    private static void emitBoxArgumentsWithRefs(InstructionAdapter asm, List<ValType> types) {
+        boolean hasObjectRefs = types.stream().anyMatch(ValType::isObjectRef);
+
+        // Build long[]
+        int slot = 0;
+        asm.iconst(types.size());
+        asm.newarray(LONG_TYPE);
+        for (int i = 0; i < types.size(); i++) {
+            asm.dup();
+            asm.iconst(i);
+            ValType valType = types.get(i);
+            asm.load(slot, asmType(valType));
+            if (valType.isObjectRef()) {
+                asm.visitInsn(Opcodes.POP);
+                asm.lconst(0L);
+            } else {
+                emitJvmToLong(asm, valType);
+            }
+            asm.astore(LONG_TYPE);
+            slot += slotCount(valType);
+        }
+
+        // Build Object[] (or push null)
+        if (hasObjectRefs) {
+            asm.iconst(types.size());
+            asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+            slot = 0;
+            for (int i = 0; i < types.size(); i++) {
+                ValType valType = types.get(i);
+                if (valType.isObjectRef()) {
+                    asm.dup();
+                    asm.iconst(i);
+                    asm.load(slot, asmType(valType));
+                    asm.astore(OBJECT_TYPE);
+                }
+                slot += slotCount(valType);
+            }
+        } else {
+            asm.aconst(null);
+        }
+    }
+
     private static void emitUnboxResult(FunctionType type, InstructionAdapter asm) {
         Class<?> returnType = jvmReturnType(type);
         if (returnType == void.class) {
@@ -1431,10 +1557,9 @@ public final class Compiler {
         } else if (returnType == long[].class || returnType == Object[].class) {
             asm.areturn(OBJECT_TYPE);
         } else if (returnType == Object.class) {
-            // KNOWN LIMITATION (Bug 4): Cross-module GC ref returns are not supported.
-            // Machine.call returns long[], but the Object result is lost in the cross-module
-            // path. The proper fix requires callWithRefs for cross-module calls.
-            // For now, discard the result and return null.
+            // Single Object return from cross-module call that returns long[]
+            // The Object result is in the long[] as 0, can't extract it
+            // Callers with Object refs should use emitUnboxCallResult instead
             asm.iconst(0);
             asm.aload(LONG_TYPE);
             asm.visitInsn(Opcodes.L2I);
@@ -1445,6 +1570,63 @@ public final class Compiler {
             // unbox the result from long[0]
             asm.iconst(0);
             asm.aload(LONG_TYPE);
+            emitLongToJvm(asm, type.returns().get(0));
+            asm.areturn(getType(returnType));
+        }
+    }
+
+    /**
+     * Unboxes a CallResult into the proper JVM return value.
+     * Used for cross-module/host calls that go through callWithRefs / callHostFunctionWithRefs.
+     * The CallResult has .longs() for numerics and .refs() for Object refs.
+     */
+    private static void emitUnboxCallResult(FunctionType type, InstructionAdapter asm) {
+        Class<?> returnType = jvmReturnType(type);
+        if (returnType == void.class) {
+            asm.pop(); // discard CallResult
+            asm.areturn(VOID_TYPE);
+        } else if (returnType == Object.class) {
+            // Single Object return: extract from CallResult.refResult(0)
+            asm.iconst(0);
+            asm.invokevirtual(
+                    CALL_RESULT_INTERNAL_NAME, "refResult", "(I)Ljava/lang/Object;", false);
+            asm.areturn(OBJECT_TYPE);
+        } else if (returnType == long[].class) {
+            // Multi-value, no Object refs: extract longs()
+            asm.invokevirtual(CALL_RESULT_INTERNAL_NAME, "longs", "()[J", false);
+            asm.areturn(OBJECT_TYPE);
+        } else if (returnType == Object[].class) {
+            // Multi-value with Object refs: build Object[] from CallResult
+            // store CallResult in a temp
+            int crSlot = type.params().stream().mapToInt(CompilerUtil::slotCount).sum() + 2;
+            asm.store(crSlot, OBJECT_TYPE);
+
+            asm.iconst(type.returns().size());
+            asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+
+            for (int i = 0; i < type.returns().size(); i++) {
+                asm.dup();
+                asm.iconst(i);
+                ValType retType = type.returns().get(i);
+                if (retType.isObjectRef()) {
+                    asm.load(crSlot, OBJECT_TYPE);
+                    asm.iconst(i);
+                    asm.invokevirtual(
+                            CALL_RESULT_INTERNAL_NAME, "refResult", "(I)Ljava/lang/Object;", false);
+                } else {
+                    asm.load(crSlot, OBJECT_TYPE);
+                    asm.iconst(i);
+                    asm.invokevirtual(CALL_RESULT_INTERNAL_NAME, "longResult", "(I)J", false);
+                    // box long into Long for Object[]
+                    asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+                }
+                asm.astore(OBJECT_TYPE);
+            }
+            asm.areturn(OBJECT_TYPE);
+        } else {
+            // Single numeric return: extract from CallResult.longResult(0)
+            asm.iconst(0);
+            asm.invokevirtual(CALL_RESULT_INTERNAL_NAME, "longResult", "(I)J", false);
             emitLongToJvm(asm, type.returns().get(0));
             asm.areturn(getType(returnType));
         }

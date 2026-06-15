@@ -4,6 +4,7 @@ import static run.endive.runtime.MemCopyWorkaround.shouldUseMemWorkaround;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
 import java.util.Arrays;
+import run.endive.runtime.CallResult;
 import run.endive.runtime.ConstantEvaluators;
 import run.endive.runtime.Instance;
 import run.endive.runtime.MemCopyWorkaround;
@@ -42,13 +43,35 @@ public final class Shaded {
         return instance.getMachine().call(funcId, args);
     }
 
+    public static CallResult callIndirectWithRefs(
+            long[] args, Object[] refArgs, int typeId, int funcId, Instance instance) {
+        int actualTypeIdx = instance.functionType(funcId);
+        if (actualTypeIdx != typeId
+                && !ValType.heapTypeSubtype(
+                        actualTypeIdx, typeId, instance.module().typeSection())) {
+            throw throwIndirectCallTypeMismatch();
+        }
+        return instance.getMachine().callWithRefs(funcId, args, refArgs);
+    }
+
     public static long[] callHostFunction(Instance instance, int funcId, long[] args) {
         var imprt = instance.imports().function(funcId);
         return imprt.handle().apply(instance, args);
     }
 
+    public static CallResult callHostFunctionWithRefs(
+            Instance instance, int funcId, long[] args, Object[] refArgs) {
+        var imprt = instance.imports().function(funcId);
+        return imprt.handle().applyWithRefs(instance, args, refArgs);
+    }
+
     public static void setTailCall(int funcId, long[] args, Instance instance) {
         instance.setTailCall(funcId, args);
+    }
+
+    public static void setTailCallWithRefs(
+            int funcId, long[] args, Object[] refArgs, Instance instance) {
+        instance.setTailCall(funcId, args, refArgs);
     }
 
     public static void setTailCallIndirect(
@@ -69,6 +92,29 @@ public final class Shaded {
         instance.setTailCall(funcId, args);
     }
 
+    public static void setTailCallIndirectWithRefs(
+            long[] args,
+            Object[] refArgs,
+            int funcTableIdx,
+            int typeId,
+            int tableIdx,
+            Instance instance) {
+        TableInstance table = instance.table(tableIdx);
+        int funcId = table.requiredRef(funcTableIdx);
+        Instance refInstance = table.instance(funcTableIdx);
+        if (refInstance != null && refInstance != instance) {
+            throw new WasmEngineException(
+                    "Indirect tail-call to a different Machine implementation is not supported");
+        }
+        int actualTypeIdx = instance.functionType(funcId);
+        if (actualTypeIdx != typeId
+                && !ValType.heapTypeSubtype(
+                        actualTypeIdx, typeId, instance.module().typeSection())) {
+            throw throwIndirectCallTypeMismatch();
+        }
+        instance.setTailCall(funcId, args, refArgs);
+    }
+
     public static boolean isTailCallPending(Instance instance) {
         return instance.isTailCallPending();
     }
@@ -78,6 +124,14 @@ public final class Shaded {
         long[] args = instance.tailCallArgs();
         instance.clearTailCall();
         return instance.getMachine().call(funcId, args);
+    }
+
+    public static CallResult resolveTailCallWithRefs(Instance instance) {
+        int funcId = instance.tailCallFuncId();
+        long[] args = instance.tailCallArgs();
+        Object[] refArgs = instance.tailCallRefArgs();
+        instance.clearTailCall();
+        return instance.getMachine().callWithRefs(funcId, args, refArgs);
     }
 
     public static boolean isRefNull(int ref) {

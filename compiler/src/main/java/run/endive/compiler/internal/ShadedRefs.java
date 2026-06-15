@@ -144,9 +144,16 @@ public final class ShadedRefs {
 
     // Tail calls
     static final Method SET_TAIL_CALL;
+    static final Method SET_TAIL_CALL_WITH_REFS;
     static final Method SET_TAIL_CALL_INDIRECT;
+    static final Method SET_TAIL_CALL_INDIRECT_WITH_REFS;
     static final Method IS_TAIL_CALL_PENDING;
     static final Method RESOLVE_TAIL_CALL;
+    static final Method RESOLVE_TAIL_CALL_WITH_REFS;
+
+    // WithRefs overloads for cross-module/host calls
+    static final Method CALL_HOST_FUNCTION_WITH_REFS;
+    static final Method CALL_INDIRECT_WITH_REFS;
 
     // GC
     static final Method STRUCT_NEW;
@@ -774,6 +781,13 @@ public final class ShadedRefs {
             // Tail calls
             SET_TAIL_CALL =
                     Shaded.class.getMethod("setTailCall", int.class, long[].class, Instance.class);
+            SET_TAIL_CALL_WITH_REFS =
+                    Shaded.class.getMethod(
+                            "setTailCallWithRefs",
+                            int.class,
+                            long[].class,
+                            Object[].class,
+                            Instance.class);
             SET_TAIL_CALL_INDIRECT =
                     Shaded.class.getMethod(
                             "setTailCallIndirect",
@@ -782,8 +796,36 @@ public final class ShadedRefs {
                             int.class,
                             int.class,
                             Instance.class);
+            SET_TAIL_CALL_INDIRECT_WITH_REFS =
+                    Shaded.class.getMethod(
+                            "setTailCallIndirectWithRefs",
+                            long[].class,
+                            Object[].class,
+                            int.class,
+                            int.class,
+                            int.class,
+                            Instance.class);
             IS_TAIL_CALL_PENDING = Shaded.class.getMethod("isTailCallPending", Instance.class);
             RESOLVE_TAIL_CALL = Shaded.class.getMethod("resolveTailCall", Instance.class);
+            RESOLVE_TAIL_CALL_WITH_REFS =
+                    Shaded.class.getMethod("resolveTailCallWithRefs", Instance.class);
+
+            // WithRefs overloads for cross-module/host calls
+            CALL_HOST_FUNCTION_WITH_REFS =
+                    Shaded.class.getMethod(
+                            "callHostFunctionWithRefs",
+                            Instance.class,
+                            int.class,
+                            long[].class,
+                            Object[].class);
+            CALL_INDIRECT_WITH_REFS =
+                    Shaded.class.getMethod(
+                            "callIndirectWithRefs",
+                            long[].class,
+                            Object[].class,
+                            int.class,
+                            int.class,
+                            Instance.class);
 
             // GC
             STRUCT_NEW =

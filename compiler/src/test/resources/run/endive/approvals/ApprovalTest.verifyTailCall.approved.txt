@@ -46,7 +46,8 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
     ALOAD 4
     INVOKEVIRTUAL run/endive/runtime/Instance.tailCallArgs ()[J
     ASTORE 2
-    ACONST_NULL
+    ALOAD 4
+    INVOKEVIRTUAL run/endive/runtime/Instance.tailCallRefArgs ()[Ljava/lang/Object;
     ASTORE 3
     ALOAD 4
     INVOKEVIRTUAL run/endive/runtime/Instance.clearTailCall ()V
@@ -81,7 +82,8 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
     ALOAD 4
     INVOKEVIRTUAL run/endive/runtime/Instance.tailCallArgs ()[J
     ASTORE 2
-    ACONST_NULL
+    ALOAD 4
+    INVOKEVIRTUAL run/endive/runtime/Instance.tailCallRefArgs ()[Ljava/lang/Object;
     ASTORE 3
     ALOAD 4
     INVOKEVIRTUAL run/endive/runtime/Instance.clearTailCall ()V

@@ -260,9 +260,13 @@ final class run/endive/$gen/CompiledMachineMachineCall {
     POP
     POP
     POP
+    POP
+    ALOAD 0
     ILOAD 2
     ALOAD 3
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callHostFunction (Lrun/endive/runtime/Instance;I[J)[J
+    ALOAD 4
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callHostFunctionWithRefs (Lrun/endive/runtime/Instance;I[J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
+    INVOKEVIRTUAL run/endive/runtime/CallResult.longs ()[J
     ARETURN
    L2
     ILOAD 2

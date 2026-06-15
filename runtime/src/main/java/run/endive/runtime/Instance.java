@@ -79,10 +79,18 @@ public class Instance {
     static final class TailCallPending {
         final int funcId;
         final long[] args;
+        final Object[] refArgs;
 
         TailCallPending(int funcId, long[] args) {
             this.funcId = funcId;
             this.args = args;
+            this.refArgs = null;
+        }
+
+        TailCallPending(int funcId, long[] args, Object[] refArgs) {
+            this.funcId = funcId;
+            this.args = args;
+            this.refArgs = refArgs;
         }
     }
 
@@ -551,8 +559,16 @@ public class Instance {
         return tailCallPending.args;
     }
 
+    public Object[] tailCallRefArgs() {
+        return tailCallPending.refArgs;
+    }
+
     public void setTailCall(int funcId, long[] args) {
         this.tailCallPending = new TailCallPending(funcId, args);
+    }
+
+    public void setTailCall(int funcId, long[] args, Object[] refArgs) {
+        this.tailCallPending = new TailCallPending(funcId, args, refArgs);
     }
 
     public void clearTailCall() {

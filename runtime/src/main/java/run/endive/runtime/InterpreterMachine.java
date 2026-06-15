@@ -1880,26 +1880,27 @@ public class InterpreterMachine implements Machine {
     }
 
     private static void REF_IS_NULL(MStack stack) {
-        Object refObj = stack.peekRef();
-        if (refObj != null) {
-            // Non-null Object ref (GC or externref)
-            stack.popRef();
-            stack.push(Value.FALSE);
+        if (stack.topIsRef()) {
+            // GC ref position — check if the ref itself is null
+            Object refObj = stack.popRef();
+            stack.push(refObj == null ? Value.TRUE : Value.FALSE);
         } else {
-            // Either null Object ref or long-typed ref (funcref) — both use REF_NULL_VALUE on long
-            // side
+            // Non-GC ref (funcref) — check the long side
             var val = stack.pop();
             stack.push(((val == REF_NULL_VALUE) ? Value.TRUE : Value.FALSE));
         }
     }
 
     private static void REF_AS_NON_NULL(MStack stack) {
-        Object refObj = stack.peekRef();
-        if (refObj != null) {
-            // Non-null Object ref — leave it
-            stack.popRef();
+        if (stack.topIsRef()) {
+            // GC ref position — check if the ref itself is null
+            Object refObj = stack.popRef();
+            if (refObj == null) {
+                throw new TrapException("Trapped on ref_as_non_null on null reference");
+            }
             stack.pushRef(refObj);
         } else {
+            // Non-GC ref (funcref) — check the long side
             var val = stack.pop();
             if (val == REF_NULL_VALUE) {
                 throw new TrapException("Trapped on ref_as_non_null on null reference");
@@ -1953,7 +1954,7 @@ public class InterpreterMachine implements Machine {
         if (isObjRefTable) {
             var refVal = stack.popRef();
             var offset = (int) stack.pop();
-            if (offset + size > table.size()) {
+            if ((long) offset + (long) size > table.size()) {
                 throw new TrapException("out of bounds table access");
             }
             for (int i = 0; i < size; i++) {
@@ -3265,13 +3266,18 @@ public class InterpreterMachine implements Machine {
 
     private static void BR_ON_NULL(
             StackFrame frame, MStack stack, AnnotatedInstruction instruction) {
-        Object refObj = stack.peekRef();
-        if (refObj != null) {
-            // Non-null GC ref — pop the ref side, keep it
-            stack.popRef();
-            stack.pushRef(refObj);
+        if (stack.topIsRef()) {
+            // GC ref position — check if the ref itself is null
+            Object refObj = stack.popRef();
+            if (refObj == null) {
+                // null GC ref — branch
+                BR(frame, stack, instruction);
+            } else {
+                // non-null GC ref — keep it and fall through
+                stack.pushRef(refObj);
+            }
         } else {
-            // Non-GC ref or null GC ref — check the long side
+            // Non-GC ref (funcref/externref) — check the long side
             var val = stack.pop();
             if (val == REF_NULL_VALUE) {
                 BR(frame, stack, instruction);
@@ -3283,13 +3289,17 @@ public class InterpreterMachine implements Machine {
 
     private static void BR_ON_NON_NULL(
             StackFrame frame, MStack stack, AnnotatedInstruction instruction) {
-        Object refObj = stack.peekRef();
-        if (refObj != null) {
-            // Non-null GC ref — pop and branch with it
-            stack.popRef();
-            stack.pushRef(refObj);
-            BR(frame, stack, instruction);
+        if (stack.topIsRef()) {
+            // GC ref position — check if the ref itself is null
+            Object refObj = stack.popRef();
+            if (refObj != null) {
+                // non-null GC ref — push it back and branch
+                stack.pushRef(refObj);
+                BR(frame, stack, instruction);
+            }
+            // null GC ref — drop it and fall through
         } else {
+            // Non-GC ref (funcref/externref) — check the long side
             var val = stack.pop();
             if (val != REF_NULL_VALUE) {
                 stack.push(val);
@@ -3859,11 +3869,23 @@ public class InterpreterMachine implements Machine {
 
     private static void pushExceptionArgs(WasmException exception, MStack stack) {
         var refArgs = exception.refArgs();
-        for (int i = 0; i < exception.args().length; i++) {
-            if (refArgs != null && refArgs[i] != null) {
-                stack.pushRef(refArgs[i]);
+        var tag = exception.instance().tag(exception.tagIdx());
+        var tagType = exception.instance().type(tag.tagType().typeIdx());
+        var params = tagType.params();
+        int slot = 0;
+        for (int i = 0; i < params.size(); i++) {
+            var p = params.get(i);
+            if (p.isObjectRef()) {
+                // This position is a ref (even if the value is null)
+                stack.pushRef(refArgs != null && slot < refArgs.length ? refArgs[slot] : null);
+                slot++;
+            } else if (p.equals(ValType.V128)) {
+                stack.push(exception.args()[slot]);
+                stack.push(exception.args()[slot + 1]);
+                slot += 2;
             } else {
-                stack.push(exception.args()[i]);
+                stack.push(exception.args()[slot]);
+                slot++;
             }
         }
     }

@@ -5,6 +5,10 @@ import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 public class MStack {
     public static final int MIN_CAPACITY = 8;
 
+    // Sentinel to distinguish "null GC ref" from "no ref at this position" in refs[].
+    // Package-private: used by MStack and StackFrame.
+    static final Object NULL_REF = new Object();
+
     private int count;
     private long[] elements;
     private Object[] refs;
@@ -53,7 +57,7 @@ public class MStack {
             refs = new Object[elements.length];
         }
         elements[count] = (ref == null) ? REF_NULL_VALUE : 0;
-        refs[count] = ref;
+        refs[count] = (ref == null) ? NULL_REF : ref;
         count++;
 
         if (count == elements.length) {
@@ -73,7 +77,7 @@ public class MStack {
         }
         Object ref = refs[count];
         refs[count] = null;
-        return ref;
+        return (ref == NULL_REF) ? null : ref;
     }
 
     public long peek() {
@@ -84,7 +88,16 @@ public class MStack {
         if (refs == null) {
             return null;
         }
-        return refs[count - 1];
+        Object ref = refs[count - 1];
+        return (ref == NULL_REF) ? null : ref;
+    }
+
+    /**
+     * Returns true if the top-of-stack position holds a ref (including null GC refs).
+     * Unlike peekRef(), this distinguishes "null GC ref" from "no ref at this position".
+     */
+    public boolean topIsRef() {
+        return refs != null && refs[count - 1] != null;
     }
 
     public int size() {

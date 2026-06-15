@@ -254,7 +254,8 @@ public class StackFrame {
             long value = returns[idx];
             Object ref = returnRefs[idx];
             if (ref != null) {
-                stack.pushRef(ref);
+                // Was a ref (real Object or NULL_REF sentinel for null GC ref)
+                stack.pushRef(ref == MStack.NULL_REF ? null : ref);
             } else {
                 stack.push(value);
             }

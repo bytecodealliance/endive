@@ -129,7 +129,7 @@ public final class Shaded {
     public static void tableFillRef(
             int offset, Object value, int size, int tableIndex, Instance instance) {
         var table = instance.table(tableIndex);
-        if (offset + size > table.size()) {
+        if ((long) offset + (long) size > table.size()) {
             throw new TrapException("out of bounds table access");
         }
         for (int i = 0; i < size; i++) {

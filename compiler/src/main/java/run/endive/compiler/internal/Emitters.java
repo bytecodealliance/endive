@@ -1268,6 +1268,9 @@ final class Emitters {
         emitUnboxResult(asm, types, ctx.tempSlot());
     }
 
+    // KNOWN LIMITATION (Bug 5): When the return type is Object[] (multi-value with GC refs),
+    // this method uses LALOAD which is incorrect for Object[]. The proper fix requires
+    // per-element AALOAD for ref positions and LALOAD for numeric positions.
     private static void emitUnboxResult(InstructionAdapter asm, List<ValType> types, int tempSlot) {
         asm.store(tempSlot, OBJECT_TYPE);
         for (int i = 0; i < types.size(); i++) {

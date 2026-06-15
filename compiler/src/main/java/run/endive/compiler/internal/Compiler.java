@@ -1087,10 +1087,19 @@ public final class Compiler {
             for (int i = 0; i < type.params().size(); i++) {
                 var param = type.params().get(i);
                 if (param.isObjectRef()) {
-                    // GC ref args: load from Object[] refArgs
+                    // GC ref args: load from Object[] refArgs (null-safe)
                     asm.load(3, OBJECT_TYPE); // refArgs
+                    Label hasRefArgs = new Label();
+                    Label refDone = new Label();
+                    asm.dup();
+                    asm.ifnonnull(hasRefArgs);
+                    asm.pop();
+                    asm.aconst(null); // default null for missing refArgs
+                    asm.goTo(refDone);
+                    asm.mark(hasRefArgs);
                     asm.iconst(i);
                     asm.aload(OBJECT_TYPE);
+                    asm.mark(refDone);
                 } else {
                     asm.load(2, OBJECT_TYPE);
                     asm.iconst(i);
@@ -1392,6 +1401,9 @@ public final class Compiler {
         emitUnboxResult(type, asm);
     }
 
+    // KNOWN LIMITATION (Bug 6): Object ref arguments are discarded when boxing into long[]
+    // for the cross-module/host call path. The proper fix requires a parallel Object[] for
+    // ref arguments in the host function call path.
     private static void emitBoxArguments(InstructionAdapter asm, List<ValType> types) {
         int slot = 0;
         asm.iconst(types.size());
@@ -1419,18 +1431,13 @@ public final class Compiler {
         } else if (returnType == long[].class || returnType == Object[].class) {
             asm.areturn(OBJECT_TYPE);
         } else if (returnType == Object.class) {
-            // GC ref return from Machine.call which returns long[].
-            // The long[0] contains a GcRefStore ID. Resolve it via Instance.gcRef.
-            // Stack: [..., long[]]
+            // KNOWN LIMITATION (Bug 4): Cross-module GC ref returns are not supported.
+            // Machine.call returns long[], but the Object result is lost in the cross-module
+            // path. The proper fix requires callWithRefs for cross-module calls.
+            // For now, discard the result and return null.
             asm.iconst(0);
             asm.aload(LONG_TYPE);
             asm.visitInsn(Opcodes.L2I);
-            // Stack: [..., int gcRefId]
-            // We don't have Instance on the stack here, but it's available via the
-            // refInstance local in compileCallIndirect. Pop the ID for now.
-            // Actually, for the "other module" path, the result should stay as long[]
-            // since the other module doesn't use our GcRefStore. Just drop and return null.
-            // Cross-module GC refs are not yet supported.
             asm.visitInsn(Opcodes.POP);
             asm.aconst(null);
             asm.areturn(OBJECT_TYPE);

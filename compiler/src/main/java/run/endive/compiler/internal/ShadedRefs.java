@@ -13,6 +13,7 @@ public final class ShadedRefs {
     static final Method CHECK_INTERRUPTION;
     static final Method CALL_INDIRECT;
     static final Method CALL_INDIRECT_ON_INTERPRETER;
+    static final Method CALL_INDIRECT_ON_INTERPRETER_WITH_REFS;
     static final Method INSTANCE_MEMORY;
     static final Method INSTANCE_MEMORY_IDX;
     static final Method CALL_HOST_FUNCTION;
@@ -210,6 +211,13 @@ public final class ShadedRefs {
                             "callIndirect", long[].class, int.class, int.class, Instance.class);
             CALL_INDIRECT_ON_INTERPRETER =
                     Shaded.class.getMethod("callIndirect", long[].class, int.class, Instance.class);
+            CALL_INDIRECT_ON_INTERPRETER_WITH_REFS =
+                    Shaded.class.getMethod(
+                            "callIndirectOnInterpreterWithRefs",
+                            long[].class,
+                            Object[].class,
+                            int.class,
+                            Instance.class);
             INSTANCE_MEMORY = Instance.class.getMethod("memory");
             INSTANCE_MEMORY_IDX = Instance.class.getMethod("memory", int.class);
             CALL_HOST_FUNCTION =

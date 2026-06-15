@@ -12,8 +12,8 @@ public interface WasmFunctionHandle {
      * Override this method for host functions that need to receive/return
      * externref or GC reference values as Objects.
      *
-     * <p>The default implementation delegates to {@link #apply(Instance, long...)}
-     * which discards Object refs but preserves backward compatibility.
+     * <p>The default delegates to {@link #apply(Instance, long...)} which discards
+     * Object refs; override to handle them.
      */
     default CallResult applyWithRefs(Instance instance, long[] args, Object[] refArgs) {
         return new CallResult(apply(instance, args), null);

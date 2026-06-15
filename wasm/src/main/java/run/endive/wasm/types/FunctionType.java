@@ -20,6 +20,14 @@ public final class FunctionType {
         return returns;
     }
 
+    public boolean hasObjectRefParams() {
+        return params.stream().anyMatch(ValType::isObjectRef);
+    }
+
+    public boolean hasObjectRefReturns() {
+        return returns.stream().anyMatch(ValType::isObjectRef);
+    }
+
     public boolean paramsMatch(FunctionType other) {
         return params.equals(other.params);
     }

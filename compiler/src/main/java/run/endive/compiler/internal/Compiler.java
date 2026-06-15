@@ -43,6 +43,7 @@ import static run.endive.compiler.internal.ShadedRefs.CALL_HOST_FUNCTION;
 import static run.endive.compiler.internal.ShadedRefs.CALL_HOST_FUNCTION_WITH_REFS;
 import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT;
 import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_ON_INTERPRETER;
+import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_ON_INTERPRETER_WITH_REFS;
 import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_WITH_REFS;
 import static run.endive.compiler.internal.ShadedRefs.CHECK_INTERRUPTION;
 import static run.endive.compiler.internal.ShadedRefs.INSTANCE_MEMORY;
@@ -139,6 +140,7 @@ public final class Compiler {
     private final boolean[] tailCallFunctions;
     private final boolean[] tailCallTypes;
     private final boolean moduleHasTailCalls;
+    private final boolean moduleHasObjectRefs;
     private boolean useBridgeClasses;
     private IntFunction<String> callIndirectClassResolver;
 
@@ -176,6 +178,9 @@ public final class Compiler {
         this.tailCallFunctions = analyzer.tailCallFunctions();
         this.tailCallTypes = analyzer.tailCallTypes();
         this.moduleHasTailCalls = analyzer.hasTailCalls();
+        this.moduleHasObjectRefs =
+                this.functionTypes.stream()
+                        .anyMatch(ft -> ft.hasObjectRefParams() || ft.hasObjectRefReturns());
         this.maxFunctionsPerClass = maxFunctionsPerClass;
     }
 
@@ -579,6 +584,37 @@ public final class Compiler {
                             internalClassName,
                             "compilerInterpreterMachine",
                             getDescriptor(CompilerInterpreterMachine.class));
+                    // null check: if compilerInterpreterMachine is null,
+                    // fall back to wrapping call() result in CallResult
+                    asm.dup();
+                    Label hasField = new Label();
+                    asm.ifnonnull(hasField);
+                    asm.pop(); // pop the null
+                    // return new CallResult(this.call(funcId, args, refArgs), null)
+                    asm.anew(Type.getType(CallResult.class));
+                    asm.dup();
+                    asm.load(0, OBJECT_TYPE);
+                    asm.load(1, INT_TYPE);
+                    asm.load(2, OBJECT_TYPE);
+                    asm.load(3, OBJECT_TYPE);
+                    asm.invokevirtual(
+                            internalClassName,
+                            "call",
+                            Type.getMethodDescriptor(
+                                    LONG_ARRAY_TYPE,
+                                    INT_TYPE,
+                                    LONG_ARRAY_TYPE,
+                                    Type.getType(Object[].class)),
+                            false);
+                    asm.aconst(null);
+                    asm.invokespecial(
+                            Type.getInternalName(CallResult.class),
+                            "<init>",
+                            Type.getMethodDescriptor(
+                                    VOID_TYPE, LONG_ARRAY_TYPE, Type.getType(Object[].class)),
+                            false);
+                    asm.areturn(OBJECT_TYPE);
+                    asm.mark(hasField);
                     asm.load(1, INT_TYPE);
                     asm.load(2, OBJECT_TYPE);
                     asm.load(3, OBJECT_TYPE);
@@ -725,32 +761,36 @@ public final class Compiler {
         asm.load(1, OBJECT_TYPE);
         asm.putfield(internalClassName, "instance", getDescriptor(Instance.class));
 
-        // Always create compilerInterpreterMachine for callWithRefs support
-        asm.load(0, OBJECT_TYPE);
-        asm.anew(AOT_INTERPRETER_MACHINE_TYPE);
-        asm.dup();
-        asm.load(1, OBJECT_TYPE);
-
-        // construct int[] with the interpreted function ids
-        var funcIds = new ArrayList<>(interpretedFunctions);
-        asm.iconst(funcIds.size());
-        asm.newarray(INT_TYPE);
-        for (int i = 0; i < funcIds.size(); i++) {
+        // Only create compilerInterpreterMachine when needed:
+        // - interpreted functions need it for fallback execution
+        // - modules with Object refs need it for callWithRefs support
+        if (!interpretedFunctions.isEmpty() || moduleHasObjectRefs) {
+            asm.load(0, OBJECT_TYPE);
+            asm.anew(AOT_INTERPRETER_MACHINE_TYPE);
             asm.dup();
-            asm.iconst(i);
-            asm.iconst(funcIds.get(i));
-            asm.astore(INT_TYPE);
-        }
+            asm.load(1, OBJECT_TYPE);
 
-        asm.invokespecial(
-                AOT_INTERPRETER_MACHINE_TYPE.getInternalName(),
-                "<init>",
-                getMethodDescriptor(VOID_TYPE, INSTANCE_TYPE, INT_ARRAY_TYPE),
-                false);
-        asm.putfield(
-                internalClassName,
-                "compilerInterpreterMachine",
-                getDescriptor(CompilerInterpreterMachine.class));
+            // construct int[] with the interpreted function ids
+            var funcIds = new ArrayList<>(interpretedFunctions);
+            asm.iconst(funcIds.size());
+            asm.newarray(INT_TYPE);
+            for (int i = 0; i < funcIds.size(); i++) {
+                asm.dup();
+                asm.iconst(i);
+                asm.iconst(funcIds.get(i));
+                asm.astore(INT_TYPE);
+            }
+
+            asm.invokespecial(
+                    AOT_INTERPRETER_MACHINE_TYPE.getInternalName(),
+                    "<init>",
+                    getMethodDescriptor(VOID_TYPE, INSTANCE_TYPE, INT_ARRAY_TYPE),
+                    false);
+            asm.putfield(
+                    internalClassName,
+                    "compilerInterpreterMachine",
+                    getDescriptor(CompilerInterpreterMachine.class));
+        }
 
         asm.areturn(VOID_TYPE);
     }
@@ -1162,7 +1202,30 @@ public final class Compiler {
             asm.load(4, LONG_TYPE);
             asm.astore(LONG_TYPE);
         }
-        // For long[] or Object[] multi-value returns, leave as-is (TODO: handle Object[] returns)
+        if (returnType == Object[].class) {
+            // Multi-value with GC refs: the internal function returns Object[],
+            // but the bridge must return long[]. Convert: longs for numerics, 0L for refs.
+            int objArraySlot = 4;
+            asm.store(objArraySlot, OBJECT_TYPE); // save Object[]
+            asm.iconst(type.returns().size());
+            asm.newarray(LONG_TYPE); // create long[]
+            for (int i = 0; i < type.returns().size(); i++) {
+                var retType = type.returns().get(i);
+                asm.dup();
+                asm.iconst(i);
+                if (retType.isObjectRef()) {
+                    asm.lconst(0L);
+                } else {
+                    asm.load(objArraySlot, OBJECT_TYPE);
+                    asm.iconst(i);
+                    asm.aload(OBJECT_TYPE); // get from Object[]
+                    asm.checkcast(Type.getType(Long.class));
+                    asm.invokevirtual("java/lang/Long", "longValue", "()J", false);
+                }
+                asm.astore(LONG_TYPE);
+            }
+        }
+        // For long[] multi-value returns, leave as-is
         asm.areturn(OBJECT_TYPE);
     }
 
@@ -1340,10 +1403,7 @@ public final class Compiler {
         // other: call function in another module
         asm.mark(other);
 
-        boolean hasObjectRefParams = type.params().stream().anyMatch(ValType::isObjectRef);
-        boolean hasObjectRefReturns = type.returns().stream().anyMatch(ValType::isObjectRef);
-
-        if (hasObjectRefParams || hasObjectRefReturns) {
+        if (type.hasObjectRefParams() || type.hasObjectRefReturns()) {
             if (hasTooManyParameters(type)) {
                 asm.load(0, LONG_ARRAY_TYPE);
                 asm.aconst(null); // Object[] refArgs
@@ -1437,10 +1497,7 @@ public final class Compiler {
     private static void compileHostFunction(int funcId, FunctionType type, InstructionAdapter asm) {
 
         int slot = type.params().stream().mapToInt(CompilerUtil::slotCount).sum();
-        boolean hasObjectRefParams = type.params().stream().anyMatch(ValType::isObjectRef);
-        boolean hasObjectRefReturns = type.returns().stream().anyMatch(ValType::isObjectRef);
-
-        if (hasObjectRefParams || hasObjectRefReturns) {
+        if (type.hasObjectRefParams() || type.hasObjectRefReturns()) {
             asm.load(slot + 1, OBJECT_TYPE); // instance
             asm.iconst(funcId);
             emitBoxArgumentsWithRefs(asm, type.params());
@@ -1560,10 +1617,7 @@ public final class Compiler {
             // Single Object return from cross-module call that returns long[]
             // The Object result is in the long[] as 0, can't extract it
             // Callers with Object refs should use emitUnboxCallResult instead
-            asm.iconst(0);
-            asm.aload(LONG_TYPE);
-            asm.visitInsn(Opcodes.L2I);
-            asm.visitInsn(Opcodes.POP);
+            asm.visitInsn(Opcodes.POP); // pop the long[] result
             asm.aconst(null);
             asm.areturn(OBJECT_TYPE);
         } else {
@@ -1644,19 +1698,36 @@ public final class Compiler {
         if (interpretedFunctions.contains(funcId)) {
 
             var slots = 0;
-            if (hasTooManyParameters(type)) {
-                asm.load(0, LONG_ARRAY_TYPE);
-                slots = 1;
+            if (type.hasObjectRefParams() || type.hasObjectRefReturns()) {
+                // WithRefs path: use dual long[] + Object[] boxing
+                if (hasTooManyParameters(type)) {
+                    asm.load(0, LONG_ARRAY_TYPE);
+                    asm.aconst(null); // Object[] refArgs
+                    slots = 1;
+                } else {
+                    emitBoxArgumentsWithRefs(asm, type.params());
+                    slots = type.params().stream().mapToInt(CompilerUtil::slotCount).sum();
+                }
+                var refInstance = slots + 1;
+                asm.iconst(funcId);
+                asm.load(refInstance, OBJECT_TYPE);
+                emitInvokeStatic(asm, CALL_INDIRECT_ON_INTERPRETER_WITH_REFS);
+                // returns CallResult
+                emitUnboxCallResult(type, asm);
             } else {
-                emitBoxArguments(asm, type.params());
-                slots = type.params().stream().mapToInt(CompilerUtil::slotCount).sum();
+                if (hasTooManyParameters(type)) {
+                    asm.load(0, LONG_ARRAY_TYPE);
+                    slots = 1;
+                } else {
+                    emitBoxArguments(asm, type.params());
+                    slots = type.params().stream().mapToInt(CompilerUtil::slotCount).sum();
+                }
+                var refInstance = slots + 1;
+                asm.iconst(funcId);
+                asm.load(refInstance, OBJECT_TYPE);
+                emitInvokeStatic(asm, CALL_INDIRECT_ON_INTERPRETER);
+                emitUnboxResult(type, asm);
             }
-            var refInstance = slots + 1;
-
-            asm.iconst(funcId);
-            asm.load(refInstance, OBJECT_TYPE);
-            emitInvokeStatic(asm, CALL_INDIRECT_ON_INTERPRETER);
-            emitUnboxResult(type, asm);
             return;
         }
 

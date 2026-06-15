@@ -288,8 +288,8 @@ public class Instance {
         public ExportFunction function(String name) {
             var export = getExport(FUNCTION, name);
             var funcType = instance.type(instance.functionType(export.index()));
-            boolean hasGcRefParams = funcType.params().stream().anyMatch(ValType::isObjectRef);
-            boolean hasGcRefReturns = funcType.returns().stream().anyMatch(ValType::isObjectRef);
+            boolean hasGcRefParams = funcType.hasObjectRefParams();
+            boolean hasGcRefReturns = funcType.hasObjectRefReturns();
             return new ExportFunction() {
                 @Override
                 public long[] apply(long... args) {

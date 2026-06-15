@@ -76,7 +76,7 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
             var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
             var args = (long[]) extracted[0];
             var refArgs = (Object[]) extracted[1];
-            boolean hasObjectRefs = type.returns().stream().anyMatch(ValType::isObjectRef);
+            boolean hasObjectRefs = type.hasObjectRefReturns();
 
             try {
                 if (hasObjectRefs) {

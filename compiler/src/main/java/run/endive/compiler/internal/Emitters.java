@@ -1219,9 +1219,8 @@ final class Emitters {
     public static void RETURN_CALL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int funcId = (int) ins.operand(0);
         FunctionType calleeType = ctx.functionTypes().get(funcId);
-        boolean hasObjectRefParams = calleeType.params().stream().anyMatch(ValType::isObjectRef);
 
-        if (hasObjectRefParams) {
+        if (calleeType.hasObjectRefParams()) {
             // dual long[] + Object[]
             emitBoxValuesOnStackWithRefs(ctx, asm, calleeType.params());
             // stack: long[], Object[]
@@ -1248,13 +1247,12 @@ final class Emitters {
         int typeId = (int) ins.operand(0);
         int tableIdx = (int) ins.operand(1);
         FunctionType calleeType = ctx.types()[typeId];
-        boolean hasObjectRefParams = calleeType.params().stream().anyMatch(ValType::isObjectRef);
 
         int paramSlots = calleeType.params().stream().mapToInt(CompilerUtil::slotCount).sum();
         int savedSlot = ctx.tempSlot() + paramSlots;
         asm.store(savedSlot, INT_TYPE);
 
-        if (hasObjectRefParams) {
+        if (calleeType.hasObjectRefParams()) {
             emitBoxValuesOnStackWithRefs(ctx, asm, calleeType.params());
             // stack: long[], Object[]
             asm.load(savedSlot, INT_TYPE);
@@ -1277,7 +1275,6 @@ final class Emitters {
             Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int typeId = (int) ins.operand(0);
         FunctionType calleeType = ctx.types()[typeId];
-        boolean hasObjectRefParams = calleeType.params().stream().anyMatch(ValType::isObjectRef);
 
         int paramSlots = calleeType.params().stream().mapToInt(CompilerUtil::slotCount).sum();
         int savedSlot = ctx.tempSlot() + paramSlots;
@@ -1292,7 +1289,7 @@ final class Emitters {
         asm.athrow();
         asm.mark(notNull);
 
-        if (hasObjectRefParams) {
+        if (calleeType.hasObjectRefParams()) {
             emitBoxValuesOnStackWithRefs(ctx, asm, calleeType.params());
             // stack: long[], Object[]
             int refArgsSlot = ctx.tempSlot();
@@ -1345,7 +1342,7 @@ final class Emitters {
         asm.ifeq(noPending);
 
         List<ValType> returns = functionType.returns();
-        boolean hasObjectRefReturns = returns.stream().anyMatch(ValType::isObjectRef);
+        boolean hasObjectRefReturns = functionType.hasObjectRefReturns();
 
         if (returns.size() == 1) {
             emitPop(asm, returns.get(0));
@@ -1494,8 +1491,7 @@ final class Emitters {
         int tagNumber = (int) ins.operand(0);
         var type = ctx.tagFunctionType(tagNumber);
 
-        boolean hasGcRefs = type.params().stream().anyMatch(ValType::isObjectRef);
-        if (hasGcRefs) {
+        if (type.hasObjectRefParams()) {
             emitBoxFieldsForStruct(ctx, asm, type.params());
             asm.iconst(tagNumber);
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
@@ -1595,7 +1591,7 @@ final class Emitters {
         var tag = (int) ins.operand(0);
         var tagFuncType = ctx.tagFunctionType(tag);
         if (!tagFuncType.params().isEmpty()) {
-            boolean hasGcRefs = tagFuncType.params().stream().anyMatch(ValType::isObjectRef);
+            boolean hasGcRefs = tagFuncType.hasObjectRefParams();
             int longArraySlot = ctx.tempSlot() + 1;
             int refArraySlot = ctx.tempSlot() + 2;
 

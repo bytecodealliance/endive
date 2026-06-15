@@ -87,7 +87,7 @@ public class InterpreterMachine implements Machine {
         // When called via call(int, long[]) with no refArgs and the function
         // has externref params, populate refArgs from longs so the ref stack
         // is set up correctly. Uses WasmExternRef (the proper externref type).
-        if (refArgs == null && type.params().stream().anyMatch(ValType::isObjectRef)) {
+        if (refArgs == null && type.hasObjectRefParams()) {
             refArgs = new Object[args.length];
             int slot = 0;
             for (int pi = 0; pi < type.params().size(); pi++) {
@@ -131,9 +131,7 @@ public class InterpreterMachine implements Machine {
             var imprt = instance.imports().function(funcId);
 
             try {
-                boolean hasObjectRefs =
-                        type.params().stream().anyMatch(ValType::isObjectRef)
-                                || type.returns().stream().anyMatch(ValType::isObjectRef);
+                boolean hasObjectRefs = type.hasObjectRefParams() || type.hasObjectRefReturns();
                 if (hasObjectRefs) {
                     var cr = imprt.handle().applyWithRefs(instance, args, refArgs);
                     int slot = 0;

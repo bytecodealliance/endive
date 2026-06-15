@@ -43,6 +43,11 @@ public final class Shaded {
         return instance.getMachine().call(funcId, args);
     }
 
+    public static CallResult callIndirectOnInterpreterWithRefs(
+            long[] args, Object[] refArgs, int funcId, Instance instance) {
+        return instance.getMachine().callWithRefs(funcId, args, refArgs);
+    }
+
     public static CallResult callIndirectWithRefs(
             long[] args, Object[] refArgs, int typeId, int funcId, Instance instance) {
         int actualTypeIdx = instance.functionType(funcId);

@@ -10,14 +10,6 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
     ALOAD 0
     ALOAD 1
     PUTFIELD run/endive/$gen/CompiledMachine.instance : Lrun/endive/runtime/Instance;
-    ALOAD 0
-    NEW run/endive/runtime/internal/CompilerInterpreterMachine
-    DUP
-    ALOAD 1
-    ICONST_0
-    NEWARRAY T_INT
-    INVOKESPECIAL run/endive/runtime/internal/CompilerInterpreterMachine.<init> (Lrun/endive/runtime/Instance;[I)V
-    PUTFIELD run/endive/$gen/CompiledMachine.compilerInterpreterMachine : Lrun/endive/runtime/internal/CompilerInterpreterMachine;
     RETURN
 
   public call(I[J)[J
@@ -97,6 +89,20 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
   public callWithRefs(I[J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
     ALOAD 0
     GETFIELD run/endive/$gen/CompiledMachine.compilerInterpreterMachine : Lrun/endive/runtime/internal/CompilerInterpreterMachine;
+    DUP
+    IFNONNULL L0
+    POP
+    NEW run/endive/runtime/CallResult
+    DUP
+    ALOAD 0
+    ILOAD 1
+    ALOAD 2
+    ALOAD 3
+    INVOKEVIRTUAL run/endive/$gen/CompiledMachine.call (I[J[Ljava/lang/Object;)[J
+    ACONST_NULL
+    INVOKESPECIAL run/endive/runtime/CallResult.<init> ([J[Ljava/lang/Object;)V
+    ARETURN
+   L0
     ILOAD 1
     ALOAD 2
     ALOAD 3

@@ -11,6 +11,7 @@ public interface Machine {
         return call(funcId, args);
     }
 
+    /** Call function {@code funcId} with separate numeric and Object ref arguments, returning a {@link CallResult}. */
     default CallResult callWithRefs(int funcId, long[] args, Object[] refArgs)
             throws WasmEngineException {
         return new CallResult(call(funcId, args, refArgs), null);

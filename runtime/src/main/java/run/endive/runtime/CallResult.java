@@ -1,5 +1,6 @@
 package run.endive.runtime;
 
+/** Holds the dual long[] + Object[] result of a Wasm function call that may return GC/externref values. */
 public final class CallResult {
     private final long[] longs;
     private final Object[] refs;

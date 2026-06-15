@@ -68,8 +68,8 @@ public final class MemCopyWorkaround {
         }
     }
 
-    static MemoryCopyFunc memoryCopyFunc;
-    static I32GEUFunc i32geuFunc;
+    private static MemoryCopyFunc memoryCopyFunc;
+    private static I32GEUFunc i32geuFunc;
 
     public static void memoryCopy(int destination, int offset, int size, Memory memory) {
         memoryCopyFunc.apply(destination, offset, size, memory);

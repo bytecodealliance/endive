@@ -254,7 +254,7 @@ final class Validator {
 
     private void resetLocals(int height) {
         while (initStack.size() > height) {
-            localsInitialized.set(initStack.remove(initStack.size() - 1), false);
+            localsInitialized.set(initStack.remove(/* index */ initStack.size() - 1), false);
         }
     }
 

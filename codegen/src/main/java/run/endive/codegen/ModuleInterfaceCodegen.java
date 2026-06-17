@@ -559,21 +559,6 @@ public final class ModuleInterfaceCodegen {
                                                                 new NullLiteralExpr(),
                                                                 new NullLiteralExpr()))));
                             } else {
-                                // Build CallResult with positional long[] and Object[]
-                                var longSlots = new ArrayList<Expression>();
-                                var refSlots = new ArrayList<Expression>();
-                                for (int ri = 0; ri < importType.returns().size(); ri++) {
-                                    var retType = importType.returns().get(ri);
-                                    if (retType.isObjectRef()) {
-                                        longSlots.add(new IntegerLiteralExpr("0"));
-                                        // placeholder, will be set after
-                                        refSlots.add(new NullLiteralExpr());
-                                    } else {
-                                        longSlots.add(new IntegerLiteralExpr("0"));
-                                        refSlots.add(new NullLiteralExpr());
-                                    }
-                                }
-
                                 if (importType.returns().size() == 1) {
                                     var retType = importType.returns().get(0);
                                     if (retType.isObjectRef()) {

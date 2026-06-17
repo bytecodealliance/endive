@@ -295,20 +295,25 @@ final class Emitters {
             slot += slotCount(valType);
         }
 
-        // Create Object[] for ref fields
-        asm.iconst(types.size());
-        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+        // Create Object[] for ref fields (null if none)
+        boolean hasRefs = types.stream().anyMatch(ValType::isObjectRef);
+        if (hasRefs) {
+            asm.iconst(types.size());
+            asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
 
-        slot = ctx.tempSlot();
-        for (int i = 0; i < types.size(); i++) {
-            ValType valType = types.get(i);
-            if (valType.isObjectRef()) {
-                asm.dup();
-                asm.iconst(i);
-                asm.load(slot, asmType(valType));
-                asm.astore(OBJECT_TYPE);
+            slot = ctx.tempSlot();
+            for (int i = 0; i < types.size(); i++) {
+                ValType valType = types.get(i);
+                if (valType.isObjectRef()) {
+                    asm.dup();
+                    asm.iconst(i);
+                    asm.load(slot, asmType(valType));
+                    asm.astore(OBJECT_TYPE);
+                }
+                slot += slotCount(valType);
             }
-            slot += slotCount(valType);
+        } else {
+            asm.aconst(null);
         }
     }
 
@@ -1373,24 +1378,34 @@ final class Emitters {
                 asm.iconst(returns.size());
                 asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
 
+                int slot = 0;
                 for (int i = 0; i < returns.size(); i++) {
                     asm.dup();
                     asm.iconst(i);
                     ValType retType = returns.get(i);
                     if (retType.isObjectRef()) {
                         asm.load(crSlot, OBJECT_TYPE);
-                        asm.iconst(i);
+                        asm.iconst(slot);
                         asm.invokevirtual(
                                 "run/endive/runtime/CallResult",
                                 "refResult",
                                 "(I)Ljava/lang/Object;",
                                 false);
-                    } else {
+                        slot++;
+                    } else if (retType.equals(ValType.V128)) {
                         asm.load(crSlot, OBJECT_TYPE);
-                        asm.iconst(i);
+                        asm.iconst(slot);
                         asm.invokevirtual(
                                 "run/endive/runtime/CallResult", "longResult", "(I)J", false);
                         asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+                        slot += 2;
+                    } else {
+                        asm.load(crSlot, OBJECT_TYPE);
+                        asm.iconst(slot);
+                        asm.invokevirtual(
+                                "run/endive/runtime/CallResult", "longResult", "(I)J", false);
+                        asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+                        slot++;
                     }
                     asm.astore(OBJECT_TYPE);
                 }

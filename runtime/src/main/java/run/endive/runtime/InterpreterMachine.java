@@ -3791,9 +3791,7 @@ public class InterpreterMachine implements Machine {
             throw new TrapException("out of bounds array access");
         }
         var dstAt = instance.module().typeSection().getSubType(dstTypeIdx).compType().arrayType();
-        boolean isRef =
-                dstAt.fieldType().storageType().valType() != null
-                        && dstAt.fieldType().storageType().valType().isReference();
+        boolean isRef = dstAt.fieldType().storageType().isObjectRef();
         // Handle overlapping copies
         if (dstOffset <= srcOffset) {
             for (int i = 0; i < len; i++) {

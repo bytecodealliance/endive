@@ -764,8 +764,7 @@ public final class ValType {
                     if (typeIdx >= 0 && ts != null) {
                         return isConcreteInAnyHierarchy(typeIdx, ts);
                     }
-                    return typeIdx >= 0
-                            || typeIdx == TypeIdxCode.ANY.code()
+                    return typeIdx == TypeIdxCode.ANY.code()
                             || typeIdx == TypeIdxCode.EQ.code()
                             || typeIdx == TypeIdxCode.I31.code()
                             || typeIdx == TypeIdxCode.STRUCT.code()

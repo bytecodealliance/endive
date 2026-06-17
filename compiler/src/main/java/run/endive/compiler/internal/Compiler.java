@@ -1658,21 +1658,29 @@ public final class Compiler {
             asm.iconst(type.returns().size());
             asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
 
+            int slot = 0;
             for (int i = 0; i < type.returns().size(); i++) {
                 asm.dup();
                 asm.iconst(i);
                 ValType retType = type.returns().get(i);
                 if (retType.isObjectRef()) {
                     asm.load(crSlot, OBJECT_TYPE);
-                    asm.iconst(i);
+                    asm.iconst(slot);
                     asm.invokevirtual(
                             CALL_RESULT_INTERNAL_NAME, "refResult", "(I)Ljava/lang/Object;", false);
+                    slot++;
+                } else if (retType.equals(ValType.V128)) {
+                    asm.load(crSlot, OBJECT_TYPE);
+                    asm.iconst(slot);
+                    asm.invokevirtual(CALL_RESULT_INTERNAL_NAME, "longResult", "(I)J", false);
+                    asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+                    slot += 2;
                 } else {
                     asm.load(crSlot, OBJECT_TYPE);
-                    asm.iconst(i);
+                    asm.iconst(slot);
                     asm.invokevirtual(CALL_RESULT_INTERNAL_NAME, "longResult", "(I)J", false);
-                    // box long into Long for Object[]
                     asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+                    slot++;
                 }
                 asm.astore(OBJECT_TYPE);
             }

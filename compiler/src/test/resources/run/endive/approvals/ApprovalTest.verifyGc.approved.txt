@@ -17,8 +17,7 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ILOAD 5
     I2L
     LASTORE
-    ICONST_2
-    ANEWARRAY java/lang/Object
+    ACONST_NULL
     ICONST_0
     ALOAD 3
     INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structNew ([J[Ljava/lang/Object;ILrun/endive/runtime/Instance;)Ljava/lang/Object;

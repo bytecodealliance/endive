@@ -9,7 +9,7 @@ package run.endive.runtime;
 public final class WasmStruct implements WasmGcRef {
     private final int typeIdx;
     private final long[] fields;
-    private final Object[] fieldRefs;
+    private Object[] fieldRefs;
 
     public WasmStruct(int typeIdx, long[] fields) {
         this(typeIdx, fields, null);
@@ -18,7 +18,7 @@ public final class WasmStruct implements WasmGcRef {
     public WasmStruct(int typeIdx, long[] fields, Object[] fieldRefs) {
         this.typeIdx = typeIdx;
         this.fields = fields;
-        this.fieldRefs = (fieldRefs != null) ? fieldRefs : new Object[fields.length];
+        this.fieldRefs = fieldRefs;
     }
 
     @Override
@@ -35,10 +35,13 @@ public final class WasmStruct implements WasmGcRef {
     }
 
     public Object fieldRef(int idx) {
-        return fieldRefs[idx];
+        return fieldRefs != null ? fieldRefs[idx] : null;
     }
 
     public void setFieldRef(int idx, Object ref) {
+        if (fieldRefs == null) {
+            fieldRefs = new Object[fields.length];
+        }
         fieldRefs[idx] = ref;
     }
 

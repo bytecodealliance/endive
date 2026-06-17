@@ -20,12 +20,38 @@ public final class FunctionType {
         return returns;
     }
 
+    private int cachedObjRefFlags =
+            -1; // -1 = not computed, 0 = none, 1 = params, 2 = returns, 3 = both
+
     public boolean hasObjectRefParams() {
-        return params.stream().anyMatch(ValType::isObjectRef);
+        if (cachedObjRefFlags < 0) {
+            computeObjRefFlags();
+        }
+        return (cachedObjRefFlags & 1) != 0;
     }
 
     public boolean hasObjectRefReturns() {
-        return returns.stream().anyMatch(ValType::isObjectRef);
+        if (cachedObjRefFlags < 0) {
+            computeObjRefFlags();
+        }
+        return (cachedObjRefFlags & 2) != 0;
+    }
+
+    private void computeObjRefFlags() {
+        int flags = 0;
+        for (var p : params) {
+            if (p.isObjectRef()) {
+                flags |= 1;
+                break;
+            }
+        }
+        for (var r : returns) {
+            if (r.isObjectRef()) {
+                flags |= 2;
+                break;
+            }
+        }
+        cachedObjRefFlags = flags;
     }
 
     public boolean paramsMatch(FunctionType other) {

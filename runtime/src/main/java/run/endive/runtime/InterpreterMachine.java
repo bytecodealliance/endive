@@ -2882,12 +2882,15 @@ public class InterpreterMachine implements Machine {
                 var imprt = instance.imports().function(funcId);
 
                 try {
-                    var results = imprt.handle().apply(instance, args);
-                    // a host function can return null or an array of ints
-                    // which we will push onto the stack
-                    if (results != null) {
-                        for (var result : results) {
-                            stack.push(result);
+                    if (type.hasObjectRefParams() || type.hasObjectRefReturns()) {
+                        var cr = imprt.handle().applyWithRefs(instance, args, refArgs);
+                        pushCallResult(cr, type, stack);
+                    } else {
+                        var results = imprt.handle().apply(instance, args);
+                        if (results != null) {
+                            for (var result : results) {
+                                stack.push(result);
+                            }
                         }
                     }
                 } catch (WasmException e) {
@@ -2971,12 +2974,15 @@ public class InterpreterMachine implements Machine {
                 var imprt = instance.imports().function(funcId);
 
                 try {
-                    var results = imprt.handle().apply(instance, args);
-                    // a host function can return null or an array of ints
-                    // which we will push onto the stack
-                    if (results != null) {
-                        for (var result : results) {
-                            stack.push(result);
+                    if (type.hasObjectRefParams() || type.hasObjectRefReturns()) {
+                        var cr = imprt.handle().applyWithRefs(instance, args, refArgs);
+                        pushCallResult(cr, type, stack);
+                    } else {
+                        var results = imprt.handle().apply(instance, args);
+                        if (results != null) {
+                            for (var result : results) {
+                                stack.push(result);
+                            }
                         }
                     }
                 } catch (WasmException e) {
@@ -3058,10 +3064,15 @@ public class InterpreterMachine implements Machine {
             call(stack, instance, callStack, funcId, args, refArgs, null, false);
         } else {
             checkInterruption();
-            var results = refInstance.getMachine().call(funcId, args);
-            if (results != null) {
-                for (var result : results) {
-                    stack.push(result);
+            if (type.hasObjectRefParams() || type.hasObjectRefReturns()) {
+                var cr = refInstance.getMachine().callWithRefs(funcId, args, refArgs);
+                pushCallResult(cr, type, stack);
+            } else {
+                var results = refInstance.getMachine().call(funcId, args);
+                if (results != null) {
+                    for (var result : results) {
+                        stack.push(result);
+                    }
                 }
             }
         }
@@ -3861,6 +3872,27 @@ public class InterpreterMachine implements Machine {
                 arr.setRef(dstOffset + i, result.ref());
             } else {
                 arr.set(dstOffset + i, result.longValue());
+            }
+        }
+    }
+
+    private static void pushCallResult(CallResult cr, FunctionType type, MStack stack) {
+        if (cr == null) {
+            return;
+        }
+        int slot = 0;
+        for (int i = 0; i < type.returns().size(); i++) {
+            var retType = type.returns().get(i);
+            if (retType.isObjectRef()) {
+                stack.pushRef(cr.refResult(slot));
+                slot++;
+            } else if (retType.equals(ValType.V128)) {
+                stack.push(cr.longResult(slot));
+                stack.push(cr.longResult(slot + 1));
+                slot += 2;
+            } else {
+                stack.push(cr.longResult(slot));
+                slot++;
             }
         }
     }

@@ -9,7 +9,7 @@ package run.endive.runtime;
 public final class WasmArray implements WasmGcRef {
     private final int typeIdx;
     private final long[] elements;
-    private final Object[] elementRefs;
+    private Object[] elementRefs;
 
     public WasmArray(int typeIdx, long[] elements) {
         this(typeIdx, elements, null);
@@ -18,7 +18,7 @@ public final class WasmArray implements WasmGcRef {
     public WasmArray(int typeIdx, long[] elements, Object[] elementRefs) {
         this.typeIdx = typeIdx;
         this.elements = elements;
-        this.elementRefs = (elementRefs != null) ? elementRefs : new Object[elements.length];
+        this.elementRefs = elementRefs;
     }
 
     @Override
@@ -35,10 +35,13 @@ public final class WasmArray implements WasmGcRef {
     }
 
     public Object getRef(int idx) {
-        return elementRefs[idx];
+        return elementRefs != null ? elementRefs[idx] : null;
     }
 
     public void setRef(int idx, Object ref) {
+        if (elementRefs == null) {
+            elementRefs = new Object[elements.length];
+        }
         elementRefs[idx] = ref;
     }
 

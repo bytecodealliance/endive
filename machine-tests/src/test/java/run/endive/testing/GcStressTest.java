@@ -1,5 +1,7 @@
 package run.endive.testing;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -40,7 +42,7 @@ public class GcStressTest {
         for (int i = 0; i < 100; i++) {
             var result = allocateChain.apply(10_000);
             // Last struct in chain has val = n-1
-            assert result[0] == 9999 : "expected 9999 but got " + result[0];
+            assertEquals(9999L, result[0]);
         }
     }
 }

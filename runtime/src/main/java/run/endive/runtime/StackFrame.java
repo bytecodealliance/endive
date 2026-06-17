@@ -236,11 +236,10 @@ public class StackFrame {
         Object[] stackRefArray = stack.refArray();
         for (int i = 0; i < returns.length; i++) {
             if (stack.size() > 0) {
-                returns[i] = stack.pop();
                 if (stackRefArray != null) {
-                    returnRefs[i] = stackRefArray[stack.size()];
-                    stackRefArray[stack.size()] = null;
+                    returnRefs[i] = stackRefArray[stack.size() - 1];
                 }
+                returns[i] = stack.pop();
             }
         }
 

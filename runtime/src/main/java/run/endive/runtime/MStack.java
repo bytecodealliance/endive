@@ -67,6 +67,9 @@ public class MStack {
 
     public long pop() {
         count--;
+        if (refs != null) {
+            refs[count] = null;
+        }
         return elements[count];
     }
 

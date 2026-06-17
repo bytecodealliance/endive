@@ -562,11 +562,9 @@ public final class ModuleInterfaceCodegen {
                                 // Build CallResult with positional long[] and Object[]
                                 var longSlots = new ArrayList<Expression>();
                                 var refSlots = new ArrayList<Expression>();
-                                boolean hasRefReturn = false;
                                 for (int ri = 0; ri < importType.returns().size(); ri++) {
                                     var retType = importType.returns().get(ri);
                                     if (retType.isObjectRef()) {
-                                        hasRefReturn = true;
                                         longSlots.add(new IntegerLiteralExpr("0"));
                                         // placeholder, will be set after
                                         refSlots.add(new NullLiteralExpr());

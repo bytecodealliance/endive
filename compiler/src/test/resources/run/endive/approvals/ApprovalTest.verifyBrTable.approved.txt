@@ -47,11 +47,6 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
     ATHROW
 
   public callWithRefs(I[J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
-    ALOAD 0
-    GETFIELD run/endive/$gen/CompiledMachine.compilerInterpreterMachine : Lrun/endive/runtime/internal/CompilerInterpreterMachine;
-    DUP
-    IFNONNULL L0
-    POP
     NEW run/endive/runtime/CallResult
     DUP
     ALOAD 0
@@ -61,12 +56,6 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
     INVOKEVIRTUAL run/endive/$gen/CompiledMachine.call (I[J[Ljava/lang/Object;)[J
     ACONST_NULL
     INVOKESPECIAL run/endive/runtime/CallResult.<init> ([J[Ljava/lang/Object;)V
-    ARETURN
-   L0
-    ILOAD 1
-    ALOAD 2
-    ALOAD 3
-    INVOKEVIRTUAL run/endive/runtime/internal/CompilerInterpreterMachine.callWithRefs (I[J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
     ARETURN
 
   public static call_indirect_0(IIILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I

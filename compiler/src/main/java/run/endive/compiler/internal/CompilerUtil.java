@@ -303,6 +303,10 @@ final class CompilerUtil {
         return "call_" + funcId;
     }
 
+    static String callWithRefsMethodName(int funcId) {
+        return "callWithRefs_" + funcId;
+    }
+
     public static String callIndirectMethodName(int typeId) {
         return "call_indirect_" + typeId;
     }

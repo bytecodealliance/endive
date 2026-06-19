@@ -187,8 +187,8 @@ public class WasiTestGenMojo extends AbstractMojo {
                                         AssignExpr.Operator.ASSIGN))
                         .addStatement(
                                 new AssignExpr(
-                                        new NameExpr("List<String> dirs"),
-                                        new NameExpr(listOf(specification.dirs())),
+                                        new NameExpr("Optional<String> root"),
+                                        new NameExpr(optionalOf(specification.root())),
                                         AssignExpr.Operator.ASSIGN))
                         .addStatement(
                                 new AssignExpr(
@@ -208,7 +208,7 @@ public class WasiTestGenMojo extends AbstractMojo {
                         .addStatement(
                                 new NameExpr(
                                         "WasiTestRunner.execute("
-                                                + "test, args, dirs, env, exitCode, stdout)"));
+                                                + "test, args, root, env, exitCode, stdout)"));
             }
 
             dest.add(

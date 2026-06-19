@@ -27,7 +27,7 @@ public final class WasiTestRunner {
     public static void execute(
             File test,
             List<String> args,
-            List<String> dirs,
+            Optional<String> root,
             Map<String, String> env,
             int exitCode,
             Optional<String> stdout) {
@@ -55,11 +55,11 @@ public final class WasiTestRunner {
                 options.withEnvironment("NO_DANGLING_FILESYSTEM", "true");
             }
 
-            for (String dir : dirs) {
-                Path source = test.getParentFile().toPath().resolve(dir);
-                Path target = fs.getPath(dir);
+            if (root.isPresent()) {
+                Path source = test.getParentFile().toPath().resolve(root.get());
+                Path target = fs.getPath("/");
                 copyDirectory(source, target);
-                options.withDirectory(target.toString(), target);
+                options.withDirectory("/", target);
             }
 
             int actualExitCode;

@@ -27,16 +27,16 @@ jobs:
           version: 17
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Checkout testsuite
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: WebAssembly/testsuite
           path: testsuite
           # The ref needs to stay in sync with the default value in test-gen-plugin
           ref: 88e97b0f742f4c3ee01fea683da130f344dd7b02
       - name: Checkout wasi-testsuite
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: WebAssembly/wasi-testsuite
           path: wasi-testsuite
@@ -57,7 +57,7 @@ jobs:
     name: CI - Docs
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
@@ -90,16 +90,16 @@ jobs:
         folder: [runtime-tests, compiler-tests, wasi-tests]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Checkout testsuite
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: WebAssembly/testsuite
           path: testsuite
           # The ref needs to stay in sync with the default value in test-gen-plugin
           ref: 88e97b0f742f4c3ee01fea683da130f344dd7b02
       - name: Checkout wasi-testsuite
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: WebAssembly/wasi-testsuite
           path: wasi-testsuite
@@ -173,7 +173,7 @@ jobs:
           path: badge-${{ env.BADGE_NAME }}.svg
       - name: Checkout badges branch
         if: steps.publish.outputs.badge
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: badges
           path: badges

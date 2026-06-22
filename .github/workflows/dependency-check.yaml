@@ -15,7 +15,7 @@ jobs:
     if: github.repository_owner == 'bytecodealliance'
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Java
         uses: actions/setup-java@v5
         with:

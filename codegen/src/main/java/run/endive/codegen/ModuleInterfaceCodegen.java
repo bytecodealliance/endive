@@ -611,15 +611,20 @@ public final class ModuleInterfaceCodegen {
                                                                         new NullLiteralExpr()))));
                                     }
                                 } else {
-                                    // Multi-return: not common with externref, but handle
+                                    // Multi-return with object refs not yet supported
                                     refsBody.addStatement(
-                                            new ReturnStmt(
+                                            new ThrowStmt(
                                                     new ObjectCreationExpr(
                                                             null,
-                                                            parseClassOrInterfaceType("CallResult"),
+                                                            parseClassOrInterfaceType(
+                                                                    "UnsupportedOperationException"),
                                                             NodeList.nodeList(
-                                                                    new NullLiteralExpr(),
-                                                                    new NullLiteralExpr()))));
+                                                                    new StringLiteralExpr(
+                                                                            "Multi-return with"
+                                                                                + " object refs not"
+                                                                                + " yet supported"
+                                                                                + " in annotation"
+                                                                                + " processor")))));
                                 }
                             }
 

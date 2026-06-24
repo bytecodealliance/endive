@@ -1013,15 +1013,17 @@ public final class Shaded {
 
     public static Object arrayNewDefault(int len, int typeIdx, Instance instance) {
         var elems = new long[len];
-        var elemRefs = new Object[len];
         var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
         var ft = at.fieldType();
+        if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
+            return new WasmArray(typeIdx, elems, new Object[len]);
+        }
         if (ft.storageType().valType() != null
                 && ft.storageType().valType().isReference()
                 && !ft.storageType().isObjectRef()) {
             Arrays.fill(elems, REF_NULL_VALUE);
         }
-        return new WasmArray(typeIdx, elems, elemRefs);
+        return new WasmArray(typeIdx, elems);
     }
 
     public static Object arrayNewFixed(long[] vals, int typeIdx, Instance instance) {
@@ -1202,15 +1204,20 @@ public final class Shaded {
         if (dstOff + len > dst.length() || srcOff + len > src.length()) {
             throw new TrapException("out of bounds array access");
         }
+        boolean hasRefs = src.elementRefs() != null || dst.elementRefs() != null;
         if (dstOff <= srcOff) {
             for (int i = 0; i < len; i++) {
                 dst.set(dstOff + i, src.get(srcOff + i));
-                dst.setRef(dstOff + i, src.getRef(srcOff + i));
+                if (hasRefs) {
+                    dst.setRef(dstOff + i, src.getRef(srcOff + i));
+                }
             }
         } else {
             for (int i = len - 1; i >= 0; i--) {
                 dst.set(dstOff + i, src.get(srcOff + i));
-                dst.setRef(dstOff + i, src.getRef(srcOff + i));
+                if (hasRefs) {
+                    dst.setRef(dstOff + i, src.getRef(srcOff + i));
+                }
             }
         }
     }

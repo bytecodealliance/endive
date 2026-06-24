@@ -289,6 +289,10 @@ public final class ValType {
         return objectRef;
     }
 
+    public static boolean isObjectRef(long valTypeId, TypeSection typeSection) {
+        return builder().fromId(valTypeId).isObjectRef(typeSection);
+    }
+
     private boolean computeIsExternRef() {
         int op = opcode();
         if (op != ID.Ref && op != ID.RefNull) {

@@ -323,6 +323,14 @@ final class CompilerUtil {
         return "call_dispatch_" + start;
     }
 
+    static String classNameForCallWithRefsDispatch(String prefix, int id) {
+        return prefix + "DispatchRefs_" + id;
+    }
+
+    static String callWithRefsDispatchMethodName(int start) {
+        return "callWithRefs_dispatch_" + start;
+    }
+
     static String classNameForCallIndirect(String prefix, int typeId, int start) {
         return prefix + "Indirect_" + typeId + "_" + start;
     }

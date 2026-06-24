@@ -355,13 +355,13 @@ public class InterpreterMachine implements Machine {
                     CALL_INDIRECT(stack, instance, callStack, operands);
                     break;
                 case DROP:
-                    DROP(stack, operands);
+                    DROP(stack, instance.module().typeSection(), operands);
                     break;
                 case SELECT:
-                    SELECT(stack, operands);
+                    SELECT(stack, instance.module().typeSection(), operands);
                     break;
                 case SELECT_T:
-                    SELECT_T(stack, operands);
+                    SELECT_T(stack, instance.module().typeSection(), operands);
                     break;
                 case LOCAL_GET:
                     LOCAL_GET(stack, operands, frame);
@@ -2346,19 +2346,19 @@ public class InterpreterMachine implements Machine {
         }
     }
 
-    private static void DROP(MStack stack, Operands operands) {
+    private static void DROP(MStack stack, TypeSection typeSection, Operands operands) {
         var typeId = operands.get(0);
         if (typeId == ValType.ID.V128) {
             stack.pop();
             stack.pop();
-        } else if (ValType.builder().fromId(typeId).isObjectRef()) {
+        } else if (ValType.isObjectRef(typeId, typeSection)) {
             stack.popRef();
         } else {
             stack.pop();
         }
     }
 
-    private static void SELECT(MStack stack, Operands operands) {
+    private static void SELECT(MStack stack, TypeSection typeSection, Operands operands) {
         var pred = (int) stack.pop();
         if (operands.get(0) == ValType.ID.V128) {
             var b1 = stack.pop();
@@ -2372,7 +2372,7 @@ public class InterpreterMachine implements Machine {
                 stack.push(a2);
                 stack.push(a1);
             }
-        } else if (ValType.builder().fromId(operands.get(0)).isObjectRef()) {
+        } else if (ValType.isObjectRef(operands.get(0), typeSection)) {
             var b = stack.popRef();
             var a = stack.popRef();
             if (pred == 0) {
@@ -2391,7 +2391,7 @@ public class InterpreterMachine implements Machine {
         }
     }
 
-    private static void SELECT_T(MStack stack, Operands operands) {
+    private static void SELECT_T(MStack stack, TypeSection typeSection, Operands operands) {
         var pred = (int) stack.pop();
         var typeId = operands.get(0);
 
@@ -2407,7 +2407,7 @@ public class InterpreterMachine implements Machine {
                 stack.push(a2);
                 stack.push(a1);
             }
-        } else if (ValType.builder().fromId(typeId).isObjectRef()) {
+        } else if (ValType.isObjectRef(typeId, typeSection)) {
             var b = stack.popRef();
             var a = stack.popRef();
             if (pred == 0) {
@@ -3493,17 +3493,21 @@ public class InterpreterMachine implements Machine {
         var typeIdx = (int) operands.get(0);
         var st = instance.module().typeSection().getSubType(typeIdx).compType().structType();
         var fields = new long[st.fieldTypes().length];
-        // Default values: 0 for numeric, null for GC refs (already zero-initialized),
-        // REF_NULL_VALUE for non-GC references (funcref, externref)
+        boolean hasObjRefFields = false;
         for (int i = 0; i < fields.length; i++) {
             var ft = st.fieldTypes()[i];
-            if (ft.storageType().valType() != null
+            if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
+                hasObjRefFields = true;
+            } else if (ft.storageType().valType() != null
                     && ft.storageType().valType().isReference()
                     && !ft.storageType().isObjectRef()) {
                 fields[i] = REF_NULL_VALUE;
             }
         }
-        var struct = new WasmStruct(typeIdx, fields);
+        var struct =
+                hasObjRefFields
+                        ? new WasmStruct(typeIdx, fields, new Object[fields.length])
+                        : new WasmStruct(typeIdx, fields);
         stack.pushRef(struct);
     }
 
@@ -3590,13 +3594,19 @@ public class InterpreterMachine implements Machine {
         var elems = new long[len];
         var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
         var ft = at.fieldType();
-        if (ft.storageType().valType() != null
+        if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
+            var arr = new WasmArray(typeIdx, elems, new Object[len]);
+            stack.pushRef(arr);
+        } else if (ft.storageType().valType() != null
                 && ft.storageType().valType().isReference()
                 && !ft.storageType().isObjectRef()) {
             java.util.Arrays.fill(elems, Value.REF_NULL_VALUE);
+            var arr = new WasmArray(typeIdx, elems);
+            stack.pushRef(arr);
+        } else {
+            var arr = new WasmArray(typeIdx, elems);
+            stack.pushRef(arr);
         }
-        var arr = new WasmArray(typeIdx, elems);
-        stack.pushRef(arr);
     }
 
     private static void ARRAY_NEW_FIXED(MStack stack, Instance instance, Operands operands) {

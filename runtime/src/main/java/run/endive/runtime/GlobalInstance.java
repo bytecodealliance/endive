@@ -44,6 +44,12 @@ public class GlobalInstance {
         this.mutabilityType = mutabilityType;
     }
 
+    public GlobalInstance(Object refValue, ValType valType, MutabilityType mutabilityType) {
+        this.refValue = refValue;
+        this.valType = valType;
+        this.mutabilityType = mutabilityType;
+    }
+
     public long getValueLow() {
         return valueLow;
     }

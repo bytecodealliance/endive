@@ -19,8 +19,10 @@ import static run.endive.compiler.internal.CompilerUtil.callDispatchMethodName;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodName;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodType;
 import static run.endive.compiler.internal.CompilerUtil.callMethodName;
+import static run.endive.compiler.internal.CompilerUtil.callWithRefsDispatchMethodName;
 import static run.endive.compiler.internal.CompilerUtil.callWithRefsMethodName;
 import static run.endive.compiler.internal.CompilerUtil.classNameForCallIndirect;
+import static run.endive.compiler.internal.CompilerUtil.classNameForCallWithRefsDispatch;
 import static run.endive.compiler.internal.CompilerUtil.classNameForDispatch;
 import static run.endive.compiler.internal.CompilerUtil.defaultValue;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeFunction;
@@ -1105,7 +1107,26 @@ public final class Compiler {
                 callWithRefsMethod =
                         asm -> compileMachineCallWithRefsInvoke(asm, 0, functionTypes.size());
             } else {
-                callWithRefsMethod = compileMachineCallWithRefsDispatch(MAX_DISPATCH_METHODS << 2);
+                var maxCallWithRefsMethods = MAX_DISPATCH_METHODS << 2;
+                maxCallWithRefsMethods =
+                        loadChunkedClass(
+                                functionTypes.size(),
+                                maxCallWithRefsMethods,
+                                (coll, start, end, chunkSize) ->
+                                        compileExtraClass(
+                                                coll,
+                                                classNameForCallWithRefsDispatch(className, start),
+                                                (cw) ->
+                                                        emitFunction(
+                                                                cw,
+                                                                callWithRefsDispatchMethodName(
+                                                                        start),
+                                                                MACHINE_CALL_WITH_REFS_METHOD_TYPE,
+                                                                true,
+                                                                asm ->
+                                                                        compileMachineCallWithRefsInvoke(
+                                                                                asm, start, end))));
+                callWithRefsMethod = compileMachineCallWithRefsDispatch(maxCallWithRefsMethods);
             }
             emitFunction(
                     classWriter,
@@ -1255,14 +1276,14 @@ public final class Compiler {
             asm.shr(INT_TYPE);
             asm.tableswitch(0, labels.length - 1, labels[0], labels);
 
-            // For large modules, delegate to the same single invoke method
-            // since all the logic (host vs compiled vs callWithRefs_N) is there
             for (int i = 0; i < labels.length; i++) {
                 asm.mark(labels[i]);
-                int chunkStart = i << shift;
-                int chunkEnd = min(chunkStart + maxMachineCallMethods, functionTypes.size());
-                compileMachineCallWithRefsInvoke(asm, chunkStart, chunkEnd);
-                // compileMachineCallWithRefsInvoke ends with areturn, no fall-through
+                asm.invokestatic(
+                        internalClassName(classNameForCallWithRefsDispatch(className, i << shift)),
+                        callWithRefsDispatchMethodName(i << shift),
+                        MACHINE_CALL_WITH_REFS_METHOD_TYPE.toMethodDescriptorString(),
+                        false);
+                asm.areturn(OBJECT_TYPE);
             }
         };
     }

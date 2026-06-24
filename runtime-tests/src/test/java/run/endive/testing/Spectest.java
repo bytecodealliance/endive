@@ -21,6 +21,7 @@ import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
 // https://github.com/WebAssembly/spec/blob/ee82c8e50c5106e0cedada0a083d4cc4129034a2/interpreter/host/spectest.ml
+@SuppressWarnings("deprecation")
 public final class Spectest {
     private static final WasmFunctionHandle noop = (Instance instance, long... args) -> null;
 

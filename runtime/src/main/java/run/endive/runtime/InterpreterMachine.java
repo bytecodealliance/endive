@@ -21,6 +21,7 @@ import run.endive.wasm.types.Value;
 /**
  * This is responsible for holding and interpreting the Wasm code.
  */
+@SuppressWarnings("deprecation")
 public class InterpreterMachine implements Machine {
 
     private enum AtomicOp {
@@ -216,7 +217,7 @@ public class InterpreterMachine implements Machine {
         call(stack, instance, callStack, funcId, args, refArgs, null, false);
 
         if (type.returns().isEmpty() || stack.size() == 0) {
-            return new CallResult(null, null);
+            return CallResult.of(null, null);
         }
 
         var totalResults = sizeOf(type.returns());
@@ -241,7 +242,7 @@ public class InterpreterMachine implements Machine {
                 longResults[slot] = stack.pop();
             }
         }
-        return new CallResult(longResults, refResults);
+        return CallResult.of(longResults, refResults);
     }
 
     protected Instance instance() {
@@ -340,7 +341,13 @@ public class InterpreterMachine implements Machine {
                         var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
                         var args = (long[]) extracted[0];
                         var refArgs = (Object[]) extracted[1];
-                        var exception = new WasmException(instance, tagNumber, args, refArgs);
+                        var exception =
+                                WasmException.builder()
+                                        .instance(instance)
+                                        .tagIdx(tagNumber)
+                                        .args(args)
+                                        .refArgs(refArgs)
+                                        .build();
                         var exceptionIdx = instance.registerException(exception);
                         frame = THROW_REF(instance, exceptionIdx, stack, frame, callStack);
                         break;

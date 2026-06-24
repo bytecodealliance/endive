@@ -53,8 +53,6 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ALOAD 0
     INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_0 (IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)Ljava/lang/Object;
     ASTORE 4
-    NEW run/endive/runtime/CallResult
-    DUP
     ACONST_NULL
     ICONST_1
     ANEWARRAY java/lang/Object
@@ -62,7 +60,7 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ICONST_0
     ALOAD 4
     AASTORE
-    INVOKESPECIAL run/endive/runtime/CallResult.<init> ([J[Ljava/lang/Object;)V
+    INVOKESTATIC run/endive/runtime/CallResult.of ([J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
     ARETURN
 
   public static func_1(Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
@@ -114,8 +112,6 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_1 (Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
     LSTORE 4
-    NEW run/endive/runtime/CallResult
-    DUP
     ICONST_1
     NEWARRAY T_LONG
     DUP
@@ -123,7 +119,7 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     LLOAD 4
     LASTORE
     ACONST_NULL
-    INVOKESPECIAL run/endive/runtime/CallResult.<init> ([J[Ljava/lang/Object;)V
+    INVOKESTATIC run/endive/runtime/CallResult.of ([J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
     ARETURN
 
   public static func_2(Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
@@ -182,8 +178,6 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_2 (Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
     LSTORE 4
-    NEW run/endive/runtime/CallResult
-    DUP
     ICONST_1
     NEWARRAY T_LONG
     DUP
@@ -191,6 +185,6 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     LLOAD 4
     LASTORE
     ACONST_NULL
-    INVOKESPECIAL run/endive/runtime/CallResult.<init> ([J[Ljava/lang/Object;)V
+    INVOKESTATIC run/endive/runtime/CallResult.of ([J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
     ARETURN
 }

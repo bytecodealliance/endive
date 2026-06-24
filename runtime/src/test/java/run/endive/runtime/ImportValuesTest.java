@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.Value;
 
+@SuppressWarnings("deprecation")
 class ImportValuesTest {
 
     @Nested

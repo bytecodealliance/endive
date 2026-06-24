@@ -51,6 +51,7 @@ import run.endive.wasm.types.TypeSection;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
+@SuppressWarnings("deprecation")
 public class Instance {
     public static final String START_FUNCTION_NAME = "_start";
 

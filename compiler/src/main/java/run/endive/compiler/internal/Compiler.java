@@ -98,6 +98,9 @@ public final class Compiler {
     private static final Type LONG_ARRAY_TYPE = Type.getType(long[].class);
     private static final Type INT_ARRAY_TYPE = Type.getType(int[].class);
     private static final String CALL_RESULT_INTERNAL_NAME = Type.getInternalName(CallResult.class);
+    private static final String CALL_RESULT_OF_DESCRIPTOR =
+            Type.getMethodDescriptor(
+                    Type.getType(CallResult.class), LONG_ARRAY_TYPE, Type.getType(Object[].class));
     private static final Type AOT_INTERPRETER_MACHINE_TYPE =
             Type.getType(CompilerInterpreterMachine.class);
     private static final Type INSTANCE_TYPE = Type.getType(Instance.class);
@@ -928,8 +931,6 @@ public final class Compiler {
             asm.athrow();
         } else {
             // No Object refs in module: wrap call() result in CallResult(longs, null)
-            asm.anew(Type.getType(CallResult.class));
-            asm.dup();
             asm.load(0, OBJECT_TYPE);
             asm.load(1, INT_TYPE);
             asm.load(2, OBJECT_TYPE);
@@ -944,12 +945,7 @@ public final class Compiler {
                             Type.getType(Object[].class)),
                     false);
             asm.aconst(null);
-            asm.invokespecial(
-                    CALL_RESULT_INTERNAL_NAME,
-                    "<init>",
-                    Type.getMethodDescriptor(
-                            VOID_TYPE, LONG_ARRAY_TYPE, Type.getType(Object[].class)),
-                    false);
+            asm.invokestatic(CALL_RESULT_INTERNAL_NAME, "of", CALL_RESULT_OF_DESCRIPTOR, false);
             asm.areturn(OBJECT_TYPE);
         }
     }
@@ -1328,19 +1324,9 @@ public final class Compiler {
                         callMethodName(id),
                         CALL_METHOD_TYPE_WITH_REFS.toMethodDescriptorString(),
                         false);
-                // Wrap long[] in CallResult
-                int resultSlot = 5;
-                asm.store(resultSlot, OBJECT_TYPE);
-                asm.anew(Type.getType(CallResult.class));
-                asm.dup();
-                asm.load(resultSlot, OBJECT_TYPE);
+                // Wrap long[] in CallResult.of(longs, null)
                 asm.aconst(null);
-                asm.invokespecial(
-                        CALL_RESULT_INTERNAL_NAME,
-                        "<init>",
-                        Type.getMethodDescriptor(
-                                VOID_TYPE, LONG_ARRAY_TYPE, Type.getType(Object[].class)),
-                        false);
+                asm.invokestatic(CALL_RESULT_INTERNAL_NAME, "of", CALL_RESULT_OF_DESCRIPTOR, false);
             }
             asm.areturn(OBJECT_TYPE);
         }
@@ -1501,22 +1487,13 @@ public final class Compiler {
         Class<?> returnType = jvmReturnType(type);
         if (returnType == void.class) {
             // new CallResult(null, null)
-            asm.anew(Type.getType(CallResult.class));
-            asm.dup();
             asm.aconst(null);
             asm.aconst(null);
-            asm.invokespecial(
-                    CALL_RESULT_INTERNAL_NAME,
-                    "<init>",
-                    Type.getMethodDescriptor(
-                            VOID_TYPE, LONG_ARRAY_TYPE, Type.getType(Object[].class)),
-                    false);
+            asm.invokestatic(CALL_RESULT_INTERNAL_NAME, "of", CALL_RESULT_OF_DESCRIPTOR, false);
         } else if (returnType == Object.class) {
             // Single Object ref return: new CallResult(null, new Object[]{result})
             int refSlot = 4;
             asm.store(refSlot, OBJECT_TYPE); // save the Object result
-            asm.anew(Type.getType(CallResult.class));
-            asm.dup();
             asm.aconst(null); // longs = null
             asm.iconst(1);
             asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
@@ -1524,12 +1501,7 @@ public final class Compiler {
             asm.iconst(0);
             asm.load(refSlot, OBJECT_TYPE);
             asm.astore(OBJECT_TYPE);
-            asm.invokespecial(
-                    CALL_RESULT_INTERNAL_NAME,
-                    "<init>",
-                    Type.getMethodDescriptor(
-                            VOID_TYPE, LONG_ARRAY_TYPE, Type.getType(Object[].class)),
-                    false);
+            asm.invokestatic(CALL_RESULT_INTERNAL_NAME, "of", CALL_RESULT_OF_DESCRIPTOR, false);
         } else if (returnType == Object[].class) {
             // Multi-value with GC refs: split Object[] into positional long[] + Object[]
             // Both arrays use type.returns().size() as length, matching the interpreter
@@ -1575,37 +1547,21 @@ public final class Compiler {
             asm.store(refArraySlot, OBJECT_TYPE);
 
             // new CallResult(longs, refs)
-            asm.anew(Type.getType(CallResult.class));
-            asm.dup();
             asm.load(longArraySlot, OBJECT_TYPE);
             asm.load(refArraySlot, OBJECT_TYPE);
-            asm.invokespecial(
-                    CALL_RESULT_INTERNAL_NAME,
-                    "<init>",
-                    Type.getMethodDescriptor(
-                            VOID_TYPE, LONG_ARRAY_TYPE, Type.getType(Object[].class)),
-                    false);
+            asm.invokestatic(CALL_RESULT_INTERNAL_NAME, "of", CALL_RESULT_OF_DESCRIPTOR, false);
         } else if (returnType == long[].class) {
             // Multi-value, no Object refs: new CallResult(longArray, null)
             int longArraySlot = 4;
             asm.store(longArraySlot, OBJECT_TYPE);
-            asm.anew(Type.getType(CallResult.class));
-            asm.dup();
             asm.load(longArraySlot, OBJECT_TYPE);
             asm.aconst(null);
-            asm.invokespecial(
-                    CALL_RESULT_INTERNAL_NAME,
-                    "<init>",
-                    Type.getMethodDescriptor(
-                            VOID_TYPE, LONG_ARRAY_TYPE, Type.getType(Object[].class)),
-                    false);
+            asm.invokestatic(CALL_RESULT_INTERNAL_NAME, "of", CALL_RESULT_OF_DESCRIPTOR, false);
         } else {
             // Single numeric return: new CallResult(new long[]{value}, null)
             emitJvmToLong(asm, type.returns().get(0));
             int longSlot = 4;
             asm.store(longSlot, LONG_TYPE);
-            asm.anew(Type.getType(CallResult.class));
-            asm.dup();
             asm.iconst(1);
             asm.newarray(LONG_TYPE);
             asm.dup();
@@ -1613,12 +1569,7 @@ public final class Compiler {
             asm.load(longSlot, LONG_TYPE);
             asm.astore(LONG_TYPE);
             asm.aconst(null);
-            asm.invokespecial(
-                    CALL_RESULT_INTERNAL_NAME,
-                    "<init>",
-                    Type.getMethodDescriptor(
-                            VOID_TYPE, LONG_ARRAY_TYPE, Type.getType(Object[].class)),
-                    false);
+            asm.invokestatic(CALL_RESULT_INTERNAL_NAME, "of", CALL_RESULT_OF_DESCRIPTOR, false);
         }
         asm.areturn(OBJECT_TYPE);
     }

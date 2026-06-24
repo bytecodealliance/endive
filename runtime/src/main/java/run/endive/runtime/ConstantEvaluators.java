@@ -11,6 +11,7 @@ import run.endive.wasm.types.Instruction;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
+@SuppressWarnings("deprecation")
 public final class ConstantEvaluators {
     private ConstantEvaluators() {}
 

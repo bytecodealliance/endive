@@ -36,6 +36,7 @@ import run.endive.wasm.types.TagType;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
+@SuppressWarnings("deprecation")
 public class WasmModuleTest {
 
     private static WasmModule loadModule(String fileName) {
@@ -772,7 +773,7 @@ public class WasmModuleTest {
 
                     @Override
                     public CallResult applyWithRefs(Instance inst, long[] args, Object[] refArgs) {
-                        return new CallResult(null, new Object[] {testObject});
+                        return CallResult.of(null, new Object[] {testObject});
                     }
                 };
 
@@ -786,7 +787,7 @@ public class WasmModuleTest {
                     @Override
                     public CallResult applyWithRefs(Instance inst, long[] args, Object[] refArgs) {
                         Object ref = (refArgs != null && refArgs.length > 0) ? refArgs[0] : null;
-                        return new CallResult(new long[] {ref == null ? 1 : 0}, null);
+                        return CallResult.of(new long[] {ref == null ? 1 : 0}, null);
                     }
                 };
 

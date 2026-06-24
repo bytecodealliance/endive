@@ -11,10 +11,18 @@ public final class WasmStruct implements WasmGcRef {
     private final long[] fields;
     private Object[] fieldRefs;
 
+    /**
+     * @deprecated use {@link #builder()}
+     */
+    @Deprecated(since = "use builder()")
     public WasmStruct(int typeIdx, long[] fields) {
         this(typeIdx, fields, null);
     }
 
+    /**
+     * @deprecated use {@link #builder()}
+     */
+    @Deprecated(since = "use builder()")
     public WasmStruct(int typeIdx, long[] fields, Object[] fieldRefs) {
         this.typeIdx = typeIdx;
         this.fields = fields;
@@ -47,5 +55,37 @@ public final class WasmStruct implements WasmGcRef {
 
     public int fieldCount() {
         return fields.length;
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static final class Builder {
+        private int typeIdx;
+        private long[] fields;
+        private Object[] fieldRefs;
+
+        private Builder() {}
+
+        public Builder typeIdx(int typeIdx) {
+            this.typeIdx = typeIdx;
+            return this;
+        }
+
+        public Builder fields(long[] fields) {
+            this.fields = fields;
+            return this;
+        }
+
+        public Builder fieldRefs(Object[] fieldRefs) {
+            this.fieldRefs = fieldRefs;
+            return this;
+        }
+
+        @SuppressWarnings("deprecation")
+        public WasmStruct build() {
+            return new WasmStruct(typeIdx, fields, fieldRefs);
+        }
     }
 }

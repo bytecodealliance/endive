@@ -552,9 +552,9 @@ public final class ModuleInterfaceCodegen {
                                 refsBody.addStatement(importApplyHandle);
                                 refsBody.addStatement(
                                         new ReturnStmt(
-                                                new ObjectCreationExpr(
-                                                        null,
-                                                        parseClassOrInterfaceType("CallResult"),
+                                                new MethodCallExpr(
+                                                        new NameExpr("CallResult"),
+                                                        "of",
                                                         NodeList.nodeList(
                                                                 new NullLiteralExpr(),
                                                                 new NullLiteralExpr()))));

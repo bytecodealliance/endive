@@ -20,6 +20,7 @@ import run.endive.wasm.types.TableLimits;
 import run.endive.wasm.types.Value;
 import run.endive.wasm.types.ValueType;
 
+@SuppressWarnings("deprecation")
 class AllImportsTest {
 
     @WasmModuleInterface("all-imports.wat.wasm")

@@ -25,6 +25,7 @@ import run.endive.wasm.types.ValType;
 /**
  * This class will get shaded into the compiled code.
  */
+@SuppressWarnings("deprecation")
 public final class Shaded {
 
     private Shaded() {}
@@ -495,7 +496,13 @@ public final class Shaded {
         if (args == null) {
             args = new long[0];
         }
-        WasmException e = new WasmException(instance, tagNumber, args, refArgs);
+        WasmException e =
+                WasmException.builder()
+                        .instance(instance)
+                        .tagIdx(tagNumber)
+                        .args(args)
+                        .refArgs(refArgs)
+                        .build();
         instance.registerException(e);
         return e;
     }

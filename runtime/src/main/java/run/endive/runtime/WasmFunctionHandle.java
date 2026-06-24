@@ -4,6 +4,7 @@ package run.endive.runtime;
  * Represents a Java function that can be called from Wasm.
  */
 @FunctionalInterface
+@SuppressWarnings("deprecation")
 public interface WasmFunctionHandle {
     long[] apply(Instance instance, long... args);
 
@@ -16,6 +17,6 @@ public interface WasmFunctionHandle {
      * Object refs; override to handle them.
      */
     default CallResult applyWithRefs(Instance instance, long[] args, Object[] refArgs) {
-        return new CallResult(apply(instance, args), null);
+        return CallResult.of(apply(instance, args), null);
     }
 }

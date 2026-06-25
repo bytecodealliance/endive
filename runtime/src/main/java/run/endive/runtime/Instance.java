@@ -51,7 +51,6 @@ import run.endive.wasm.types.TypeSection;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
-@SuppressWarnings("deprecation")
 public class Instance {
     public static final String START_FUNCTION_NAME = "_start";
 
@@ -175,11 +174,12 @@ public class Instance {
                                 g.mutabilityType());
             } else {
                 globals[i] =
-                        new GlobalInstance(
-                                values[0],
-                                (values.length > 1) ? values[1] : 0,
-                                g.valueType(),
-                                g.mutabilityType());
+                        GlobalInstance.builder()
+                                .valueLow(values[0])
+                                .valueHigh((values.length > 1) ? values[1] : 0)
+                                .valType(g.valueType())
+                                .mutabilityType(g.mutabilityType())
+                                .build();
             }
             globals[i].setInstance(this);
             if (g.valueType().isReference()) {

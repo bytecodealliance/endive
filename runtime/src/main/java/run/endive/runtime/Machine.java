@@ -3,7 +3,6 @@ package run.endive.runtime;
 import run.endive.wasm.WasmEngineException;
 
 @FunctionalInterface
-@SuppressWarnings("deprecation")
 public interface Machine {
 
     long[] call(int funcId, long[] args) throws WasmEngineException;

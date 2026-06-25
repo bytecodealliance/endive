@@ -109,7 +109,6 @@ public final class WasmStruct implements WasmGcRef {
             }
         }
 
-        @SuppressWarnings("deprecation")
         public WasmStruct build() {
             if (fieldList != null) {
                 int size = fieldList.size();

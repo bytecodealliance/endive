@@ -36,7 +36,6 @@ import run.endive.wasm.types.TagType;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
-@SuppressWarnings("deprecation")
 public class WasmModuleTest {
 
     private static WasmModule loadModule(String fileName) {
@@ -503,8 +502,12 @@ public class WasmModuleTest {
     @Test
     public void shouldResolveMultipleAliasesByTypeForAllImports() {
         var module = loadModule("compiled/alias-imports3.wat.wasm");
-        var globalI32 = new ImportGlobal("env", "global", new GlobalInstance(Value.i32(123)));
-        var globalI64 = new ImportGlobal("env", "global", new GlobalInstance(Value.i64(124)));
+        var globalI32 =
+                new ImportGlobal(
+                        "env", "global", GlobalInstance.builder().value(Value.i32(123)).build());
+        var globalI64 =
+                new ImportGlobal(
+                        "env", "global", GlobalInstance.builder().value(Value.i64(124)).build());
         var tableFuncref =
                 new ImportTable(
                         "env",
@@ -732,8 +735,12 @@ public class WasmModuleTest {
                                 (value, highValue, type, mutability) -> {
                                     int idx = created.getAndIncrement();
                                     long initValue = context.getOrDefault(idx, value);
-                                    return new GlobalInstance(
-                                            initValue, highValue, type, mutability);
+                                    return GlobalInstance.builder()
+                                            .valueLow(initValue)
+                                            .valueHigh(highValue)
+                                            .valType(type)
+                                            .mutabilityType(mutability)
+                                            .build();
                                 })
                         .build();
 

@@ -20,7 +20,6 @@ import run.endive.wasm.types.TableLimits;
 import run.endive.wasm.types.Value;
 import run.endive.wasm.types.ValueType;
 
-@SuppressWarnings("deprecation")
 class AllImportsTest {
 
     @WasmModuleInterface("all-imports.wat.wasm")
@@ -98,22 +97,22 @@ class AllImportsTest {
 
         @Override
         public GlobalInstance global1() {
-            return new GlobalInstance(Value.i32(1));
+            return GlobalInstance.builder().value(Value.i32(1)).build();
         }
 
         @Override
         public GlobalInstance global2() {
-            return new GlobalInstance(Value.i64(2));
+            return GlobalInstance.builder().value(Value.i64(2)).build();
         }
 
         @Override
         public GlobalInstance global3() {
-            return new GlobalInstance(Value.f32(3));
+            return GlobalInstance.builder().value(Value.f32(3)).build();
         }
 
         @Override
         public GlobalInstance global4() {
-            return new GlobalInstance(Value.f64(4));
+            return GlobalInstance.builder().value(Value.f64(4)).build();
         }
     }
 

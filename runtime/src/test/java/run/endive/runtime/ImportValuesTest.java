@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.Value;
 
-@SuppressWarnings("deprecation")
 class ImportValuesTest {
 
     @Nested
@@ -70,11 +69,15 @@ class ImportValuesTest {
                                                 new ImportGlobal(
                                                         "spectest",
                                                         "global_i32",
-                                                        new GlobalInstance(Value.i32(666))),
+                                                        GlobalInstance.builder()
+                                                                .value(Value.i32(666))
+                                                                .build()),
                                                 new ImportGlobal(
                                                         "spectest",
                                                         "global_i64",
-                                                        new GlobalInstance(Value.i64(666)))))
+                                                        GlobalInstance.builder()
+                                                                .value(Value.i64(666))
+                                                                .build())))
                                 .build();
                 assertEquals(2, result.globalCount());
             }
@@ -87,12 +90,16 @@ class ImportValuesTest {
                                         new ImportGlobal(
                                                 "spectest",
                                                 "global_i32",
-                                                new GlobalInstance(Value.i32(666))))
+                                                GlobalInstance.builder()
+                                                        .value(Value.i32(666))
+                                                        .build()))
                                 .addGlobal(
                                         new ImportGlobal(
                                                 "spectest",
                                                 "global_i64",
-                                                new GlobalInstance(Value.i64(666))))
+                                                GlobalInstance.builder()
+                                                        .value(Value.i64(666))
+                                                        .build()))
                                 .build();
                 assertEquals(2, result.globalCount());
             }

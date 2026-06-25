@@ -4,7 +4,6 @@ package run.endive.runtime;
  * Represents a Java function that can be called from Wasm.
  */
 @FunctionalInterface
-@SuppressWarnings("deprecation")
 public interface WasmFunctionHandle {
     long[] apply(Instance instance, long... args);
 

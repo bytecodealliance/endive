@@ -570,45 +570,32 @@ public final class ModuleInterfaceCodegen {
                                                                 parseType("Object"), "result"),
                                                         importApplyHandle,
                                                         AssignExpr.Operator.ASSIGN));
+                                        var refsArr =
+                                                new ArrayCreationExpr(
+                                                        parseType("Object"),
+                                                        NodeList.nodeList(new ArrayCreationLevel()),
+                                                        new ArrayInitializerExpr(
+                                                                NodeList.nodeList(
+                                                                        new NameExpr("result"))));
                                         refsBody.addStatement(
                                                 new ReturnStmt(
-                                                        new ObjectCreationExpr(
-                                                                null,
-                                                                parseClassOrInterfaceType(
-                                                                        "CallResult"),
-                                                                NodeList.nodeList(
-                                                                        new NullLiteralExpr(),
-                                                                        new ArrayCreationExpr(
-                                                                                parseType("Object"),
-                                                                                NodeList.nodeList(
-                                                                                        new ArrayCreationLevel()),
-                                                                                new ArrayInitializerExpr(
-                                                                                        NodeList
-                                                                                                .nodeList(
-                                                                                                        new NameExpr(
-                                                                                                                "result"))))))));
+                                                        callResultOf(
+                                                                new NullLiteralExpr(), refsArr)));
                                     } else {
-                                        // non-ref single return in a function that has
-                                        // ref params
+                                        var longsArr =
+                                                new ArrayCreationExpr(
+                                                        parseType("long"),
+                                                        NodeList.nodeList(new ArrayCreationLevel()),
+                                                        new ArrayInitializerExpr(
+                                                                NodeList.nodeList(
+                                                                        toLong(
+                                                                                retType,
+                                                                                importApplyHandle,
+                                                                                importsCu))));
                                         refsBody.addStatement(
                                                 new ReturnStmt(
-                                                        new ObjectCreationExpr(
-                                                                null,
-                                                                parseClassOrInterfaceType(
-                                                                        "CallResult"),
-                                                                NodeList.nodeList(
-                                                                        new ArrayCreationExpr(
-                                                                                parseType("long"),
-                                                                                NodeList.nodeList(
-                                                                                        new ArrayCreationLevel()),
-                                                                                new ArrayInitializerExpr(
-                                                                                        NodeList
-                                                                                                .nodeList(
-                                                                                                        toLong(
-                                                                                                                retType,
-                                                                                                                importApplyHandle,
-                                                                                                                importsCu)))),
-                                                                        new NullLiteralExpr()))));
+                                                        callResultOf(
+                                                                longsArr, new NullLiteralExpr())));
                                     }
                                 } else {
                                     // Multi-return with object refs not yet supported
@@ -776,6 +763,10 @@ public final class ModuleInterfaceCodegen {
         var cu = new CompilationUnit(packageName);
         cu.setPackageDeclaration(packageName);
         return cu;
+    }
+
+    private static MethodCallExpr callResultOf(Expression longs, Expression refs) {
+        return new MethodCallExpr(new NameExpr("CallResult"), "of", NodeList.nodeList(longs, refs));
     }
 
     private static java.util.function.Function<String, Expression> exportMethodBodyGen(

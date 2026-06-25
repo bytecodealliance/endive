@@ -11,7 +11,6 @@ import run.endive.wasm.types.Instruction;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
-@SuppressWarnings("deprecation")
 public final class ConstantEvaluators {
     private ConstantEvaluators() {}
 
@@ -35,6 +34,10 @@ public final class ConstantEvaluators {
         public long longValue() {
             return longs[0];
         }
+
+        public static ConstantResult fromLong(long value) {
+            return new ConstantResult(new long[] {value}, null);
+        }
     }
 
     public static long[] computeConstantValue(Instance instance, Instruction[] expr) {
@@ -53,14 +56,14 @@ public final class ConstantEvaluators {
                     {
                         var x = (int) stack.pop().longValue();
                         var y = (int) stack.pop().longValue();
-                        stack.push(longResult(x + y));
+                        stack.push(ConstantResult.fromLong(x + y));
                         break;
                     }
                 case I32_SUB:
                     {
                         var x = (int) stack.pop().longValue();
                         var y = (int) stack.pop().longValue();
-                        stack.push(longResult(y - x));
+                        stack.push(ConstantResult.fromLong(y - x));
                         break;
                     }
                 case I32_MUL:
@@ -68,28 +71,28 @@ public final class ConstantEvaluators {
                         var x = (int) stack.pop().longValue();
                         var y = (int) stack.pop().longValue();
                         int res = x * y;
-                        stack.push(longResult(res));
+                        stack.push(ConstantResult.fromLong(res));
                         break;
                     }
                 case I64_ADD:
                     {
                         var x = stack.pop().longValue();
                         var y = stack.pop().longValue();
-                        stack.push(longResult(x + y));
+                        stack.push(ConstantResult.fromLong(x + y));
                         break;
                     }
                 case I64_SUB:
                     {
                         var x = stack.pop().longValue();
                         var y = stack.pop().longValue();
-                        stack.push(longResult(y - x));
+                        stack.push(ConstantResult.fromLong(y - x));
                         break;
                     }
                 case I64_MUL:
                     {
                         var x = stack.pop().longValue();
                         var y = stack.pop().longValue();
-                        stack.push(longResult(x * y));
+                        stack.push(ConstantResult.fromLong(x * y));
                         break;
                     }
                 case V128_CONST:
@@ -106,7 +109,7 @@ public final class ConstantEvaluators {
                 case I64_CONST:
                 case REF_FUNC:
                     {
-                        stack.push(longResult(instruction.operand(0)));
+                        stack.push(ConstantResult.fromLong(instruction.operand(0)));
                         break;
                     }
                 case REF_NULL:
@@ -134,7 +137,7 @@ public final class ConstantEvaluators {
                                             new long[] {global.getValueLow()},
                                             global.getRefValue()));
                         } else {
-                            stack.push(longResult(global.getValueLow()));
+                            stack.push(ConstantResult.fromLong(global.getValueLow()));
                         }
                         break;
                     }
@@ -165,7 +168,12 @@ public final class ConstantEvaluators {
                                 fields[i] = entry.longValue();
                             }
                         }
-                        var struct = new WasmStruct(typeIdx, fields, fieldRefs);
+                        var struct =
+                                WasmStruct.builder()
+                                        .typeIdx(typeIdx)
+                                        .fields(fields)
+                                        .fieldRefs(fieldRefs)
+                                        .build();
                         stack.push(new ConstantResult(new long[] {0}, struct));
                         break;
                     }
@@ -190,7 +198,12 @@ public final class ConstantEvaluators {
                                 fields[i] = Value.REF_NULL_VALUE;
                             }
                         }
-                        var struct = new WasmStruct(typeIdx, fields, fieldRefs);
+                        var struct =
+                                WasmStruct.builder()
+                                        .typeIdx(typeIdx)
+                                        .fields(fields)
+                                        .fieldRefs(fieldRefs)
+                                        .build();
                         stack.push(new ConstantResult(new long[] {0}, struct));
                         break;
                     }
@@ -212,7 +225,12 @@ public final class ConstantEvaluators {
                         } else {
                             Arrays.fill(elements, fillEntry.longValue());
                         }
-                        var array = new WasmArray(typeIdx, elements, elementRefs);
+                        var array =
+                                WasmArray.builder()
+                                        .typeIdx(typeIdx)
+                                        .elements(elements)
+                                        .elementRefs(elementRefs)
+                                        .build();
                         stack.push(new ConstantResult(new long[] {0}, array));
                         break;
                     }
@@ -234,7 +252,12 @@ public final class ConstantEvaluators {
                                 && !ft.storageType().isObjectRef()) {
                             Arrays.fill(elements, Value.REF_NULL_VALUE);
                         }
-                        var array = new WasmArray(typeIdx, elements, elementRefs);
+                        var array =
+                                WasmArray.builder()
+                                        .typeIdx(typeIdx)
+                                        .elements(elements)
+                                        .elementRefs(elementRefs)
+                                        .build();
                         stack.push(new ConstantResult(new long[] {0}, array));
                         break;
                     }
@@ -259,7 +282,12 @@ public final class ConstantEvaluators {
                                 elements[i] = entry.longValue();
                             }
                         }
-                        var array = new WasmArray(typeIdx, elements, elementRefs);
+                        var array =
+                                WasmArray.builder()
+                                        .typeIdx(typeIdx)
+                                        .elements(elements)
+                                        .elementRefs(elementRefs)
+                                        .build();
                         stack.push(new ConstantResult(new long[] {0}, array));
                         break;
                     }
@@ -279,10 +307,6 @@ public final class ConstantEvaluators {
         }
 
         return stack.pop();
-    }
-
-    private static ConstantResult longResult(long value) {
-        return new ConstantResult(new long[] {value}, null);
     }
 
     public static Instance computeConstantInstance(Instance instance, List<Instruction> expr) {

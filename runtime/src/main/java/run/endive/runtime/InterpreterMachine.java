@@ -21,7 +21,6 @@ import run.endive.wasm.types.Value;
 /**
  * This is responsible for holding and interpreting the Wasm code.
  */
-@SuppressWarnings("deprecation")
 public class InterpreterMachine implements Machine {
 
     private enum AtomicOp {
@@ -3492,7 +3491,8 @@ public class InterpreterMachine implements Machine {
                 fields[i] = stack.pop();
             }
         }
-        var struct = new WasmStruct(typeIdx, fields, fieldRefs);
+        var struct =
+                WasmStruct.builder().typeIdx(typeIdx).fields(fields).fieldRefs(fieldRefs).build();
         stack.pushRef(struct);
     }
 
@@ -3513,8 +3513,12 @@ public class InterpreterMachine implements Machine {
         }
         var struct =
                 hasObjRefFields
-                        ? new WasmStruct(typeIdx, fields, new Object[fields.length])
-                        : new WasmStruct(typeIdx, fields);
+                        ? WasmStruct.builder()
+                                .typeIdx(typeIdx)
+                                .fields(fields)
+                                .fieldRefs(new Object[fields.length])
+                                .build()
+                        : WasmStruct.builder().typeIdx(typeIdx).fields(fields).build();
         stack.pushRef(struct);
     }
 
@@ -3584,13 +3588,18 @@ public class InterpreterMachine implements Machine {
             var elems = new long[len];
             var elemRefs = new Object[len];
             java.util.Arrays.fill(elemRefs, initRef);
-            var arr = new WasmArray(typeIdx, elems, elemRefs);
+            var arr =
+                    WasmArray.builder()
+                            .typeIdx(typeIdx)
+                            .elements(elems)
+                            .elementRefs(elemRefs)
+                            .build();
             stack.pushRef(arr);
         } else {
             var initVal = stack.pop();
             var elems = new long[len];
             java.util.Arrays.fill(elems, initVal);
-            var arr = new WasmArray(typeIdx, elems);
+            var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
             stack.pushRef(arr);
         }
     }
@@ -3602,16 +3611,21 @@ public class InterpreterMachine implements Machine {
         var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
         var ft = at.fieldType();
         if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
-            var arr = new WasmArray(typeIdx, elems, new Object[len]);
+            var arr =
+                    WasmArray.builder()
+                            .typeIdx(typeIdx)
+                            .elements(elems)
+                            .elementRefs(new Object[len])
+                            .build();
             stack.pushRef(arr);
         } else if (ft.storageType().valType() != null
                 && ft.storageType().valType().isReference()
                 && !ft.storageType().isObjectRef()) {
             java.util.Arrays.fill(elems, Value.REF_NULL_VALUE);
-            var arr = new WasmArray(typeIdx, elems);
+            var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
             stack.pushRef(arr);
         } else {
-            var arr = new WasmArray(typeIdx, elems);
+            var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
             stack.pushRef(arr);
         }
     }
@@ -3629,13 +3643,18 @@ public class InterpreterMachine implements Machine {
             for (int i = len - 1; i >= 0; i--) {
                 elemRefs[i] = stack.popRef();
             }
-            var arr = new WasmArray(typeIdx, elems, elemRefs);
+            var arr =
+                    WasmArray.builder()
+                            .typeIdx(typeIdx)
+                            .elements(elems)
+                            .elementRefs(elemRefs)
+                            .build();
             stack.pushRef(arr);
         } else {
             for (int i = len - 1; i >= 0; i--) {
                 elems[i] = stack.pop();
             }
-            var arr = new WasmArray(typeIdx, elems);
+            var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
             stack.pushRef(arr);
         }
     }
@@ -3656,7 +3675,7 @@ public class InterpreterMachine implements Machine {
             var byteOff = offset + i * elemSize;
             elems[i] = readFromData(data, byteOff, elemSize);
         }
-        var arr = new WasmArray(typeIdx, elems);
+        var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
         stack.pushRef(arr);
     }
 
@@ -3682,7 +3701,8 @@ public class InterpreterMachine implements Machine {
                 elems[i] = result.longValue();
             }
         }
-        var arr = new WasmArray(typeIdx, elems, elemRefs);
+        var arr =
+                WasmArray.builder().typeIdx(typeIdx).elements(elems).elementRefs(elemRefs).build();
         stack.pushRef(arr);
     }
 

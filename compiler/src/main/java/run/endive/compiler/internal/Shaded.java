@@ -25,7 +25,6 @@ import run.endive.wasm.types.ValType;
 /**
  * This class will get shaded into the compiled code.
  */
-@SuppressWarnings("deprecation")
 public final class Shaded {
 
     private Shaded() {}
@@ -486,7 +485,8 @@ public final class Shaded {
         if (args == null) {
             args = new long[0];
         }
-        WasmException e = new WasmException(instance, tagNumber, args);
+        WasmException e =
+                WasmException.builder().instance(instance).tagIdx(tagNumber).args(args).build();
         instance.registerException(e);
         return e;
     }
@@ -920,7 +920,7 @@ public final class Shaded {
 
     public static Object structNew(
             long[] fields, Object[] fieldRefs, int typeIdx, Instance instance) {
-        return new WasmStruct(typeIdx, fields, fieldRefs);
+        return WasmStruct.builder().typeIdx(typeIdx).fields(fields).fieldRefs(fieldRefs).build();
     }
 
     public static Object structNewDefault(int typeIdx, Instance instance) {
@@ -935,7 +935,7 @@ public final class Shaded {
                 fields[i] = REF_NULL_VALUE;
             }
         }
-        return new WasmStruct(typeIdx, fields, fieldRefs);
+        return WasmStruct.builder().typeIdx(typeIdx).fields(fields).fieldRefs(fieldRefs).build();
     }
 
     public static long structGet(Object ref, int typeIdx, int fieldIdx, Instance instance) {
@@ -1008,14 +1008,14 @@ public final class Shaded {
     public static Object arrayNew(long initVal, int len, int typeIdx, Instance instance) {
         var elems = new long[len];
         Arrays.fill(elems, initVal);
-        return new WasmArray(typeIdx, elems);
+        return WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
     }
 
     public static Object arrayNewRef(Object initVal, int len, int typeIdx, Instance instance) {
         var elems = new long[len];
         var elemRefs = new Object[len];
         Arrays.fill(elemRefs, initVal);
-        return new WasmArray(typeIdx, elems, elemRefs);
+        return WasmArray.builder().typeIdx(typeIdx).elements(elems).elementRefs(elemRefs).build();
     }
 
     public static Object arrayNewDefault(int len, int typeIdx, Instance instance) {
@@ -1023,23 +1023,27 @@ public final class Shaded {
         var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
         var ft = at.fieldType();
         if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
-            return new WasmArray(typeIdx, elems, new Object[len]);
+            return WasmArray.builder()
+                    .typeIdx(typeIdx)
+                    .elements(elems)
+                    .elementRefs(new Object[len])
+                    .build();
         }
         if (ft.storageType().valType() != null
                 && ft.storageType().valType().isReference()
                 && !ft.storageType().isObjectRef()) {
             Arrays.fill(elems, REF_NULL_VALUE);
         }
-        return new WasmArray(typeIdx, elems);
+        return WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
     }
 
     public static Object arrayNewFixed(long[] vals, int typeIdx, Instance instance) {
-        return new WasmArray(typeIdx, vals);
+        return WasmArray.builder().typeIdx(typeIdx).elements(vals).build();
     }
 
     public static Object arrayNewFixedRefs(Object[] vals, int typeIdx, Instance instance) {
         var elems = new long[vals.length];
-        return new WasmArray(typeIdx, elems, vals);
+        return WasmArray.builder().typeIdx(typeIdx).elements(elems).elementRefs(vals).build();
     }
 
     public static Object arrayNewData(
@@ -1055,7 +1059,7 @@ public final class Shaded {
             var byteOff = offset + i * elemSize;
             elems[i] = readFromData(data, byteOff, elemSize);
         }
-        return new WasmArray(typeIdx, elems);
+        return WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
     }
 
     public static Object arrayNewElem(
@@ -1077,7 +1081,7 @@ public final class Shaded {
                 elems[i] = result.longValue();
             }
         }
-        return new WasmArray(typeIdx, elems, elemRefs);
+        return WasmArray.builder().typeIdx(typeIdx).elements(elems).elementRefs(elemRefs).build();
     }
 
     public static long arrayGet(Object ref, int idx, int typeIdx, Instance instance) {

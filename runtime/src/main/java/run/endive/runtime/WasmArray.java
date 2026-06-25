@@ -117,7 +117,6 @@ public final class WasmArray implements WasmGcRef {
             }
         }
 
-        @SuppressWarnings("deprecation")
         public WasmArray build() {
             if (elementList != null) {
                 int size = elementList.size();

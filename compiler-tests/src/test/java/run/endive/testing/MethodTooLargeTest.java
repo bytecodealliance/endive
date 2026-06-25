@@ -80,6 +80,7 @@ public class MethodTooLargeTest {
         output = output.replaceAll("(?m)^ {4}MAX(STACK|LOCALS) = \\d+\\n", "");
         output = output.replaceAll("(?m)^ {4}(LINENUMBER|LOCALVARIABLE) .*\\n", "");
         output = output.replaceAll("(?m)^ *// .*\\n", "");
+        output = output.replaceAll("(?m)^ *.*INNERCLASS.*\\n", "");
         output = output.replaceAll("\\n{3,}", "\n\n");
         output = output.strip() + "\n";
 

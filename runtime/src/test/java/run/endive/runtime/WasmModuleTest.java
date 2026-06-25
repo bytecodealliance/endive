@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
@@ -501,8 +502,12 @@ public class WasmModuleTest {
     @Test
     public void shouldResolveMultipleAliasesByTypeForAllImports() {
         var module = loadModule("compiled/alias-imports3.wat.wasm");
-        var globalI32 = new ImportGlobal("env", "global", new GlobalInstance(Value.i32(123)));
-        var globalI64 = new ImportGlobal("env", "global", new GlobalInstance(Value.i64(124)));
+        var globalI32 =
+                new ImportGlobal(
+                        "env", "global", GlobalInstance.builder().value(Value.i32(123)).build());
+        var globalI64 =
+                new ImportGlobal(
+                        "env", "global", GlobalInstance.builder().value(Value.i64(124)).build());
         var tableFuncref =
                 new ImportTable(
                         "env",
@@ -730,8 +735,12 @@ public class WasmModuleTest {
                                 (value, highValue, type, mutability) -> {
                                     int idx = created.getAndIncrement();
                                     long initValue = context.getOrDefault(idx, value);
-                                    return new GlobalInstance(
-                                            initValue, highValue, type, mutability);
+                                    return GlobalInstance.builder()
+                                            .valueLow(initValue)
+                                            .valueHigh(highValue)
+                                            .valType(type)
+                                            .mutabilityType(mutability)
+                                            .build();
                                 })
                         .build();
 
@@ -761,7 +770,33 @@ public class WasmModuleTest {
     @Test
     public void testExternrefHandling() {
         var testObject = new Object();
-        var sideTable = new HashMap<Long, Object>();
+
+        WasmFunctionHandle getHostObject =
+                new WasmFunctionHandle() {
+                    @Override
+                    public long[] apply(Instance inst, long... args) {
+                        throw new UnsupportedOperationException("Use applyWithRefs");
+                    }
+
+                    @Override
+                    public CallResult applyWithRefs(Instance inst, long[] args, Object[] refArgs) {
+                        return CallResult.of(null, new Object[] {testObject});
+                    }
+                };
+
+        WasmFunctionHandle isNull =
+                new WasmFunctionHandle() {
+                    @Override
+                    public long[] apply(Instance inst, long... args) {
+                        throw new UnsupportedOperationException("Use applyWithRefs");
+                    }
+
+                    @Override
+                    public CallResult applyWithRefs(Instance inst, long[] args, Object[] refArgs) {
+                        Object ref = (refArgs != null && refArgs.length > 0) ? refArgs[0] : null;
+                        return CallResult.of(new long[] {ref == null ? 1 : 0}, null);
+                    }
+                };
 
         var imports =
                 ImportValues.builder()
@@ -770,45 +805,44 @@ public class WasmModuleTest {
                                         "env",
                                         "get_host_object",
                                         FunctionType.of(List.of(), List.of(ValType.ExternRef)),
-                                        (inst, args) -> {
-                                            sideTable.put(123L, testObject);
-                                            return new long[] {123L};
-                                        }))
+                                        getHostObject))
                         .addFunction(
                                 new HostFunction(
                                         "env",
                                         "is_null",
                                         FunctionType.of(
                                                 List.of(ValType.ExternRef), List.of(ValType.I32)),
-                                        (inst, args) -> {
-                                            long key = args[0];
-                                            return (sideTable.get(key) == null)
-                                                    ? new long[] {1}
-                                                    : new long[] {0};
-                                        }))
+                                        isNull))
                         .build();
         var instance =
                 Instance.builder(loadModule("compiled/externref-example.wat.wasm"))
                         .withImportValues(imports)
                         .build();
 
-        var roundTrip = instance.exports().function("process_externref").apply(123L)[0];
-        assertEquals(123L, roundTrip);
+        // Round-trip: pass an externref Object, get it back
+        var roundTrip =
+                instance.exports()
+                        .function("process_externref")
+                        .applyWithRefs(new long[0], new Object[] {testObject});
+        assertSame(testObject, roundTrip.refResult(0));
 
-        // object has not been created yet
-        var isNull1 = instance.exports().function("is_null").apply(123L)[0];
-        assertEquals(1L, isNull1);
+        // is_null with a non-null ref
+        var isNull1 =
+                instance.exports()
+                        .function("is_null")
+                        .applyWithRefs(new long[0], new Object[] {testObject});
+        assertEquals(0, isNull1.longResult(0));
 
-        // now we create the test object
-        var ref = instance.exports().function("get_host_object").apply()[0];
-        assertEquals(123L, ref);
+        // is_null with null
+        var isNull2 =
+                instance.exports()
+                        .function("is_null")
+                        .applyWithRefs(new long[0], new Object[] {null});
+        assertEquals(1, isNull2.longResult(0));
 
-        var isNull2 = instance.exports().function("is_null").apply(123L)[0];
-        assertEquals(0L, isNull2);
-
-        // verify against a reference that doesn't exist
-        var isNull3 = instance.exports().function("is_null").apply(1L)[0];
-        assertEquals(1L, isNull3);
+        // get_host_object returns the testObject
+        var ref = instance.exports().function("get_host_object").applyWithRefs(new long[0], null);
+        assertSame(testObject, ref.refResult(0));
     }
 
     @Test

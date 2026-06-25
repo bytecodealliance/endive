@@ -8,7 +8,6 @@ import java.lang.reflect.InvocationTargetException;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.PassiveElement;
 import run.endive.wasm.types.ValType;
-import run.endive.wasm.types.Value;
 
 /**
  * Note: Some opcodes are easy or trivial to implement as compiler intrinsics (local.get, i32.add, etc).
@@ -820,17 +819,25 @@ public final class OpcodeImpl {
             throw new WasmRuntimeException("out of bounds table access");
         }
 
+        boolean isObjRefTable = dest.elementType().isObjectRef();
+
         for (int i = size - 1; i >= 0; i--) {
             if (d <= s) {
-                var val = src.ref(s);
                 var inst = src.instance(s);
-                dest.setRef(d, (int) val, inst);
+                if (isObjRefTable) {
+                    dest.setObjRef(d, src.objRef(s), inst);
+                } else {
+                    dest.setRef(d, src.ref(s), inst);
+                }
                 s++;
                 d++;
             } else {
-                var val = src.ref(s + i);
                 var inst = src.instance(s + i);
-                dest.setRef(d + i, (int) val, inst);
+                if (isObjRefTable) {
+                    dest.setObjRef(d + i, src.objRef(s + i), inst);
+                } else {
+                    dest.setRef(d + i, src.ref(s + i), inst);
+                }
             }
         }
     }
@@ -861,18 +868,22 @@ public final class OpcodeImpl {
         }
 
         int end = (int) endL;
+        boolean isObjRefTable = table.elementType().isObjectRef();
         for (int i = offset; i < end; i++) {
             var elem = instance.element(elementidx);
-            var val =
-                    boxForTable(
-                            computeConstantValue(instance, elem.initializers().get(elemidx++))[0],
-                            instance);
-            if (table.elementType().equals(ValType.FuncRef)) {
-                if (val > instance.functionCount()) {
-                    throw new WasmRuntimeException("out of bounds table access");
-                }
-                table.setRef(i, val, instance);
+            if (isObjRefTable) {
+                var result =
+                        ConstantEvaluators.computeConstant(
+                                instance, elem.initializers().get(elemidx++));
+                table.setObjRef(i, result.ref(), instance);
             } else {
+                var val =
+                        (int) computeConstantValue(instance, elem.initializers().get(elemidx++))[0];
+                if (table.elementType().equals(ValType.FuncRef)) {
+                    if (val > instance.functionCount()) {
+                        throw new WasmRuntimeException("out of bounds table access");
+                    }
+                }
                 table.setRef(i, val, instance);
             }
         }
@@ -883,29 +894,15 @@ public final class OpcodeImpl {
      * i31 values (tagged longs) are boxed as WasmI31Ref GC refs so the tag is preserved.
      * For non-GC values (funcref, externref), this is a no-op cast to int.
      */
+    @SuppressWarnings("InlineMeSuggester")
+    @Deprecated
     public static int boxForTable(long stackValue, Instance instance) {
-        if (Value.isI31(stackValue)) {
-            var i31Ref = new WasmI31Ref(Value.decodeI31U(stackValue));
-            return instance.registerGcRef(i31Ref);
-        }
         return (int) stackValue;
     }
 
-    /**
-     * Converts an int from table storage to a stack long value, unboxing i31 refs.
-     * Only performs GC ref lookup for GC-typed tables (anyref, eqref, etc.) to avoid
-     * overhead for funcref tables in non-GC modules.
-     */
+    @SuppressWarnings("InlineMeSuggester")
+    @Deprecated
     public static long unboxFromTable(int tableValue, Instance instance, ValType elementType) {
-        if (tableValue != Value.REF_NULL_VALUE
-                && tableValue >= 0
-                && !elementType.equals(ValType.FuncRef)
-                && !elementType.equals(ValType.ExternRef)) {
-            var gcRef = instance.gcRef(tableValue);
-            if (gcRef instanceof WasmI31Ref) {
-                return Value.encodeI31(((WasmI31Ref) gcRef).value());
-            }
-        }
         return tableValue;
     }
 

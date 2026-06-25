@@ -288,6 +288,69 @@ public class WasmValue {
         return Integer.toUnsignedString((int) (0xFFFFFFFF & longValue)) + "L";
     }
 
+    /**
+     * Generate assertion for CallResult from applyWithRefs.
+     *
+     * Object ref types use cr.refResult(i) and compare with Java null/not-null.
+     * Numeric types use cr.longResult(i) and compare with expected values.
+     */
+    public NameExpr toRefAssertion(String resultVar, String moduleName) {
+        if (value == null) {
+            // Type-only assertion (no specific value)
+            switch (type) {
+                case FUNC_REF:
+                    return new NameExpr("assertNotNull(" + resultVar + ")");
+                case EXTERN_REF:
+                    return new NameExpr("assertNotNull(" + resultVar + ")");
+                case REF_NULL:
+                case NULL_REF:
+                    // These are GC null types -> Java null from popRef()
+                    return new NameExpr("assertNull(" + resultVar + ")");
+                case NULL_FUNC_REF:
+                case NULL_EXTERN_REF:
+                    return new NameExpr("assertNull(" + resultVar + ")");
+                case STRUCT_REF:
+                case ANY_REF:
+                case I31_REF:
+                case ARRAY_REF:
+                case EQ_REF:
+                    return new NameExpr("assertNotNull(" + resultVar + ")");
+                default:
+                    throw new IllegalArgumentException(
+                            "cannot generate GC assertion for WasmValue: " + this);
+            }
+        }
+
+        // Value-based assertion
+        switch (type) {
+            case STRUCT_REF:
+            case ANY_REF:
+            case NULL_REF:
+            case ARRAY_REF:
+            case EQ_REF:
+            case I31_REF:
+            case REF_NULL:
+                // GC ref types: null -> Java null, non-null -> assertNotNull
+                if (value[0].equals("null")) {
+                    return new NameExpr("assertNull(" + resultVar + ")");
+                }
+                return new NameExpr("assertNotNull(" + resultVar + ")");
+            case EXTERN_REF:
+            case EXN_REF:
+            case FUNC_REF:
+            case NULL_FUNC_REF:
+            case NULL_EXTERN_REF:
+                if (value[0].equals("null")) {
+                    return new NameExpr("assertNull(" + resultVar + ")");
+                }
+                return new NameExpr("assertNotNull(" + resultVar + ")");
+            default:
+                // Numeric types in GC path
+                var expectedVar = toExpectedValue();
+                return new NameExpr("assertEquals(" + expectedVar + ", " + resultVar + ")");
+        }
+    }
+
     public String toArgsValue() {
         switch (type) {
             case I32:
@@ -388,6 +451,72 @@ public class WasmValue {
                 }
                 sb.append(" })");
                 return sb.toString();
+            default:
+                throw new IllegalArgumentException("Type not recognized " + type);
+        }
+    }
+
+    /**
+     * Generate the Object expression for use with ArgsAdapter.addRef().
+     * Only called for types where isObjectRef() is true.
+     *
+     * <p>In the wast spec test format, non-null values for anyref/externref/etc.
+     * represent host objects (ref.host N or ref.extern N) which are encoded
+     * as WasmExternRef on the JVM side.
+     */
+    public String toRefArgsValue() {
+        if (value[0].equals("null")) {
+            return "null";
+        }
+        switch (type) {
+            case EXTERN_REF:
+            case NULL_EXTERN_REF:
+            case ANY_REF:
+            case EQ_REF:
+            case STRUCT_REF:
+            case ARRAY_REF:
+            case I31_REF:
+            case NULL_REF:
+            case REF_NULL:
+                // Non-null host references in wast tests are encoded as
+                // WasmExternRef wrapping the numeric value
+                return "new run.endive.runtime.WasmExternRef(Long.parseLong(\"" + value[0] + "\"))";
+            case FUNC_REF:
+            case NULL_FUNC_REF:
+                return "null";
+            default:
+                throw new IllegalArgumentException("Type not recognized for ref args: " + type);
+        }
+    }
+
+    /**
+     * Generate result extraction expression for CallResult.
+     * For numeric types, uses cr.longResult(i).
+     * For ref types, uses cr.refResult(i).
+     */
+    public String toRefResultValue(String crVar, int index) {
+        switch (type) {
+            case I64:
+                return crVar + ".longResult(" + index + ")";
+            case I32:
+                return "(int) " + crVar + ".longResult(" + index + ")";
+            case F32:
+                return "Float.intBitsToFloat((int) " + crVar + ".longResult(" + index + ")), 0.0";
+            case F64:
+                return "Double.longBitsToDouble(" + crVar + ".longResult(" + index + ")), 0.0";
+            case EXTERN_REF:
+            case EXN_REF:
+            case FUNC_REF:
+            case NULL_FUNC_REF:
+            case NULL_EXTERN_REF:
+            case STRUCT_REF:
+            case ANY_REF:
+            case NULL_REF:
+            case ARRAY_REF:
+            case EQ_REF:
+            case I31_REF:
+            case REF_NULL:
+                return crVar + ".refResult(" + index + ")";
             default:
                 throw new IllegalArgumentException("Type not recognized " + type);
         }

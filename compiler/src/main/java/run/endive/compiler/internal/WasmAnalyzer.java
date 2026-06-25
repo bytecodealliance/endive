@@ -526,7 +526,8 @@ final class WasmAnalyzer {
 
                         // BR_ON_NULL_CHECK: DUPs ref, pushes 1 if null, 0 if not null
                         // JVM stack after check: [ref, 0_or_1]
-                        result.add(new CompilerInstruction(CompilerOpCode.BR_ON_NULL_CHECK));
+                        result.add(
+                                new CompilerInstruction(CompilerOpCode.BR_ON_NULL_CHECK, ref.id()));
 
                         // IFEQ: pops boolean; if 0 (not null) -> jump to notNullLabel
                         // JVM stack after IFEQ: [ref]
@@ -555,7 +556,9 @@ final class WasmAnalyzer {
 
                         // BR_ON_NON_NULL_CHECK: DUPs ref, pushes 1 if non-null, 0 if null
                         // JVM stack after check: [ref, 0_or_1]
-                        result.add(new CompilerInstruction(CompilerOpCode.BR_ON_NON_NULL_CHECK));
+                        result.add(
+                                new CompilerInstruction(
+                                        CompilerOpCode.BR_ON_NON_NULL_CHECK, ref.id()));
 
                         // IFEQ: if 0 (null) -> jump to nullLabel
                         var nullLabel = nextLabel++;
@@ -731,6 +734,31 @@ final class WasmAnalyzer {
                         result.add(
                                 new CompilerInstruction(
                                         CompilerOpCode.CAST_TEST_NULL, castNullOperands));
+                        break;
+                    }
+                case REF_TEST:
+                    {
+                        // ref.test: [ref] -> [i32]
+                        var srcType = stack.peek();
+                        stack.popRef();
+                        var heapType = (int) ins.operand(0);
+                        stack.push(ValType.I32);
+                        long[] refTestOperands = {heapType, srcType.typeIdx()};
+                        result.add(
+                                new CompilerInstruction(CompilerOpCode.REF_TEST, refTestOperands));
+                        break;
+                    }
+                case REF_TEST_NULL:
+                    {
+                        // ref.test null: [ref] -> [i32]
+                        var srcType = stack.peek();
+                        stack.popRef();
+                        var heapType = (int) ins.operand(0);
+                        stack.push(ValType.I32);
+                        long[] refTestNullOperands = {heapType, srcType.typeIdx()};
+                        result.add(
+                                new CompilerInstruction(
+                                        CompilerOpCode.REF_TEST_NULL, refTestNullOperands));
                         break;
                     }
                 default:
@@ -1275,10 +1303,14 @@ final class WasmAnalyzer {
                                 .resolve(module.typeSection()));
                 break;
             case REF_IS_NULL:
-                // [ref] -> [I32]
-                stack.popRef();
-                stack.push(ValType.I32);
-                break;
+                {
+                    // [ref] -> [I32]
+                    var refType = stack.peek();
+                    stack.popRef();
+                    stack.push(ValType.I32);
+                    out.add(new CompilerInstruction(CompilerOpCode.REF_IS_NULL, refType.id()));
+                    return;
+                }
             case MEMORY_COPY:
             case MEMORY_FILL:
             case MEMORY_INIT:
@@ -1290,27 +1322,48 @@ final class WasmAnalyzer {
                 stack.pop(ValType.I32);
                 break;
             case TABLE_FILL:
-                // [I32 ref I32] -> []
-                stack.pop(ValType.I32);
-                stack.pop(stack.peek());
-                stack.pop(ValType.I32);
-                break;
+                {
+                    // [I32 ref I32] -> []
+                    stack.pop(ValType.I32);
+                    var fillValType = stack.peek().resolve(module.typeSection());
+                    stack.pop(fillValType);
+                    stack.pop(ValType.I32);
+                    long[] fillOps = {ins.operand(0), fillValType.isObjectRef() ? 1 : 0};
+                    out.add(new CompilerInstruction(CompilerOpCode.TABLE_FILL, fillOps));
+                    return;
+                }
             case TABLE_GET:
-                // [I32] -> [ref]
-                stack.pop(ValType.I32);
-                stack.push(tableTypes.get((int) ins.operand(0)));
-                break;
+                {
+                    // [I32] -> [ref]
+                    stack.pop(ValType.I32);
+                    var tableElemType = tableTypes.get((int) ins.operand(0));
+                    tableElemType.resolve(module.typeSection());
+                    stack.push(tableElemType);
+                    long[] getOps = {ins.operand(0), tableElemType.isObjectRef() ? 1 : 0};
+                    out.add(new CompilerInstruction(CompilerOpCode.TABLE_GET, getOps));
+                    return;
+                }
             case TABLE_GROW:
-                // [ref I32] -> [I32]
-                stack.pop(ValType.I32);
-                stack.pop(tableTypes.get((int) ins.operand(0)));
-                stack.push(ValType.I32);
-                break;
+                {
+                    // [ref I32] -> [I32]
+                    stack.pop(ValType.I32);
+                    var growValType = stack.peek().resolve(module.typeSection());
+                    stack.pop(growValType);
+                    stack.push(ValType.I32);
+                    long[] growOps = {ins.operand(0), growValType.isObjectRef() ? 1 : 0};
+                    out.add(new CompilerInstruction(CompilerOpCode.TABLE_GROW, growOps));
+                    return;
+                }
             case TABLE_SET:
-                // [I32 ref] -> []
-                stack.pop(tableTypes.get((int) ins.operand(0)));
-                stack.pop(ValType.I32);
-                break;
+                {
+                    // [I32 ref] -> []
+                    var setValType = stack.peek().resolve(module.typeSection());
+                    stack.pop(setValType);
+                    stack.pop(ValType.I32);
+                    long[] setOps = {ins.operand(0), setValType.isObjectRef() ? 1 : 0};
+                    out.add(new CompilerInstruction(CompilerOpCode.TABLE_SET, setOps));
+                    return;
+                }
             case CALL:
                 // [p*] -> [r*]
                 updateStack(stack, functionTypes.get((int) ins.operand(0)));
@@ -1413,7 +1466,8 @@ final class WasmAnalyzer {
                     var rt = stack.peek();
                     stack.popRef();
                     stack.push(valType(ValType.ID.Ref, rt.typeIdx()));
-                    break;
+                    out.add(new CompilerInstruction(CompilerOpCode.REF_AS_NON_NULL, rt.id()));
+                    return;
                 }
             case STRUCT_NEW:
                 {
@@ -1571,7 +1625,8 @@ final class WasmAnalyzer {
                         ValType.builder()
                                 .withOpcode(ValType.ID.Ref)
                                 .withTypeIdx(ValType.TypeIdxCode.I31.code())
-                                .build());
+                                .build()
+                                .resolve(module.typeSection()));
                 break;
             case I31_GET_S:
             case I31_GET_U:
@@ -1711,7 +1766,7 @@ final class WasmAnalyzer {
         return Stream.concat(importedFunctions, moduleFunctions).collect(toUnmodifiableList());
     }
 
-    private static List<ValType> getTableTypes(WasmModule module) {
+    static List<ValType> getTableTypes(WasmModule module) {
         var importedTables =
                 module.importSection().stream()
                         .filter(TableImport.class::isInstance)

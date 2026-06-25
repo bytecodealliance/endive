@@ -8,14 +8,23 @@ import run.endive.wasm.types.ValueType;
 public class GlobalInstance {
     private long valueLow;
     private long valueHigh;
+    private Object refValue;
     private final ValType valType;
     private Instance instance;
     private final MutabilityType mutabilityType;
 
+    /**
+     * @deprecated use {@link #builder()}
+     */
+    @Deprecated(since = "use builder()")
     public GlobalInstance(Value value) {
         this(value, MutabilityType.Const);
     }
 
+    /**
+     * @deprecated use {@link #builder()}
+     */
+    @Deprecated(since = "use builder()")
     public GlobalInstance(Value value, MutabilityType mutabilityType) {
         this.valueLow = value.raw();
         this.valueHigh = 0;
@@ -24,9 +33,9 @@ public class GlobalInstance {
     }
 
     /**
-     * @deprecated use {@link #GlobalInstance(long, long, ValType, MutabilityType)}
+     * @deprecated use {@link #builder()}
      */
-    @Deprecated(since = "1.3.0")
+    @Deprecated(since = "use builder()")
     public GlobalInstance(
             long valueLow, long valueHigh, ValueType valueType, MutabilityType mutabilityType) {
         this.valueLow = valueLow;
@@ -35,12 +44,24 @@ public class GlobalInstance {
         this.mutabilityType = mutabilityType;
     }
 
+    /**
+     * @deprecated use {@link #builder()}
+     */
+    @Deprecated(since = "use builder()")
     public GlobalInstance(
             long valueLow, long valueHigh, ValType valType, MutabilityType mutabilityType) {
         this.valueLow = valueLow;
         this.valueHigh = valueHigh;
         this.valType = valType;
         this.mutabilityType = mutabilityType;
+    }
+
+    private GlobalInstance(Builder b) {
+        this.valueLow = b.valueLow;
+        this.valueHigh = b.valueHigh;
+        this.refValue = b.refValue;
+        this.valType = b.valType;
+        this.mutabilityType = b.mutabilityType;
     }
 
     public long getValueLow() {
@@ -60,7 +81,6 @@ public class GlobalInstance {
     }
 
     public void setValue(Value value) {
-        // globals can not be type polimorphic
         assert (value.type() == valType);
         this.valueLow = value.raw();
     }
@@ -87,5 +107,62 @@ public class GlobalInstance {
 
     public MutabilityType getMutabilityType() {
         return mutabilityType;
+    }
+
+    public Object getRefValue() {
+        return refValue;
+    }
+
+    public void setRefValue(Object ref) {
+        this.refValue = ref;
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static final class Builder {
+        private long valueLow;
+        private long valueHigh;
+        private Object refValue;
+        private ValType valType;
+        private MutabilityType mutabilityType = MutabilityType.Const;
+
+        private Builder() {}
+
+        public Builder value(Value value) {
+            this.valueLow = value.raw();
+            this.valType = value.type();
+            return this;
+        }
+
+        public Builder valueLow(long valueLow) {
+            this.valueLow = valueLow;
+            return this;
+        }
+
+        public Builder valueHigh(long valueHigh) {
+            this.valueHigh = valueHigh;
+            return this;
+        }
+
+        public Builder refValue(Object refValue) {
+            this.refValue = refValue;
+            return this;
+        }
+
+        public Builder valType(ValType valType) {
+            this.valType = valType;
+            return this;
+        }
+
+        public Builder mutabilityType(MutabilityType mutabilityType) {
+            this.mutabilityType = mutabilityType;
+            return this;
+        }
+
+        public GlobalInstance build() {
+            return new GlobalInstance(this);
+        }
     }
 }

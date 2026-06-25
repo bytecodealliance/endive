@@ -174,10 +174,10 @@ public class ApprovalTest {
 
         VelocityContext context = new VelocityContext();
         context.put("iconst", IntStream.range(0, 293).toArray());
-        context.put("istore", IntStream.range(0, 296).toArray());
+        context.put("istore", IntStream.range(0, 294).toArray());
         context.put("splats1", IntStream.range(6, 128).toArray());
         context.put("splats2", IntStream.range(128, 300).toArray());
-        context.put("splats3", IntStream.range(6, 128).toArray());
+        context.put("splats3", IntStream.range(7, 128).toArray());
         context.put("splats4", IntStream.range(128, 300).toArray());
 
         StringWriter writer = new StringWriter();

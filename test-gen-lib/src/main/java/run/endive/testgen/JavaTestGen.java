@@ -77,6 +77,7 @@ public class JavaTestGen {
         cu.addImport("org.junit.jupiter.api.Assertions.assertNotNull", true, false);
         cu.addImport("org.junit.jupiter.api.Assertions.assertThrows", true, false);
         cu.addImport("org.junit.jupiter.api.Assertions.assertTrue", true, false);
+        cu.addImport("org.junit.jupiter.api.Assertions.assertNull", true, false);
         cu.addImport("org.junit.jupiter.api.Assertions.assertDoesNotThrow", true, false);
 
         // testing imports
@@ -87,6 +88,7 @@ public class JavaTestGen {
         cu.addImport("run.endive.wasm.WasmEngineException");
         cu.addImport("run.endive.runtime.WasmException");
         cu.addImport("run.endive.runtime.ExportFunction");
+        cu.addImport("run.endive.runtime.CallResult");
         cu.addImport("run.endive.runtime.Instance");
 
         // base imports
@@ -371,41 +373,99 @@ public class JavaTestGen {
         }
     }
 
+    /**
+     * Check if a command involves Object reference types in its args or expected values.
+     * If so, we must use applyWithRefs(long[], Object[]) instead of apply(long...).
+     */
+    private static boolean needsRefCall(Command cmd) {
+        if (cmd.action() != null && cmd.action().args() != null) {
+            for (var arg : cmd.action().args()) {
+                if (arg.type().isObjectRef()) {
+                    return true;
+                }
+            }
+        }
+        if (cmd.expected() != null) {
+            for (var expected : cmd.expected()) {
+                if (expected.type().isObjectRef()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private List<Expression> generateAssert(String varName, Command cmd, String moduleName) {
         assert (cmd.type() == CommandType.ASSERT_RETURN
                 || cmd.type() == CommandType.ASSERT_TRAP
                 || cmd.type() == CommandType.ASSERT_EXCEPTION
                 || cmd.type() == CommandType.ASSERT_EXHAUSTION);
 
-        var args =
-                (cmd.action().args() != null)
-                        ? Arrays.stream(cmd.action().args())
-                                .map(WasmValue::toArgsValue)
-                                .collect(Collectors.toList())
-                        : List.<String>of();
+        boolean useRef = needsRefCall(cmd);
 
-        var adaptedArgs =
-                (args == null || args.size() == 0)
-                        ? ""
-                        : args.stream().collect(Collectors.joining(").add(", ".add(", ")"));
-
-        // Function or Global
-        var invocationMethod =
-                (cmd.action().type() == ActionType.INVOKE)
-                        ? ".apply(ArgsAdapter.builder()" + adaptedArgs + ".build()" + ")"
-                        : ".getValue()";
+        String invocationMethod;
+        String refCallExpr = null;
+        if (cmd.action().type() == ActionType.INVOKE) {
+            if (useRef) {
+                // Build ArgsAdapter chain for ref-using functions
+                var argsBuilder = new StringBuilder("ArgsAdapter.builder()");
+                if (cmd.action().args() != null) {
+                    for (var arg : cmd.action().args()) {
+                        if (arg.type().isObjectRef()) {
+                            argsBuilder.append(".addRef(").append(arg.toRefArgsValue()).append(")");
+                        } else {
+                            argsBuilder.append(".add(").append(arg.toArgsValue()).append(")");
+                        }
+                    }
+                }
+                refCallExpr = argsBuilder + ".applyWithRefs(" + varName + ")";
+                invocationMethod = null; // not used for ref path
+            } else {
+                var args =
+                        (cmd.action().args() != null)
+                                ? Arrays.stream(cmd.action().args())
+                                        .map(WasmValue::toArgsValue)
+                                        .collect(Collectors.toList())
+                                : List.<String>of();
+                var adaptedArgs =
+                        (args == null || args.size() == 0)
+                                ? ""
+                                : args.stream().collect(Collectors.joining(").add(", ".add(", ")"));
+                invocationMethod = ".apply(ArgsAdapter.builder()" + adaptedArgs + ".build()" + ")";
+            }
+        } else {
+            invocationMethod = ".getValue()";
+        }
 
         if (cmd.type() == CommandType.ASSERT_TRAP
                 || cmd.type() == CommandType.ASSERT_EXHAUSTION
                 || cmd.type() == CommandType.ASSERT_EXCEPTION) {
+            String trapExpr;
+            if (cmd.action().type() == ActionType.INVOKE) {
+                // Always use applyWithRefs for trap tests to avoid
+                // UnsupportedOperationException from apply() on GC ref functions
+                if (refCallExpr != null) {
+                    trapExpr = refCallExpr;
+                } else {
+                    // Build ArgsAdapter chain even for non-ref args
+                    var argsBuilder = new StringBuilder("ArgsAdapter.builder()");
+                    if (cmd.action().args() != null) {
+                        for (var arg : cmd.action().args()) {
+                            argsBuilder.append(".add(").append(arg.toArgsValue()).append(")");
+                        }
+                    }
+                    trapExpr = argsBuilder + ".applyWithRefs(" + varName + ")";
+                }
+            } else {
+                trapExpr = varName + invocationMethod;
+            }
             var assertDecl =
                     new NameExpr(
                             "var exception ="
                                     + " assertThrows("
                                     + getExceptionType(cmd.type())
                                     + ".class, () -> "
-                                    + varName
-                                    + invocationMethod
+                                    + trapExpr
                                     + ")");
             if (cmd.text() != null) {
                 return List.of(assertDecl, exceptionMessageMatch(cmd.text()));
@@ -416,42 +476,58 @@ public class JavaTestGen {
             assert (cmd.expected() != null);
 
             List<Expression> exprs = new ArrayList<>();
-            var resVarName = (cmd.action().type() == ActionType.INVOKE) ? "results" : "result";
-            exprs.add(new NameExpr("var " + resVarName + " = " + varName + invocationMethod));
 
-            for (int i = 0; i < cmd.expected().length; i++) {
-                var expected = cmd.expected()[i];
-                var resultVar =
-                        (cmd.action().type() == ActionType.INVOKE)
-                                ? expected.toResultValue(resVarName + "[" + i + "]")
-                                : expected.toResultValue(resVarName);
+            if (useRef && cmd.action().type() == ActionType.INVOKE) {
+                // Ref path: result is CallResult
+                exprs.add(new NameExpr("var cr = " + refCallExpr));
 
-                if (expected.type().equals(WasmValueType.V128)) {
-                    exprs.add(new NameExpr("var expected = " + resultVar));
-                    switch (expected.laneType()) {
-                        case I8:
-                            exprs.add(
-                                    new NameExpr(
-                                            "assertArrayEquals(expected," + " vecTo8(results))"));
-                            break;
-                        case I16:
-                            exprs.add(
-                                    new NameExpr("assertArrayEquals(expected, vecTo16(results))"));
-                            break;
-                        case I32:
-                            exprs.add(
-                                    new NameExpr(
-                                            "assertArrayEquals(expected," + " vecTo32(results))"));
-                            break;
-                        case F32:
-                            exprs.add(
-                                    new NameExpr(
-                                            "assertArrayEquals(expected," + " vecToF32(results))"));
-                            break;
+                for (int i = 0; i < cmd.expected().length; i++) {
+                    var expected = cmd.expected()[i];
+                    var resultVar = expected.toRefResultValue("cr", i);
+                    exprs.add(expected.toRefAssertion(resultVar, moduleName));
+                }
+            } else {
+                var resVarName = (cmd.action().type() == ActionType.INVOKE) ? "results" : "result";
+                exprs.add(new NameExpr("var " + resVarName + " = " + varName + invocationMethod));
+
+                for (int i = 0; i < cmd.expected().length; i++) {
+                    var expected = cmd.expected()[i];
+                    var resultVar =
+                            (cmd.action().type() == ActionType.INVOKE)
+                                    ? expected.toResultValue(resVarName + "[" + i + "]")
+                                    : expected.toResultValue(resVarName);
+
+                    if (expected.type().equals(WasmValueType.V128)) {
+                        exprs.add(new NameExpr("var expected = " + resultVar));
+                        switch (expected.laneType()) {
+                            case I8:
+                                exprs.add(
+                                        new NameExpr(
+                                                "assertArrayEquals(expected,"
+                                                        + " vecTo8(results))"));
+                                break;
+                            case I16:
+                                exprs.add(
+                                        new NameExpr(
+                                                "assertArrayEquals(expected,"
+                                                        + " vecTo16(results))"));
+                                break;
+                            case I32:
+                                exprs.add(
+                                        new NameExpr(
+                                                "assertArrayEquals(expected,"
+                                                        + " vecTo32(results))"));
+                                break;
+                            case F32:
+                                exprs.add(
+                                        new NameExpr(
+                                                "assertArrayEquals(expected,"
+                                                        + " vecToF32(results))"));
+                                break;
+                        }
+                    } else {
+                        exprs.add(expected.toAssertion(resultVar, moduleName));
                     }
-
-                } else {
-                    exprs.add(expected.toAssertion(resultVar, moduleName));
                 }
             }
 
@@ -464,23 +540,34 @@ public class JavaTestGen {
     private List<Expression> generateInvoke(String varName, Command cmd) {
         assert cmd.type() == CommandType.ACTION;
 
-        String invocationMethod;
+        String invokeExpr;
         if (cmd.action().type() == ActionType.INVOKE) {
-            var args =
-                    Arrays.stream(cmd.action().args())
-                            .map(WasmValue::toArgsValue)
-                            .collect(Collectors.joining(", "));
-            invocationMethod = ".apply(" + args + ")";
+            boolean useRef = needsRefCall(cmd);
+            if (useRef) {
+                var argsBuilder = new StringBuilder("ArgsAdapter.builder()");
+                if (cmd.action().args() != null) {
+                    for (var arg : cmd.action().args()) {
+                        if (arg.type().isObjectRef()) {
+                            argsBuilder.append(".addRef(").append(arg.toRefArgsValue()).append(")");
+                        } else {
+                            argsBuilder.append(".add(").append(arg.toArgsValue()).append(")");
+                        }
+                    }
+                }
+                invokeExpr = argsBuilder + ".applyWithRefs(" + varName + ")";
+            } else {
+                var args =
+                        Arrays.stream(cmd.action().args())
+                                .map(WasmValue::toArgsValue)
+                                .collect(Collectors.joining(", "));
+                invokeExpr = varName + ".apply(" + args + ")";
+            }
         } else {
             throw new IllegalArgumentException("Unhandled action type " + cmd.action().type());
         }
 
         var assertDecl =
-                new NameExpr(
-                        "var exception = assertDoesNotThrow(() -> "
-                                + varName
-                                + invocationMethod
-                                + ")");
+                new NameExpr("var exception = assertDoesNotThrow(() -> " + invokeExpr + ")");
         return List.of(assertDecl);
     }
 

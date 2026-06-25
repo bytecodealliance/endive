@@ -49,4 +49,21 @@ public enum WasmValueType {
     public String value() {
         return value;
     }
+
+    public boolean isObjectRef() {
+        switch (this) {
+            case STRUCT_REF:
+            case ANY_REF:
+            case NULL_REF:
+            case ARRAY_REF:
+            case EQ_REF:
+            case I31_REF:
+            case REF_NULL:
+            case EXTERN_REF:
+            case NULL_EXTERN_REF:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

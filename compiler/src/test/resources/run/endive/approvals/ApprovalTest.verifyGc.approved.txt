@@ -1,6 +1,6 @@
 final class run/endive/$gen/CompiledMachineFuncGroup_0 {
 
-  public static func_0(IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+  public static func_0(IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)Ljava/lang/Object;
     ILOAD 0
     ILOAD 1
     ISTORE 5
@@ -17,12 +17,13 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ILOAD 5
     I2L
     LASTORE
+    ACONST_NULL
     ICONST_0
     ALOAD 3
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structNew ([JILrun/endive/runtime/Instance;)I
-    IRETURN
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structNew ([J[Ljava/lang/Object;ILrun/endive/runtime/Instance;)Ljava/lang/Object;
+    ARETURN
 
-  public static call_0(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
+  public static call_0(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
     ALOAD 2
     ICONST_0
     LALOAD
@@ -33,75 +34,157 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     L2I
     ALOAD 1
     ALOAD 0
-    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_0 (IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
-    I2L
-    LSTORE 3
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_0 (IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)Ljava/lang/Object;
+    POP
     ICONST_1
     NEWARRAY T_LONG
-    DUP
-    ICONST_0
-    LLOAD 3
-    LASTORE
     ARETURN
 
-  public static func_1(ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
-    ILOAD 0
-    ICONST_0
-    ICONST_0
-    ALOAD 2
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (IIILrun/endive/runtime/Instance;)J
-    L2I
-    IRETURN
-
-  public static call_1(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
+  public static callWithRefs_0(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
     ALOAD 2
     ICONST_0
     LALOAD
     L2I
+    ALOAD 2
+    ICONST_1
+    LALOAD
+    L2I
     ALOAD 1
     ALOAD 0
-    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_1 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_0 (IILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)Ljava/lang/Object;
+    ASTORE 4
+    ACONST_NULL
+    ICONST_1
+    ANEWARRAY java/lang/Object
+    DUP
+    ICONST_0
+    ALOAD 4
+    AASTORE
+    INVOKESTATIC run/endive/runtime/CallResult.of ([J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
+    ARETURN
+
+  public static func_1(Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    ALOAD 0
+    ICONST_0
+    ICONST_0
+    ALOAD 2
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (Ljava/lang/Object;IILrun/endive/runtime/Instance;)J
+    L2I
+    IRETURN
+
+  public static call_1(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
+    ALOAD 3
+    DUP
+    IFNONNULL L0
+    POP
+    ACONST_NULL
+    GOTO L1
+   L0
+    ICONST_0
+    AALOAD
+   L1
+    ALOAD 1
+    ALOAD 0
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_1 (Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
-    LSTORE 3
+    LSTORE 4
     ICONST_1
     NEWARRAY T_LONG
     DUP
     ICONST_0
-    LLOAD 3
+    LLOAD 4
     LASTORE
     ARETURN
 
-  public static func_2(ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
-    ILOAD 0
+  public static callWithRefs_1(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
+    ALOAD 3
+    DUP
+    IFNONNULL L0
+    POP
+    ACONST_NULL
+    GOTO L1
+   L0
+    ICONST_0
+    AALOAD
+   L1
+    ALOAD 1
+    ALOAD 0
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_1 (Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    I2L
+    LSTORE 4
+    ICONST_1
+    NEWARRAY T_LONG
+    DUP
+    ICONST_0
+    LLOAD 4
+    LASTORE
+    ACONST_NULL
+    INVOKESTATIC run/endive/runtime/CallResult.of ([J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
+    ARETURN
+
+  public static func_2(Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    ALOAD 0
     ICONST_0
     ICONST_0
     ALOAD 2
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (IIILrun/endive/runtime/Instance;)J
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (Ljava/lang/Object;IILrun/endive/runtime/Instance;)J
     L2I
-    ILOAD 0
+    ALOAD 0
     ICONST_0
     ICONST_1
     ALOAD 2
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (IIILrun/endive/runtime/Instance;)J
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.structGet (Ljava/lang/Object;IILrun/endive/runtime/Instance;)J
     L2I
     IADD
     IRETURN
 
-  public static call_2(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J)[J
-    ALOAD 2
+  public static call_2(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)[J
+    ALOAD 3
+    DUP
+    IFNONNULL L0
+    POP
+    ACONST_NULL
+    GOTO L1
+   L0
     ICONST_0
-    LALOAD
-    L2I
+    AALOAD
+   L1
     ALOAD 1
     ALOAD 0
-    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_2 (ILrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_2 (Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
     I2L
-    LSTORE 3
+    LSTORE 4
     ICONST_1
     NEWARRAY T_LONG
     DUP
     ICONST_0
-    LLOAD 3
+    LLOAD 4
     LASTORE
+    ARETURN
+
+  public static callWithRefs_2(Lrun/endive/runtime/Instance;Lrun/endive/runtime/Memory;[J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
+    ALOAD 3
+    DUP
+    IFNONNULL L0
+    POP
+    ACONST_NULL
+    GOTO L1
+   L0
+    ICONST_0
+    AALOAD
+   L1
+    ALOAD 1
+    ALOAD 0
+    INVOKESTATIC run/endive/$gen/CompiledMachineFuncGroup_0.func_2 (Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
+    I2L
+    LSTORE 4
+    ICONST_1
+    NEWARRAY T_LONG
+    DUP
+    ICONST_0
+    LLOAD 4
+    LASTORE
+    ACONST_NULL
+    INVOKESTATIC run/endive/runtime/CallResult.of ([J[Ljava/lang/Object;)Lrun/endive/runtime/CallResult;
     ARETURN
 }

@@ -39,11 +39,14 @@ public class BrOnNullTest {
         var instance = machineInject.apply(Instance.builder(module)).build();
 
         // Create a point(42, 7) and verify get_x_or_default returns 42
+        // new_point takes (i32, i32) -> (ref $Point)
         var newPoint = instance.export("new_point");
-        long[] pointRef = newPoint.apply(42, 7);
+        var pointResult = newPoint.applyWithRefs(new long[] {42, 7}, null);
 
+        // get_x_or_default takes (ref null $Point) -> i32
         var getX = instance.export("get_x_or_default");
-        assertEquals(42, getX.apply(pointRef[0])[0]);
+        var xResult = getX.applyWithRefs(new long[] {0}, new Object[] {pointResult.refResult(0)});
+        assertEquals(42, (int) xResult.longResult(0));
     }
 
     @ParameterizedTest

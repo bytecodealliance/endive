@@ -91,20 +91,24 @@ public final class Spectest {
                                 noop))
                 .addGlobal(
                         new ImportGlobal(
-                                "spectest", "global_i32", new GlobalInstance(Value.i32(666))))
+                                "spectest",
+                                "global_i32",
+                                GlobalInstance.builder().value(Value.i32(666)).build()))
                 .addGlobal(
                         new ImportGlobal(
-                                "spectest", "global_i64", new GlobalInstance(Value.i64(666))))
+                                "spectest",
+                                "global_i64",
+                                GlobalInstance.builder().value(Value.i64(666)).build()))
                 .addGlobal(
                         new ImportGlobal(
                                 "spectest",
                                 "global_f32",
-                                new GlobalInstance(Value.fromFloat(666.6f))))
+                                GlobalInstance.builder().value(Value.fromFloat(666.6f)).build()))
                 .addGlobal(
                         new ImportGlobal(
                                 "spectest",
                                 "global_f64",
-                                new GlobalInstance(Value.fromDouble(666.6))))
+                                GlobalInstance.builder().value(Value.fromDouble(666.6)).build()))
                 .addMemory(
                         new ImportMemory(
                                 "spectest", "memory", new ByteBufferMemory(new MemoryLimits(1, 2))))

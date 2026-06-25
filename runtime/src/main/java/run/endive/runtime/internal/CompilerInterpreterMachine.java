@@ -11,6 +11,7 @@ import run.endive.runtime.StackFrame;
 import run.endive.runtime.WasmException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.ValType;
 
 /**
  * This class is used by compiler generated classes. It MUST remain backwards compatible
@@ -44,6 +45,7 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
             Deque<StackFrame> callStack,
             int funcId,
             long[] args,
+            Object[] refArgs,
             FunctionType callType,
             boolean popResults)
             throws WasmEngineException {
@@ -51,7 +53,7 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
             usedInterpretedFunctions.add(funcId);
             System.err.println("Endive: calling interpreted function " + funcId);
         }
-        return super.call(stack, instance, callStack, funcId, args, callType, popResults);
+        return super.call(stack, instance, callStack, funcId, args, refArgs, callType, popResults);
     }
 
     @Override
@@ -71,15 +73,35 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
             var stack = stack();
             var typeId = instance.functionType(funcId);
             var type = instance.type(typeId);
-            var args = extractArgsForParams(stack, type.params());
+            var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
+            var args = (long[]) extracted[0];
+            var refArgs = (Object[]) extracted[1];
+            boolean hasObjectRefs = type.hasObjectRefReturns();
 
             try {
-                var results = instance.getMachine().call(funcId, args);
-                // a host function can return null or an array of ints
-                // which we will push onto the stack
-                if (results != null) {
-                    for (var result : results) {
-                        stack.push(result);
+                if (hasObjectRefs) {
+                    var cr = instance.getMachine().callWithRefs(funcId, args, refArgs);
+                    int slot = 0;
+                    for (int i = 0; i < type.returns().size(); i++) {
+                        var retType = type.returns().get(i);
+                        if (retType.isObjectRef()) {
+                            stack.pushRef(cr.refResult(slot));
+                            slot++;
+                        } else if (retType.equals(ValType.V128)) {
+                            stack.push(cr.longResult(slot));
+                            stack.push(cr.longResult(slot + 1));
+                            slot += 2;
+                        } else {
+                            stack.push(cr.longResult(slot));
+                            slot++;
+                        }
+                    }
+                } else {
+                    var results = instance.getMachine().call(funcId, args, refArgs);
+                    if (results != null) {
+                        for (var result : results) {
+                            stack.push(result);
+                        }
                     }
                 }
             } catch (WasmException e) {

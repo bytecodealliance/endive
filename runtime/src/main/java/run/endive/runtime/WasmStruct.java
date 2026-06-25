@@ -1,5 +1,8 @@
 package run.endive.runtime;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Runtime representation of a WasmGC struct instance.
  * Numeric fields are stored in {@code fields} (long[]).
@@ -65,6 +68,8 @@ public final class WasmStruct implements WasmGcRef {
         private int typeIdx;
         private long[] fields;
         private Object[] fieldRefs;
+        private List<Long> fieldList;
+        private List<Object> fieldRefList;
 
         private Builder() {}
 
@@ -83,8 +88,45 @@ public final class WasmStruct implements WasmGcRef {
             return this;
         }
 
+        public Builder addField(long value) {
+            ensureLists();
+            fieldList.add(value);
+            fieldRefList.add(null);
+            return this;
+        }
+
+        public Builder addFieldRef(Object ref) {
+            ensureLists();
+            fieldList.add(0L);
+            fieldRefList.add(ref);
+            return this;
+        }
+
+        private void ensureLists() {
+            if (fieldList == null) {
+                fieldList = new ArrayList<>();
+                fieldRefList = new ArrayList<>();
+            }
+        }
+
         @SuppressWarnings("deprecation")
         public WasmStruct build() {
+            if (fieldList != null) {
+                int size = fieldList.size();
+                long[] f = new long[size];
+                boolean hasRefs = false;
+                for (int i = 0; i < size; i++) {
+                    f[i] = fieldList.get(i);
+                    if (fieldRefList.get(i) != null) {
+                        hasRefs = true;
+                    }
+                }
+                Object[] r = null;
+                if (hasRefs) {
+                    r = fieldRefList.toArray();
+                }
+                return new WasmStruct(typeIdx, f, r);
+            }
             return new WasmStruct(typeIdx, fields, fieldRefs);
         }
     }

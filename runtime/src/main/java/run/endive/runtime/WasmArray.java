@@ -1,5 +1,8 @@
 package run.endive.runtime;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Runtime representation of a WasmGC array instance.
  * Numeric elements are stored in {@code elements} (long[]).
@@ -73,6 +76,8 @@ public final class WasmArray implements WasmGcRef {
         private int typeIdx;
         private long[] elements;
         private Object[] elementRefs;
+        private List<Long> elementList;
+        private List<Object> elementRefList;
 
         private Builder() {}
 
@@ -91,8 +96,45 @@ public final class WasmArray implements WasmGcRef {
             return this;
         }
 
+        public Builder addElement(long value) {
+            ensureLists();
+            elementList.add(value);
+            elementRefList.add(null);
+            return this;
+        }
+
+        public Builder addElementRef(Object ref) {
+            ensureLists();
+            elementList.add(0L);
+            elementRefList.add(ref);
+            return this;
+        }
+
+        private void ensureLists() {
+            if (elementList == null) {
+                elementList = new ArrayList<>();
+                elementRefList = new ArrayList<>();
+            }
+        }
+
         @SuppressWarnings("deprecation")
         public WasmArray build() {
+            if (elementList != null) {
+                int size = elementList.size();
+                long[] e = new long[size];
+                boolean hasRefs = false;
+                for (int i = 0; i < size; i++) {
+                    e[i] = elementList.get(i);
+                    if (elementRefList.get(i) != null) {
+                        hasRefs = true;
+                    }
+                }
+                Object[] r = null;
+                if (hasRefs) {
+                    r = elementRefList.toArray();
+                }
+                return new WasmArray(typeIdx, e, r);
+            }
             return new WasmArray(typeIdx, elements, elementRefs);
         }
     }

@@ -3,9 +3,14 @@ package run.endive.annotations.processor;
 import static java.lang.String.format;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.NOTE;
+import static javax.tools.StandardLocation.ANNOTATION_PROCESSOR_PATH;
+import static javax.tools.StandardLocation.CLASS_OUTPUT;
+import static javax.tools.StandardLocation.CLASS_PATH;
+import static javax.tools.StandardLocation.SOURCE_PATH;
 
 import com.github.javaparser.ast.CompilationUnit;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Writer;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -22,6 +27,12 @@ import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
 
 public final class WasmModuleProcessor extends AbstractModuleProcessor {
+    private static final StandardLocation[] LOCATIONS = {
+            CLASS_PATH,
+            ANNOTATION_PROCESSOR_PATH,
+            SOURCE_PATH,
+            CLASS_OUTPUT,
+    };
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
@@ -54,11 +65,7 @@ public final class WasmModuleProcessor extends AbstractModuleProcessor {
         if (wasmFile.startsWith("file:")) {
             module = Parser.parse(Path.of(new URI(wasmFile)));
         } else {
-            FileObject fileObject =
-                    processingEnv
-                            .getFiler()
-                            .getResource(StandardLocation.CLASS_OUTPUT, "", wasmFile);
-            module = Parser.parse(fileObject.openInputStream());
+            module = Parser.parse(openResource(wasmFile));
         }
 
         var pkg = getPackageName(type);
@@ -74,6 +81,22 @@ public final class WasmModuleProcessor extends AbstractModuleProcessor {
         var writableClasses = codegen.generate();
 
         writableClasses.forEach((k, v) -> writeCu(k, v, type));
+    }
+
+    private InputStream openResource(String wasmFile) throws IOException {
+        var filer = processingEnv.getFiler();
+        IOException lastFailure = null;
+        for (StandardLocation location : LOCATIONS) {
+            try {
+                FileObject fileObject = filer.getResource(location, "", wasmFile);
+                return fileObject.openInputStream();
+            } catch (IOException ioe) {
+                lastFailure = ioe;
+            } catch (IllegalArgumentException iae) {
+                lastFailure = new IOException(iae);
+            }
+        }
+        throw lastFailure;
     }
 
     private void writeCu(String qualifiedName, CompilationUnit cu, TypeElement type) {

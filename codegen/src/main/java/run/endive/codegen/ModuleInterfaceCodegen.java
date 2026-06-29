@@ -153,6 +153,8 @@ public final class ModuleInterfaceCodegen {
                 case FUNCTION:
                     exportFieldType = parseType("ExportFunction");
                     break;
+                case TAG:
+                    continue;
             }
             exportsClass.addField(
                     exportFieldType,
@@ -478,6 +480,18 @@ public final class ModuleInterfaceCodegen {
                                             new NameExpr("imports"),
                                             "addTable",
                                             NodeList.nodeList(importObj.apply("ImportTable"))));
+                            continue;
+                        } else if (importedFun.importType() == ExternalType.TAG) {
+                            cu.addImport("run.endive.runtime.TagInstance");
+                            importMethod.setType("TagInstance");
+                            importMethod.removeBody();
+
+                            importsCu.addImport("run.endive.runtime.ImportTag");
+                            toImportValuesBody.addStatement(
+                                    new MethodCallExpr(
+                                            new NameExpr("imports"),
+                                            "addTag",
+                                            NodeList.nodeList(importObj.apply("ImportTag"))));
                             continue;
                         }
                         // we now know it's a function

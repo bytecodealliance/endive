@@ -1693,21 +1693,41 @@ final class WasmAnalyzer {
             int label,
             TypeStack stack) {
 
-        var target = BranchTarget.resolve(body, ins, label, functionType, this::blockType);
-        int keep = target.keepTypes().size();
+        boolean forward = true;
+
+        var target = body.instructions().get(label);
+        if (target.address() <= ins.address()) {
+            target = body.instructions().get(label - 1);
+            forward = false;
+        }
+        var scope = target.scope();
+
+        FunctionType blockType;
+        if (scope.opcode() == OpCode.END) {
+            // special scope for the function's implicit block
+            scope = FUNCTION_SCOPE;
+            blockType = functionType;
+        } else {
+            blockType = blockType(scope);
+        }
+
+        var types = forward ? blockType.returns() : blockType.params();
+        int keep = types.size();
 
         // scope may have been exited already (unreachable code after unconditional branch)
-        var scopeSize = stack.scopeStackSize(target.scope);
+        var scopeSize = stack.scopeStackSize(scope);
         if (scopeSize == null) {
             return Optional.empty();
         }
 
-        // for a backward jump the initial loop parameters are dropped; for a forward jump
-        // the return values are kept rather than dropped
+        // for a backward jump, the initial loop parameters are dropped
         int drop = stack.types().size() - scopeSize;
-        if (target.forward) {
-            drop -= keep;
+
+        // do not drop the return values for a forward jump
+        if (forward) {
+            drop -= types.size();
         }
+
         if (drop <= 0) {
             return Optional.empty();
         }
@@ -1739,22 +1759,35 @@ final class WasmAnalyzer {
             List<ValType> savedStackTypes,
             TypeStack stack) {
 
-        var target = BranchTarget.resolve(body, tryIns, label, functionType, this::blockType);
+        boolean forward = true;
 
-        // kept values are the catch results, matching the target label arity
-        var keepTypes = target.keepTypes();
+        var target = body.instructions().get(label);
+        if (target.address() <= tryIns.address()) {
+            target = body.instructions().get(label - 1);
+            forward = false;
+        }
+        var scope = target.scope();
+
+        FunctionType blockType;
+        if (scope.opcode() == OpCode.END) {
+            scope = FUNCTION_SCOPE;
+            blockType = functionType;
+        } else {
+            blockType = blockType(scope);
+        }
+
+        var keepTypes = forward ? blockType.returns() : blockType.params();
         int keep = keepTypes.size();
 
-        var scopeSize = stack.scopeStackSize(target.scope);
+        var scopeSize = stack.scopeStackSize(scope);
         if (scopeSize == null) {
-            // target scope already exited (unreachable code)
             return null;
         }
 
         // reconstructed stack is [belowCount below-try values, keep caught values];
         // drop down to the target scope, like unwindStack
         int drop = (belowCount + keep) - scopeSize;
-        if (target.forward) {
+        if (forward) {
             drop -= keep;
         }
         if (drop <= 0) {

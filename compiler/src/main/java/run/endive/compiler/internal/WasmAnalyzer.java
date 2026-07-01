@@ -168,6 +168,8 @@ final class WasmAnalyzer {
         // types of values below the try scope that need to be saved/restored
         int savedStackSlotBase;
         List<ValType> savedStackTypes;
+        // per-catch DROP_KEEP applied before branching to the catch target (null if none)
+        CompilerInstruction[] catchUnwinds;
         // set to true when TRY_CATCH_BLOCK was emitted (i.e., block is reachable)
         boolean registered;
 
@@ -427,6 +429,22 @@ final class WasmAnalyzer {
                             }
                             tryCatchBlock.savedStackSlotBase = saveSlotBase;
                             tryCatchBlock.savedStackTypes = new ArrayList<>(belowTypes);
+
+                            // A catch branches like a br, so precompute the unwind that
+                            // drops values below each catch target (see catchUnwind).
+                            var catches = ins.catches();
+                            tryCatchBlock.catchUnwinds = new CompilerInstruction[catches.size()];
+                            for (int ci = 0; ci < catches.size(); ci++) {
+                                tryCatchBlock.catchUnwinds[ci] =
+                                        catchUnwind(
+                                                functionType,
+                                                body,
+                                                ins,
+                                                catches.get(ci).resolvedLabel(),
+                                                belowCount,
+                                                tryCatchBlock.savedStackTypes,
+                                                stack);
+                            }
 
                             // operands: [saveSlotBase, belowCount, type_ids...]
                             long[] saveOperands = new long[2 + allTypes.size()];
@@ -938,6 +956,10 @@ final class WasmAnalyzer {
                     // and push its index
                     result.add(new CompilerInstruction(CompilerOpCode.CATCH_REGISTER_EXCEPTION));
                     break;
+            }
+            // unwind values below the catch target before branching to it
+            if (tryCatchBlock.catchUnwinds != null && tryCatchBlock.catchUnwinds[i] != null) {
+                result.add(tryCatchBlock.catchUnwinds[i]);
             }
             result.add(
                     new CompilerInstruction(CompilerOpCode.GOTO, catchCondition.resolvedLabel()));
@@ -1721,6 +1743,67 @@ final class WasmAnalyzer {
 
         return Optional.of(
                 new CompilerInstruction(CompilerOpCode.DROP_KEEP, operands.build().toArray()));
+    }
+
+    /**
+     * The DROP_KEEP a try_table catch handler applies before branching to {@code label}: like a
+     * {@code br}, it drops values below the target scope (see {@link #unwindStack}). {@code
+     * savedStackTypes} are the {@code belowCount} restored below-try values, bottom-to-top.
+     */
+    private CompilerInstruction catchUnwind(
+            FunctionType functionType,
+            FunctionBody body,
+            AnnotatedInstruction tryIns,
+            int label,
+            int belowCount,
+            List<ValType> savedStackTypes,
+            TypeStack stack) {
+
+        boolean forward = true;
+
+        var target = body.instructions().get(label);
+        if (target.address() <= tryIns.address()) {
+            target = body.instructions().get(label - 1);
+            forward = false;
+        }
+        var scope = target.scope();
+
+        FunctionType blockType;
+        if (scope.opcode() == OpCode.END) {
+            scope = FUNCTION_SCOPE;
+            blockType = functionType;
+        } else {
+            blockType = blockType(scope);
+        }
+
+        var keepTypes = forward ? blockType.returns() : blockType.params();
+        int keep = keepTypes.size();
+
+        var scopeSize = stack.scopeStackSize(scope);
+        if (scopeSize == null) {
+            return null;
+        }
+
+        // reconstructed stack is [belowCount below-try values, keep caught values];
+        // drop down to the target scope, like unwindStack
+        int drop = (belowCount + keep) - scopeSize;
+        if (forward) {
+            drop -= keep;
+        }
+        if (drop <= 0) {
+            return null;
+        }
+
+        // operands: [drop, drop_types..., keep_types...] (dropped = top `drop` of below-try)
+        var operands = LongStream.builder();
+        operands.add(drop);
+        for (ValType t : savedStackTypes.subList(belowCount - drop, belowCount)) {
+            operands.add(t.id());
+        }
+        for (ValType t : keepTypes) {
+            operands.add(t.id());
+        }
+        return new CompilerInstruction(CompilerOpCode.DROP_KEEP, operands.build().toArray());
     }
 
     private FunctionType blockType(Instruction ins) {

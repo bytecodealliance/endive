@@ -2,6 +2,7 @@
 
 Organizations and projects using Endive (formerly Chicory) in production:
 
+* [webassembly4j](https://github.com/tegmentum/webassembly4j) - Java WebAssembly Facade over multiple engines
 * [sqlite4j](https://github.com/roastedroot/sqlite4j) - Pure Java SQLite JDBC driver
 * [pglite4j](https://github.com/roastedroot/pglite4j) - Embedded PostgreSQL 17 in pure Java
 * [Quickjs4J](https://github.com/roastedroot/quickjs4j) - Sandboxed runtime for JavaScript (used by [Microcks](https://github.com/microcks/microcks) and [Apicurio Registry](https://github.com/Apicurio/apicurio-registry))

@@ -684,16 +684,38 @@ public class Instance {
                     }
                 }
             }
-            // Fallback: structural comparison for host-provided functions
+            // Fallback: structural comparison for host-provided functions.
+            // Use ValType.matches() per element so that host-constructed ValTypes
+            // (which lack resolvedFunctionTypeHash) can match module-resolved ones
+            // with the same opcode and typeIdx.
             var expectedType = module.typeSection().getType(imprt.typeIndex());
+            var hostType = f.functionType();
 
-            if (!f.functionType().equals(expectedType)) {
+            if (!matchesFunctionType(hostType, expectedType)) {
                 throw new UnlinkableException(
                         "incompatible import type for host function "
                                 + f.module()
                                 + "."
                                 + f.name());
             }
+        }
+
+        private static boolean matchesFunctionType(FunctionType a, FunctionType b) {
+            if (a.params().size() != b.params().size()
+                    || a.returns().size() != b.returns().size()) {
+                return false;
+            }
+            for (int i = 0; i < a.params().size(); i++) {
+                if (!ValType.matches(a.params().get(i), b.params().get(i))) {
+                    return false;
+                }
+            }
+            for (int i = 0; i < a.returns().size(); i++) {
+                if (!ValType.matches(a.returns().get(i), b.returns().get(i))) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /**

@@ -679,16 +679,13 @@ public final class Parser {
             String importName = readName(buffer);
             ExternalType descType;
             try {
-                descType = ExternalType.byId((int) readVarUInt32(buffer));
+                descType = ExternalType.byId(readByte(buffer));
             } catch (RuntimeException e) {
                 throw new MalformedException("malformed import kind", e);
             }
             switch (descType) {
                 case FUNCTION:
                     {
-                        if (moduleName.isEmpty() && importName.isEmpty()) {
-                            throw new MalformedException("malformed import kind");
-                        }
                         importSection.addImport(
                                 new FunctionImport(
                                         moduleName, importName, (int) readVarUInt32(buffer)));
@@ -860,7 +857,7 @@ public final class Parser {
         // Parse individual functions in the function section
         for (int i = 0; i < exportCount; i++) {
             var name = readName(buffer, false);
-            var exportType = ExternalType.byId((int) readVarUInt32(buffer));
+            var exportType = ExternalType.byId(readByte(buffer));
             var index = (int) readVarUInt32(buffer);
             exportSection.addExport(new Export(name, index, exportType));
         }

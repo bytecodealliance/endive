@@ -21,3 +21,4 @@ Organizations and projects using Endive (formerly Chicory) in production:
 * [Bazel](https://github.com/bazelbuild/bazel) - WebAssembly execution in repo rules
 * [WildFly AI Feature Pack](https://github.com/wildfly-extras/wildfly-ai-feature-pack)
 * Quarkus extensions: [quarkus-chicory](https://github.com/quarkiverse/quarkus-chicory), [quarkus-proxy-wasm](https://github.com/quarkiverse/quarkus-proxy-wasm), [quarkus-quickjs4j](https://github.com/quarkiverse/quarkus-quickjs4j), [quarkus-grpc-zero](https://github.com/quarkiverse/quarkus-grpc-zero)
+* [Typilot](https://github.com/ixmoyren/typilot) - An IntelliJ IDEA plugin for the Typst language, lexical analysis and language analysis are supported by `typst-syntax` and `Endive`

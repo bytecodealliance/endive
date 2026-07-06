@@ -28,10 +28,7 @@ import run.endive.wasm.WasmModule;
 
 public final class WasmModuleProcessor extends AbstractModuleProcessor {
     private static final StandardLocation[] LOCATIONS = {
-            CLASS_PATH,
-            ANNOTATION_PROCESSOR_PATH,
-            SOURCE_PATH,
-            CLASS_OUTPUT,
+        CLASS_PATH, ANNOTATION_PROCESSOR_PATH, SOURCE_PATH, CLASS_OUTPUT,
     };
 
     @Override

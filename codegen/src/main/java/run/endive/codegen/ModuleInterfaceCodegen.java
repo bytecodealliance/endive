@@ -40,6 +40,7 @@ import javax.annotation.processing.Generated;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionImport;
+import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.Import;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
@@ -557,7 +558,8 @@ public final class ModuleInterfaceCodegen {
                                 importMethod.setType(
                                         javaClassFromValueType(importType.returns().get(0)));
                             } else {
-                                importMethod.setType(long[].class);
+                                cu.addImport("run.endive.runtime.CallResult");
+                                importMethod.setType(parseType("CallResult"));
                             }
 
                             // Build applyWithRefs body
@@ -612,70 +614,11 @@ public final class ModuleInterfaceCodegen {
                                                                 longsArr, new NullLiteralExpr())));
                                     }
                                 } else {
-                                    // Multi-return with object refs not yet supported
-                                    refsBody.addStatement(
-                                            new ThrowStmt(
-                                                    new ObjectCreationExpr(
-                                                            null,
-                                                            parseClassOrInterfaceType(
-                                                                    "UnsupportedOperationException"),
-                                                            NodeList.nodeList(
-                                                                    new StringLiteralExpr(
-                                                                            "Multi-return with"
-                                                                                + " object refs not"
-                                                                                + " yet supported"
-                                                                                + " in annotation"
-                                                                                + " processor")))));
+                                    refsBody.addStatement(new ReturnStmt(importApplyHandle));
                                 }
                             }
 
-                            // Build apply() that throws UnsupportedOperationException
-                            var applyMethod = new MethodDeclaration();
-                            applyMethod.setPublic(true);
-                            applyMethod.setType(long[].class);
-                            applyMethod.setName("apply");
-                            applyMethod.addParameter(
-                                    new Parameter(parseType("Instance"), "instance"));
-                            applyMethod.addParameter(
-                                    new Parameter(parseType("long"), "args").setVarArgs(true));
-                            var applyBody = new BlockStmt();
-                            applyBody.addStatement(
-                                    new ThrowStmt(
-                                            new ObjectCreationExpr(
-                                                    null,
-                                                    parseClassOrInterfaceType(
-                                                            "UnsupportedOperationException"),
-                                                    NodeList.nodeList(
-                                                            new StringLiteralExpr(
-                                                                    "Use applyWithRefs for"
-                                                                            + " externref"
-                                                                            + " functions")))));
-                            applyMethod.setBody(applyBody);
-
-                            // Build applyWithRefs() override
-                            var applyWithRefsMethod = new MethodDeclaration();
-                            applyWithRefsMethod.setPublic(true);
-                            applyWithRefsMethod.setType(parseType("CallResult"));
-                            applyWithRefsMethod.setName("applyWithRefs");
-                            applyWithRefsMethod.addParameter(
-                                    new Parameter(parseType("Instance"), "instance"));
-                            applyWithRefsMethod.addParameter(
-                                    new Parameter(parseType("long[]"), "args"));
-                            applyWithRefsMethod.addParameter(
-                                    new Parameter(parseType("Object[]"), "refArgs"));
-                            applyWithRefsMethod.setBody(refsBody);
-
-                            // Create anonymous WasmFunctionHandle
-                            var anonHandle =
-                                    new ObjectCreationExpr(
-                                            null,
-                                            parseClassOrInterfaceType("WasmFunctionHandle"),
-                                            NodeList.nodeList());
-                            NodeList<BodyDeclaration<?>> anonBody = new NodeList<>();
-                            anonBody.add(applyMethod);
-                            anonBody.add(applyWithRefsMethod);
-                            anonHandle.setAnonymousClassBody(anonBody);
-
+                            importsCu.addImport(FunctionType.class);
                             importedHostFunctionBinding =
                                     new ObjectCreationExpr(
                                             null,
@@ -683,9 +626,15 @@ public final class ModuleInterfaceCodegen {
                                             NodeList.nodeList(
                                                     new StringLiteralExpr(imprt.getKey()),
                                                     new StringLiteralExpr(importedFun.name()),
-                                                    listOfValueTypes(importType.params()),
-                                                    listOfValueTypes(importType.returns()),
-                                                    anonHandle));
+                                                    new MethodCallExpr(
+                                                            new NameExpr("FunctionType"),
+                                                            "of",
+                                                            NodeList.nodeList(
+                                                                    listOfValueTypes(
+                                                                            importType.params()),
+                                                                    listOfValueTypes(
+                                                                            importType.returns()))),
+                                                    anonRefsHandle(refsBody)));
                         } else {
                             // No object refs - use original lambda path
                             var functionBodyStatement = new BlockStmt();
@@ -868,17 +817,93 @@ public final class ModuleInterfaceCodegen {
                                             return new FieldAccessExpr(
                                                     new NameExpr("ValType"), "F64");
                                         default:
-                                            if (ValType.TypeIdxCode.EXTERN.code() == vt.typeIdx()) {
-                                                return new FieldAccessExpr(
-                                                        new NameExpr("ValType"), "ExternRef");
-                                            }
-                                            throw new IllegalArgumentException(
-                                                    "listOfValueTypes - Unsupported WASM type: "
-                                                            + vt);
+                                            return valTypeRefExpr(vt);
                                     }
                                 })
                         .collect(Collectors.toList());
         return new MethodCallExpr(new NameExpr("List"), "of", NodeList.nodeList(values));
+    }
+
+    private static Expression valTypeRefExpr(ValType vt) {
+        int ti = vt.typeIdx();
+        if (ti == ValType.TypeIdxCode.EXTERN.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "ExternRef");
+        } else if (ti == ValType.TypeIdxCode.ANY.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "AnyRef");
+        } else if (ti == ValType.TypeIdxCode.EQ.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "EqRef");
+        } else if (ti == ValType.TypeIdxCode.I31.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "I31Ref");
+        } else if (ti == ValType.TypeIdxCode.STRUCT.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "StructRef");
+        } else if (ti == ValType.TypeIdxCode.ARRAY.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "ArrayRef");
+        } else if (ti == ValType.TypeIdxCode.NONE.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "NoneRef");
+        } else if (ti == ValType.TypeIdxCode.FUNC.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "FuncRef");
+        } else if (ti == ValType.TypeIdxCode.EXN.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "ExnRef");
+        } else if (ti == ValType.TypeIdxCode.NOFUNC.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "NoFuncRef");
+        } else if (ti == ValType.TypeIdxCode.NOEXTERN.code()) {
+            return new FieldAccessExpr(new NameExpr("ValType"), "NoExternRef");
+        } else if (ti >= 0) {
+            String opcName = vt.opcode() == ValType.ID.Ref ? "Ref" : "RefNull";
+            return new MethodCallExpr(
+                    new MethodCallExpr(
+                            new MethodCallExpr(
+                                    new MethodCallExpr(new NameExpr("ValType"), "builder"),
+                                    "withOpcode",
+                                    NodeList.nodeList(
+                                            new FieldAccessExpr(
+                                                    new FieldAccessExpr(
+                                                            new NameExpr("ValType"), "ID"),
+                                                    opcName))),
+                            "withTypeIdx",
+                            NodeList.nodeList(new IntegerLiteralExpr(Integer.toString(ti)))),
+                    "build");
+        } else {
+            throw new IllegalArgumentException("listOfValueTypes - Unsupported WASM type: " + vt);
+        }
+    }
+
+    private static Expression anonRefsHandle(BlockStmt refsBody) {
+        var applyMethod = new MethodDeclaration();
+        applyMethod.setPublic(true);
+        applyMethod.setType(long[].class);
+        applyMethod.setName("apply");
+        applyMethod.addParameter(new Parameter(parseType("Instance"), "instance"));
+        applyMethod.addParameter(new Parameter(parseType("long"), "args").setVarArgs(true));
+        var applyBody = new BlockStmt();
+        applyBody.addStatement(
+                new ThrowStmt(
+                        new ObjectCreationExpr(
+                                null,
+                                parseClassOrInterfaceType("UnsupportedOperationException"),
+                                NodeList.nodeList(
+                                        new StringLiteralExpr(
+                                                "This function uses object references;"
+                                                        + " use applyWithRefs()")))));
+        applyMethod.setBody(applyBody);
+
+        var applyWithRefsMethod = new MethodDeclaration();
+        applyWithRefsMethod.setPublic(true);
+        applyWithRefsMethod.setType(parseType("CallResult"));
+        applyWithRefsMethod.setName("applyWithRefs");
+        applyWithRefsMethod.addParameter(new Parameter(parseType("Instance"), "instance"));
+        applyWithRefsMethod.addParameter(new Parameter(parseType("long[]"), "args"));
+        applyWithRefsMethod.addParameter(new Parameter(parseType("Object[]"), "refArgs"));
+        applyWithRefsMethod.setBody(refsBody);
+
+        var anonHandle =
+                new ObjectCreationExpr(
+                        null, parseClassOrInterfaceType("WasmFunctionHandle"), NodeList.nodeList());
+        NodeList<BodyDeclaration<?>> anonBody = new NodeList<>();
+        anonBody.add(applyMethod);
+        anonBody.add(applyWithRefsMethod);
+        anonHandle.setAnonymousClassBody(anonBody);
+        return anonHandle;
     }
 
     static String deduplicatedMethodName(String name, List<String> names) {

@@ -5,7 +5,7 @@
   <parent>
     <groupId>run.endive</groupId>
     <artifactId>endive</artifactId>
-    <version>999-SNAPSHOT</version>
+    <version>1.0.1</version>
   </parent>
   <artifactId>wasm-tools</artifactId>
   <packaging>jar</packaging>

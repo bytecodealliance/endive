@@ -3,7 +3,7 @@ package run.endive.runtime;
 import run.endive.wasm.WasmEngineException;
 
 @FunctionalInterface
-public interface Machine {
+public interface Machine extends AutoCloseable {
 
     long[] call(int funcId, long[] args) throws WasmEngineException;
 
@@ -16,4 +16,7 @@ public interface Machine {
             throws WasmEngineException {
         return CallResult.of(call(funcId, args, refArgs), null);
     }
+
+    @Override
+    default void close() {}
 }

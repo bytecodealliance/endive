@@ -51,7 +51,7 @@ import run.endive.wasm.types.TypeSection;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
-public class Instance {
+public class Instance implements AutoCloseable {
     public static final String START_FUNCTION_NAME = "_start";
 
     private final WasmModule module;
@@ -546,6 +546,11 @@ public class Instance {
 
     public Machine getMachine() {
         return machine;
+    }
+
+    @Override
+    public void close() {
+        machine.close();
     }
 
     public boolean isTailCallPending() {

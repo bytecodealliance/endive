@@ -16,6 +16,7 @@
   <modules>
     <module>api</module>
     <module>bridge</module>
+    <module>compiler</module>
   </modules>
 
 </project>

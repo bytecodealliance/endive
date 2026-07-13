@@ -251,6 +251,11 @@
       </dependency>
       <dependency>
         <groupId>run.endive</groupId>
+        <artifactId>redline-bridge-experimental</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>run.endive</groupId>
         <artifactId>runtime</artifactId>
         <version>${project.version}</version>
       </dependency>

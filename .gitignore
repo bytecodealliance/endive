@@ -17,6 +17,8 @@ scripts/jmh-tmp
 /main/
 
 /*.wasm
+redline/cranelift_bridge.wasm
+redline/wasm-build/target/
 .approval_tests_temp/
 
 # mac-os files

@@ -140,34 +140,31 @@ This is a runtime switch on the factory/builder, so users can flip between nativ
 
 ## Implementation Phases
 
-### Phase 1: Make Instance AutoCloseable
+### Phase 1: Make Instance AutoCloseable -- DONE (3a5e0813)
 
-**Files to modify:**
-- `runtime/src/main/java/run/endive/runtime/Machine.java` -- extend `AutoCloseable` with a default no-op `close()`
-- `runtime/src/main/java/run/endive/runtime/Instance.java` -- implement `AutoCloseable`, `close()` delegates to `machine.close()`
+- `Machine extends AutoCloseable` with `default void close() {}`
+- `Instance implements AutoCloseable`, `close()` delegates to `machine.close()`
+- `@FunctionalInterface` preserved, no hacks
+- All 79 existing runtime tests pass
 
-**Approach:** `Machine extends AutoCloseable` with `default void close() {}`. This keeps `@FunctionalInterface` valid (one abstract method), the interpreter's close is a no-op by default, and `Instance.close()` is simply `machine.close()` -- no instanceof, no SuppressWarnings.
+### Phase 2: Create module skeleton -- DONE (3a5e0813)
 
-**Test:** Run the full existing endive test suite (`runtime-tests`, `compiler-tests`, `machine-tests`) to verify no regression. `close()` on interpreter-backed instances must be a no-op.
+- `redline/pom.xml` aggregator, parents root POM
+- `redline/api/pom.xml` child, parents aggregator
+- `-Predline` profile in root POM
+- `redline-api-experimental` in root `<dependencyManagement>`
 
-### Phase 2: Create module skeleton
+### Phase 3: Port the API module -- DONE (3a5e0813)
 
-Set up the Maven module structure under `redline/`:
-- Parent POM at `redline/pom.xml` (inherits from endive root)
-- Child POMs for each module
-- Add `redline` modules to root POM (in a profile, e.g. `redline` or `experimental`)
-- Wire up spotless, checkstyle, error-prone configs from parent
-
-### Phase 3: Port the API module
-
-Migrate from `io.roastedroot.redline.api` to `run.endive.redline.api`:
-- `RedlineTarget` -- platform detection (host triple, resource suffix) -- keep as-is
-- `NativeCodeSerializer` -- serialization of `byte[][]` native code -- keep as-is
-- `CtxBuffer` -- native call context struct layout -- keep as-is
-- `TypeMapUtils` -- canonical type map builder -- keep as-is
-- `Interruptable` -- interrupt request/clear interface -- keep as-is
-- **Drop** `RedlineInstance` (replaced by AutoCloseable Instance)
-- **Drop** `RedlineMachineFactoryProvider` (no SPI needed)
+Package: `run.endive.redline.api` / `run.endive.redline.api.internal`
+- `RedlineTarget` -- refactored from string constants to enum with `triple()`, `resourceSuffix()`, `detectHost()` returning `Optional<RedlineTarget>`
+- `NativeCodeSerializer` -- serialization of `byte[][]` native code, unchanged logic
+- `Interruptible` -- fixed spelling from `Interruptable`
+- `CtxBuffer` -- native call context struct layout constants, unchanged
+- `TypeMapUtils` -- canonical type map for `call_indirect`, updated imports to `run.endive.*`
+- **Dropped** `RedlineInstance` (replaced by AutoCloseable Instance)
+- **Dropped** `RedlineMachineFactoryProvider` (no SPI)
+- POM depends only on `wasm` (not `runtime`)
 
 ### Phase 4: Port the bridge module
 

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>run.endive</groupId>
+    <artifactId>redline-parent-experimental</artifactId>
+    <version>999-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+  <artifactId>redline-bridge-experimental</artifactId>
+  <packaging>jar</packaging>
+  <name>Endive - Redline Bridge</name>
+  <description>Java wrapper for the Cranelift code generator (compiled to Wasm)</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>log</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>runtime</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>wasi</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>wasm</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>check-cranelift-wasm</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <phase>validate</phase>
+            <configuration>
+              <rules>
+                <requireFilesExist>
+                  <files>
+                    <file>${project.basedir}/../cranelift_bridge.wasm</file>
+                  </files>
+                  <message>cranelift_bridge.wasm not found. Build it with:
+  cd redline/wasm-build &amp;&amp; make all
+(requires Rust with wasm32-wasip1 target)</message>
+                </requireFilesExist>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>run.endive</groupId>
+        <artifactId>endive-compiler-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>redline-bridge</id>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <configuration>
+              <name>run.endive.redline.bridge.Cranelift</name>
+              <wasmFile>${project.basedir}/../cranelift_bridge.wasm</wasmFile>
+              <interpreterFallback>WARN</interpreterFallback>
+              <moduleInterface>run.endive.redline.bridge.CraneliftBridge</moduleInterface>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

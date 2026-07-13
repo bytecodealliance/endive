@@ -1,0 +1,20 @@
+[package]
+name = "cranelift-bridge"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cranelift-codegen = { version = "0.130", default-features = false, features = ["std", "x86", "arm64"] }
+cranelift-frontend = "0.130"
+cranelift-control = "0.130"
+target-lexicon = "0.13"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

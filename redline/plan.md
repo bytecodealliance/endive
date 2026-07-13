@@ -166,7 +166,33 @@ Package: `run.endive.redline.api` / `run.endive.redline.api.internal`
 - **Dropped** `RedlineMachineFactoryProvider` (no SPI)
 - POM depends only on `wasm` (not `runtime`)
 
-### Phase 4: Port the bridge module
+### Phase 4: Port the bridge module -- DONE (1691e2ee)
+
+- Renamed `RedlineBridge` → `CraneliftBridge`
+- Removed `WasmResource` template, `@WasmModuleInterface`, antrun, templating plugin, annotations dep
+- Uses `moduleInterface` plugin property instead
+- Enforcer check for missing wasm binary
+- Rust sources in `redline/wasm-build/`, cranelift_bridge.wasm gitignored
+
+### Phase 5: Port the compiler module -- DONE (53088b95)
+
+- Removed `NativeAnalyzer` — dead code handling consolidated into control stack
+- Removed `enterScope`/`exitScope`/`scopeRestore` from NativeValueStack
+- `ChicoryException` → `WasmEngineException`
+
+### Phase 6: Port runner + spec tests -- DONE (this commit)
+
+- Runner: removed Cleaner from NativeMachine and NativeMemory, direct AutoCloseable
+- Runner: dropped RedlineInstance, NativeInstance, PanamaMachineFactoryProvider
+- Runner: `build()` returns `Instance` directly
+- Runner-tests: 28,713 spec tests passing (32 excluded — externref gap with GC ref changes)
+- No `RedlineInstanceTracker` — AutoCloseable Instance handles cleanup
+
+---
+
+### ORIGINAL PLAN (below) — kept for reference
+
+
 
 - Copy `cranelift_bridge.wasm` resource
 - Port `RedlineBridge` -- update to use endive's annotation processor (`@WasmModuleInterface`)

@@ -18,6 +18,7 @@
     <module>bridge</module>
     <module>compiler</module>
     <module>runner</module>
+    <module>runner-tests</module>
   </modules>
 
 </project>

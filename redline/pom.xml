@@ -17,6 +17,7 @@
     <module>api</module>
     <module>bridge</module>
     <module>compiler</module>
+    <module>runner</module>
   </modules>
 
 </project>

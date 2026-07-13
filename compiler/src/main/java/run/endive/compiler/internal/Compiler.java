@@ -49,6 +49,7 @@ import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_ON_INTERPRET
 import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_ON_INTERPRETER_WITH_REFS;
 import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_WITH_REFS;
 import static run.endive.compiler.internal.ShadedRefs.CHECK_INTERRUPTION;
+import static run.endive.compiler.internal.ShadedRefs.INSTANCE_GET_TYPE;
 import static run.endive.compiler.internal.ShadedRefs.INSTANCE_MEMORY;
 import static run.endive.compiler.internal.ShadedRefs.INSTANCE_TABLE;
 import static run.endive.compiler.internal.ShadedRefs.TABLE_INSTANCE;
@@ -1756,7 +1757,9 @@ public final class Compiler {
                 emitBoxArgumentsWithRefs(asm, type.params());
                 // stack: long[], Object[]
             }
+            asm.load(instance, OBJECT_TYPE);
             asm.iconst(typeId);
+            emitInvokeVirtual(asm, INSTANCE_GET_TYPE);
             asm.load(funcId, INT_TYPE);
             asm.load(refInstance, OBJECT_TYPE);
 
@@ -1769,7 +1772,9 @@ public final class Compiler {
             } else {
                 emitBoxArguments(asm, type.params());
             }
+            asm.load(instance, OBJECT_TYPE);
             asm.iconst(typeId);
+            emitInvokeVirtual(asm, INSTANCE_GET_TYPE);
             asm.load(funcId, INT_TYPE);
             asm.load(refInstance, OBJECT_TYPE);
 

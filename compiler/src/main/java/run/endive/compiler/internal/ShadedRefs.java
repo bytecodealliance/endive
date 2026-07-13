@@ -7,6 +7,7 @@ import run.endive.runtime.TableInstance;
 import run.endive.runtime.WasmException;
 import run.endive.runtime.internal.CompilerInterpreterMachine;
 import run.endive.wasm.types.Element;
+import run.endive.wasm.types.FunctionType;
 
 public final class ShadedRefs {
 
@@ -23,6 +24,7 @@ public final class ShadedRefs {
     static final Method WRITE_GLOBAL_REF;
     static final Method INSTANCE_SET_ELEMENT;
     static final Method INSTANCE_TABLE;
+    static final Method INSTANCE_GET_TYPE;
     static final Method MEMORY_COPY;
     static final Method MEMORY_COPY_2;
     static final Method MEMORY_FILL;
@@ -208,7 +210,11 @@ public final class ShadedRefs {
             CHECK_INTERRUPTION = Shaded.class.getMethod("checkInterruption");
             CALL_INDIRECT =
                     Shaded.class.getMethod(
-                            "callIndirect", long[].class, int.class, int.class, Instance.class);
+                            "callIndirect",
+                            long[].class,
+                            FunctionType.class,
+                            int.class,
+                            Instance.class);
             CALL_INDIRECT_ON_INTERPRETER =
                     Shaded.class.getMethod("callIndirect", long[].class, int.class, Instance.class);
             CALL_INDIRECT_ON_INTERPRETER_WITH_REFS =
@@ -232,6 +238,7 @@ public final class ShadedRefs {
                             "writeGlobalRef", Object.class, int.class, Instance.class);
             INSTANCE_SET_ELEMENT = Instance.class.getMethod("setElement", int.class, Element.class);
             INSTANCE_TABLE = Instance.class.getMethod("table", int.class);
+            INSTANCE_GET_TYPE = Instance.class.getMethod("type", int.class);
             MEMORY_COPY =
                     Shaded.class.getMethod(
                             "memoryCopy", int.class, int.class, int.class, Memory.class);
@@ -831,7 +838,7 @@ public final class ShadedRefs {
                             "callIndirectWithRefs",
                             long[].class,
                             Object[].class,
-                            int.class,
+                            FunctionType.class,
                             int.class,
                             Instance.class);
 

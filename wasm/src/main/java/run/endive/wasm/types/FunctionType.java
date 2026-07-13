@@ -93,6 +93,24 @@ public final class FunctionType {
         return paramsMatch(other) && returnsMatch(other);
     }
 
+    public static boolean matches(FunctionType actual, FunctionType expected, TypeSection ts) {
+        if (actual.params.size() != expected.params.size()
+                || actual.returns.size() != expected.returns.size()) {
+            return false;
+        }
+        for (int i = 0; i < actual.params.size(); i++) {
+            if (!ValType.matches(expected.params.get(i), actual.params.get(i), ts)) {
+                return false;
+            }
+        }
+        for (int i = 0; i < actual.returns.size(); i++) {
+            if (!ValType.matches(actual.returns.get(i), expected.returns.get(i), ts)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static FunctionType of(List<ValType> params, List<ValType> returns) {
         if (params.isEmpty()) {
             if (returns.isEmpty()) {

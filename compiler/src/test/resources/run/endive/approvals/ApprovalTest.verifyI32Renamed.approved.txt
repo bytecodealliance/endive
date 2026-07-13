@@ -91,9 +91,11 @@ public final class FOO implements run/endive/runtime/Machine {
    L1
     ICONST_0
     NEWARRAY T_LONG
+    ALOAD 3
     ICONST_0
+    INVOKEVIRTUAL run/endive/runtime/Instance.type (I)Lrun/endive/wasm/types/FunctionType;
     ILOAD 5
     ALOAD 6
-    INVOKESTATIC FOOShaded.callIndirect ([JIILrun/endive/runtime/Instance;)[J
+    INVOKESTATIC FOOShaded.callIndirect ([JLrun/endive/wasm/types/FunctionType;ILrun/endive/runtime/Instance;)[J
     RETURN
 }

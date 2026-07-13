@@ -2924,14 +2924,19 @@ public class InterpreterMachine implements Machine {
 
         int funcId = table.requiredRef(funcTableIdx);
         var refInstance = requireNonNullElse(table.instance(funcTableIdx), instance);
-        var type = refInstance.type(typeId);
+        var type = instance.type(typeId);
 
-        // Verify type match using nominal type indices
-        var actualTypeIdx = refInstance.functionType(funcId);
-        verifyIndirectCallByTypeIdx(actualTypeIdx, typeId, refInstance.module().typeSection());
+        boolean sameInstance = refInstance == instance;
+        if (sameInstance) {
+            var actualTypeIdx = instance.functionType(funcId);
+            verifyIndirectCallByTypeIdx(actualTypeIdx, typeId, instance.module().typeSection());
+        } else {
+            var actualType = refInstance.type(refInstance.functionType(funcId));
+            verifyIndirectCall(actualType, type, instance.module().typeSection());
+        }
 
         var refMachine = refInstance.getMachine().getClass();
-        if (!refInstance.equals(instance) && !refMachine.equals(instance.getMachine().getClass())) {
+        if (!sameInstance && !refMachine.equals(instance.getMachine().getClass())) {
             throw new WasmEngineException(
                     "Indirect tail-call to a different Machine implementation is not supported: "
                             + refMachine.getName());
@@ -3055,11 +3060,15 @@ public class InterpreterMachine implements Machine {
 
         int funcId = table.requiredRef(funcTableIdx);
         var refInstance = requireNonNullElse(table.instance(funcTableIdx), instance);
-        var type = refInstance.type(typeId);
+        var type = instance.type(typeId);
 
-        // Verify type match using nominal type indices
-        var actualTypeIdx = refInstance.functionType(funcId);
-        verifyIndirectCallByTypeIdx(actualTypeIdx, typeId, refInstance.module().typeSection());
+        if (refInstance == instance) {
+            var actualTypeIdx = instance.functionType(funcId);
+            verifyIndirectCallByTypeIdx(actualTypeIdx, typeId, instance.module().typeSection());
+        } else {
+            var actualType = refInstance.type(refInstance.functionType(funcId));
+            verifyIndirectCall(actualType, type, instance.module().typeSection());
+        }
 
         // given a list of param types, let's pop those params off the stack
         // and pass as args to the function call
@@ -3375,32 +3384,7 @@ public class InterpreterMachine implements Machine {
 
     private static boolean functionTypeMatch(
             FunctionType actual, FunctionType expected, TypeSection ts) {
-        if (actual.params().size() != expected.params().size()
-                || actual.returns().size() != expected.returns().size()) {
-            return false;
-        }
-
-        for (int i = 0; i < actual.params().size(); i++) {
-            var actualParam = actual.params().get(i);
-            var expectedParam = expected.params().get(i);
-
-            // Contravariant: expected.param <: actual.param
-            if (!ValType.matches(expectedParam, actualParam, ts)) {
-                return false;
-            }
-        }
-
-        for (int i = 0; i < actual.returns().size(); i++) {
-            var actualReturn = actual.returns().get(i);
-            var expectedReturn = expected.returns().get(i);
-
-            // Covariant: actual.return <: expected.return
-            if (!ValType.matches(actualReturn, expectedReturn, ts)) {
-                return false;
-            }
-        }
-
-        return true;
+        return FunctionType.matches(actual, expected, ts);
     }
 
     protected static void verifyIndirectCall(

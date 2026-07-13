@@ -44,11 +44,12 @@ import static run.endive.compiler.internal.EmitterMap.EMITTERS;
 import static run.endive.compiler.internal.ShadedRefs.AOT_INTERPRETER_MACHINE_CALL;
 import static run.endive.compiler.internal.ShadedRefs.CALL_HOST_FUNCTION;
 import static run.endive.compiler.internal.ShadedRefs.CALL_HOST_FUNCTION_WITH_REFS;
-import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT;
+import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_CROSS_MODULE;
 import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_ON_INTERPRETER;
 import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_ON_INTERPRETER_WITH_REFS;
-import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_WITH_REFS;
+import static run.endive.compiler.internal.ShadedRefs.CALL_INDIRECT_WITH_REFS_CROSS_MODULE;
 import static run.endive.compiler.internal.ShadedRefs.CHECK_INTERRUPTION;
+import static run.endive.compiler.internal.ShadedRefs.INSTANCE_GET_TYPE;
 import static run.endive.compiler.internal.ShadedRefs.INSTANCE_MEMORY;
 import static run.endive.compiler.internal.ShadedRefs.INSTANCE_TABLE;
 import static run.endive.compiler.internal.ShadedRefs.TABLE_INSTANCE;
@@ -1756,11 +1757,13 @@ public final class Compiler {
                 emitBoxArgumentsWithRefs(asm, type.params());
                 // stack: long[], Object[]
             }
+            asm.load(instance, OBJECT_TYPE);
             asm.iconst(typeId);
+            emitInvokeVirtual(asm, INSTANCE_GET_TYPE);
             asm.load(funcId, INT_TYPE);
             asm.load(refInstance, OBJECT_TYPE);
 
-            emitInvokeStatic(asm, CALL_INDIRECT_WITH_REFS);
+            emitInvokeStatic(asm, CALL_INDIRECT_WITH_REFS_CROSS_MODULE);
             // returns CallResult
             emitUnboxCallResult(type, asm);
         } else {
@@ -1769,11 +1772,13 @@ public final class Compiler {
             } else {
                 emitBoxArguments(asm, type.params());
             }
+            asm.load(instance, OBJECT_TYPE);
             asm.iconst(typeId);
+            emitInvokeVirtual(asm, INSTANCE_GET_TYPE);
             asm.load(funcId, INT_TYPE);
             asm.load(refInstance, OBJECT_TYPE);
 
-            emitInvokeStatic(asm, CALL_INDIRECT);
+            emitInvokeStatic(asm, CALL_INDIRECT_CROSS_MODULE);
 
             emitUnboxResult(type, asm);
         }

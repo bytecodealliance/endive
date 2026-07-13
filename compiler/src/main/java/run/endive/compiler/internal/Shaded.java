@@ -20,6 +20,7 @@ import run.endive.runtime.WasmRuntimeException;
 import run.endive.runtime.WasmStruct;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.WasmEngineException;
+import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.ValType;
 
 /**
@@ -34,6 +35,15 @@ public final class Shaded {
         if (actualTypeIdx != typeId
                 && !ValType.heapTypeSubtype(
                         actualTypeIdx, typeId, instance.module().typeSection())) {
+            throw throwIndirectCallTypeMismatch();
+        }
+        return instance.getMachine().call(funcId, args);
+    }
+
+    public static long[] callIndirect(
+            long[] args, FunctionType expectedType, int funcId, Instance instance) {
+        FunctionType actualType = instance.type(instance.functionType(funcId));
+        if (!FunctionType.matches(actualType, expectedType, instance.module().typeSection())) {
             throw throwIndirectCallTypeMismatch();
         }
         return instance.getMachine().call(funcId, args);
@@ -54,6 +64,19 @@ public final class Shaded {
         if (actualTypeIdx != typeId
                 && !ValType.heapTypeSubtype(
                         actualTypeIdx, typeId, instance.module().typeSection())) {
+            throw throwIndirectCallTypeMismatch();
+        }
+        return instance.getMachine().callWithRefs(funcId, args, refArgs);
+    }
+
+    public static CallResult callIndirectWithRefs(
+            long[] args,
+            Object[] refArgs,
+            FunctionType expectedType,
+            int funcId,
+            Instance instance) {
+        FunctionType actualType = instance.type(instance.functionType(funcId));
+        if (!FunctionType.matches(actualType, expectedType, instance.module().typeSection())) {
             throw throwIndirectCallTypeMismatch();
         }
         return instance.getMachine().callWithRefs(funcId, args, refArgs);

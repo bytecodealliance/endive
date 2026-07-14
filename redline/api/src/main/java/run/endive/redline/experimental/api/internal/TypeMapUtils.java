@@ -1,4 +1,4 @@
-package run.endive.redline.api.internal;
+package run.endive.redline.experimental.api.internal;
 
 import java.util.HashMap;
 import run.endive.wasm.WasmModule;

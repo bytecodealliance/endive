@@ -69,10 +69,10 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <name>run.endive.redline.bridge.Cranelift</name>
+              <name>run.endive.redline.experimental.bridge.Cranelift</name>
               <wasmFile>${project.basedir}/../cranelift_bridge.wasm</wasmFile>
               <interpreterFallback>WARN</interpreterFallback>
-              <moduleInterface>run.endive.redline.bridge.CraneliftBridge</moduleInterface>
+              <moduleInterface>run.endive.redline.experimental.bridge.CraneliftBridge</moduleInterface>
             </configuration>
           </execution>
         </executions>

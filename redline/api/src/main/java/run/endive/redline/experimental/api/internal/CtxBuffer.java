@@ -1,4 +1,4 @@
-package run.endive.redline.api.internal;
+package run.endive.redline.experimental.api.internal;
 
 /**
  * Layout of the shared context buffer passed between Java and native compiled code.

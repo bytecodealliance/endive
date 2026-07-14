@@ -180,13 +180,19 @@ Package: `run.endive.redline.api` / `run.endive.redline.api.internal`
 - Removed `enterScope`/`exitScope`/`scopeRestore` from NativeValueStack
 - `ChicoryException` → `WasmEngineException`
 
-### Phase 6: Port runner + spec tests -- DONE (this commit)
+### Phase 6: Port runner + spec tests -- DONE
 
 - Runner: removed Cleaner from NativeMachine and NativeMemory, direct AutoCloseable
 - Runner: dropped RedlineInstance, NativeInstance, PanamaMachineFactoryProvider
 - Runner: `build()` returns `Instance` directly
-- Runner-tests: 28,713 spec tests passing (32 excluded — externref gap with GC ref changes)
+- Runner-tests: 28,713 spec tests passing (32 excluded — externref gap)
 - No `RedlineInstanceTracker` — AutoCloseable Instance handles cleanup
+
+### Externref gap (future work)
+
+32 spec tests excluded — all externref-related (table_fill, table_grow, select, br_table with extern refs). Root cause: redline represents refs as i64 in native code, but endive now passes externref as Java Objects directly.
+
+Long-term fix: Cranelift stack maps (`enable_safepoints`). The compiler emits metadata recording which stack slots hold live externrefs at each safepoint. Java-side GC can then walk native frames to find roots. This is what Wasmtime uses. Significant effort — separate project.
 
 ---
 

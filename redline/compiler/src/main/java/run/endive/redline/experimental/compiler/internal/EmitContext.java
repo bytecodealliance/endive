@@ -1,8 +1,8 @@
-package run.endive.redline.compiler.internal;
+package run.endive.redline.experimental.compiler.internal;
 
 import java.util.Map;
-import run.endive.redline.api.internal.CtxBuffer;
-import run.endive.redline.bridge.CraneliftBridge;
+import run.endive.redline.experimental.api.internal.CtxBuffer;
+import run.endive.redline.experimental.bridge.CraneliftBridge;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionImport;

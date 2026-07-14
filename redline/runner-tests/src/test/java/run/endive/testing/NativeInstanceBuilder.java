@@ -1,8 +1,8 @@
 package run.endive.testing;
 
-import run.endive.redline.api.RedlineTarget;
-import run.endive.redline.compiler.internal.NativeCompiler;
-import run.endive.redline.runner.NativeMachineFactory;
+import run.endive.redline.experimental.api.RedlineTarget;
+import run.endive.redline.experimental.compiler.internal.NativeCompiler;
+import run.endive.redline.experimental.runner.NativeMachineFactory;
 import run.endive.runtime.ImportValues;
 import run.endive.runtime.Instance;
 import run.endive.wasm.WasmModule;

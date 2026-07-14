@@ -3,7 +3,7 @@ package run.endive.testing;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
 import java.util.List;
-import run.endive.redline.runner.NativeMachineFactory;
+import run.endive.redline.experimental.runner.NativeMachineFactory;
 import run.endive.runtime.GlobalInstance;
 import run.endive.runtime.HostFunction;
 import run.endive.runtime.ImportGlobal;

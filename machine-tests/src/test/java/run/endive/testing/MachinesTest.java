@@ -18,7 +18,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.HostFunction;
@@ -26,6 +31,7 @@ import run.endive.runtime.ImportTable;
 import run.endive.runtime.ImportValues;
 import run.endive.runtime.Instance;
 import run.endive.runtime.InterpreterMachine;
+import run.endive.runtime.Machine;
 import run.endive.runtime.Store;
 import run.endive.runtime.TableInstance;
 import run.endive.runtime.TrapException;
@@ -337,6 +343,51 @@ public final class MachinesTest {
         var ex = assertThrows(TrapException.class, instance.export("call-other-fail")::apply);
         var className = ex.getStackTrace()[0].getClassName();
         assertTrue(className.contains("InterpreterMachine"), className);
+    }
+
+    private static Stream<Arguments> crossModuleMachineFactories() {
+        return Stream.of(
+                Arguments.of(
+                        "interp-interp",
+                        (Function<Instance, Machine>) InterpreterMachine::new,
+                        (Function<Instance, Machine>) InterpreterMachine::new),
+                Arguments.of(
+                        "interp-aot",
+                        (Function<Instance, Machine>) InterpreterMachine::new,
+                        (Function<Instance, Machine>) MachineFactoryCompiler::compile),
+                Arguments.of(
+                        "aot-interp",
+                        (Function<Instance, Machine>) MachineFactoryCompiler::compile,
+                        (Function<Instance, Machine>) InterpreterMachine::new),
+                Arguments.of(
+                        "aot-aot",
+                        (Function<Instance, Machine>) MachineFactoryCompiler::compile,
+                        (Function<Instance, Machine>) MachineFactoryCompiler::compile));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("crossModuleMachineFactories")
+    public void shouldCallIndirectCrossModuleTypeIndex(
+            String name,
+            Function<Instance, Machine> callerFactory,
+            Function<Instance, Machine> calleeFactory) {
+        var store = new Store();
+
+        var instance =
+                Instance.builder(
+                                loadModule(
+                                        "compiled/call_indirect_cross_module_types-export.wat.wasm"))
+                        .withImportValues(store.toImportValues())
+                        .withMachineFactory(callerFactory)
+                        .build();
+        store.register("test", instance);
+
+        Instance.builder(loadModule("compiled/call_indirect_cross_module_types-import.wat.wasm"))
+                .withImportValues(store.toImportValues())
+                .withMachineFactory(calleeFactory)
+                .build();
+
+        assertEquals(42, instance.export("call-other").apply()[0]);
     }
 
     @Test

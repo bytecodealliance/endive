@@ -115,10 +115,12 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
     ILOAD 3
     I2L
     LASTORE
+    ALOAD 7
     ICONST_0
+    INVOKEVIRTUAL run/endive/runtime/Instance.type (I)Lrun/endive/wasm/types/FunctionType;
     ILOAD 9
     ALOAD 10
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirect ([JIILrun/endive/runtime/Instance;)[J
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirect ([JLrun/endive/wasm/types/FunctionType;ILrun/endive/runtime/Instance;)[J
     ICONST_0
     LALOAD
     L2I
@@ -159,10 +161,12 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
    L1
     ICONST_0
     NEWARRAY T_LONG
+    ALOAD 3
     ICONST_1
+    INVOKEVIRTUAL run/endive/runtime/Instance.type (I)Lrun/endive/wasm/types/FunctionType;
     ILOAD 5
     ALOAD 6
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirect ([JIILrun/endive/runtime/Instance;)[J
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirect ([JLrun/endive/wasm/types/FunctionType;ILrun/endive/runtime/Instance;)[J
     RETURN
 }
 

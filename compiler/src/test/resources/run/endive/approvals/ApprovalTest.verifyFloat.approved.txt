@@ -91,10 +91,12 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
    L1
     ICONST_0
     NEWARRAY T_LONG
+    ALOAD 3
     ICONST_0
+    INVOKEVIRTUAL run/endive/runtime/Instance.type (I)Lrun/endive/wasm/types/FunctionType;
     ILOAD 5
     ALOAD 6
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirect ([JIILrun/endive/runtime/Instance;)[J
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirect ([JLrun/endive/wasm/types/FunctionType;ILrun/endive/runtime/Instance;)[J
     RETURN
 }
 

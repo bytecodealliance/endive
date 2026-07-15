@@ -7,11 +7,13 @@ import run.endive.runtime.TableInstance;
 import run.endive.runtime.WasmException;
 import run.endive.runtime.internal.CompilerInterpreterMachine;
 import run.endive.wasm.types.Element;
+import run.endive.wasm.types.FunctionType;
 
 public final class ShadedRefs {
 
     static final Method CHECK_INTERRUPTION;
     static final Method CALL_INDIRECT;
+    static final Method CALL_INDIRECT_CROSS_MODULE;
     static final Method CALL_INDIRECT_ON_INTERPRETER;
     static final Method CALL_INDIRECT_ON_INTERPRETER_WITH_REFS;
     static final Method INSTANCE_MEMORY;
@@ -23,6 +25,7 @@ public final class ShadedRefs {
     static final Method WRITE_GLOBAL_REF;
     static final Method INSTANCE_SET_ELEMENT;
     static final Method INSTANCE_TABLE;
+    static final Method INSTANCE_GET_TYPE;
     static final Method MEMORY_COPY;
     static final Method MEMORY_COPY_2;
     static final Method MEMORY_FILL;
@@ -155,6 +158,7 @@ public final class ShadedRefs {
     // WithRefs overloads for cross-module/host calls
     static final Method CALL_HOST_FUNCTION_WITH_REFS;
     static final Method CALL_INDIRECT_WITH_REFS;
+    static final Method CALL_INDIRECT_WITH_REFS_CROSS_MODULE;
 
     // GC
     static final Method STRUCT_NEW;
@@ -209,6 +213,13 @@ public final class ShadedRefs {
             CALL_INDIRECT =
                     Shaded.class.getMethod(
                             "callIndirect", long[].class, int.class, int.class, Instance.class);
+            CALL_INDIRECT_CROSS_MODULE =
+                    Shaded.class.getMethod(
+                            "callIndirect",
+                            long[].class,
+                            FunctionType.class,
+                            int.class,
+                            Instance.class);
             CALL_INDIRECT_ON_INTERPRETER =
                     Shaded.class.getMethod("callIndirect", long[].class, int.class, Instance.class);
             CALL_INDIRECT_ON_INTERPRETER_WITH_REFS =
@@ -232,6 +243,7 @@ public final class ShadedRefs {
                             "writeGlobalRef", Object.class, int.class, Instance.class);
             INSTANCE_SET_ELEMENT = Instance.class.getMethod("setElement", int.class, Element.class);
             INSTANCE_TABLE = Instance.class.getMethod("table", int.class);
+            INSTANCE_GET_TYPE = Instance.class.getMethod("type", int.class);
             MEMORY_COPY =
                     Shaded.class.getMethod(
                             "memoryCopy", int.class, int.class, int.class, Memory.class);
@@ -832,6 +844,14 @@ public final class ShadedRefs {
                             long[].class,
                             Object[].class,
                             int.class,
+                            int.class,
+                            Instance.class);
+            CALL_INDIRECT_WITH_REFS_CROSS_MODULE =
+                    Shaded.class.getMethod(
+                            "callIndirectWithRefs",
+                            long[].class,
+                            Object[].class,
+                            FunctionType.class,
                             int.class,
                             Instance.class);
 

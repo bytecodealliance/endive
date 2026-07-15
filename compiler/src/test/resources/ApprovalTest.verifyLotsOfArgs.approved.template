@@ -109,10 +109,12 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
     ILOAD 1
     I2L
     LASTORE
+    ALOAD 5
     ICONST_0
+    INVOKEVIRTUAL run/endive/runtime/Instance.type (I)Lrun/endive/wasm/types/FunctionType;
     ILOAD 7
     ALOAD 8
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirect ([JIILrun/endive/runtime/Instance;)[J
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirect ([JLrun/endive/wasm/types/FunctionType;ILrun/endive/runtime/Instance;)[J
     ICONST_0
     LALOAD
     L2I
@@ -154,10 +156,12 @@ public final class run/endive/$gen/CompiledMachine implements run/endive/runtime
    L1
     ALOAD 0
     ACONST_NULL
+    ALOAD 4
     ICONST_1
+    INVOKEVIRTUAL run/endive/runtime/Instance.type (I)Lrun/endive/wasm/types/FunctionType;
     ILOAD 6
     ALOAD 7
-    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirectWithRefs ([J[Ljava/lang/Object;IILrun/endive/runtime/Instance;)Lrun/endive/runtime/CallResult;
+    INVOKESTATIC run/endive/$gen/CompiledMachineShaded.callIndirectWithRefs ([J[Ljava/lang/Object;Lrun/endive/wasm/types/FunctionType;ILrun/endive/runtime/Instance;)Lrun/endive/runtime/CallResult;
     ICONST_0
     INVOKEVIRTUAL run/endive/runtime/CallResult.longResult (I)J
     L2I

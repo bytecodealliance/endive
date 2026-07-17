@@ -740,6 +740,7 @@
             </goals>
             <phase>validate</phase>
             <configuration>
+              <failOnMissing>true</failOnMissing>
               <failOnBlacklist>true</failOnBlacklist>
               <includedLicenses>
                 <includedLicense>Apache-2.0</includedLicense>
@@ -769,7 +770,6 @@
                 <includedLicense>Public Domain</includedLicense>
                 <includedLicense>GNU General Public License (GPL), version 2, with the Classpath exception</includedLicense>
               </includedLicenses>
-              <failIfWarning>true</failIfWarning>
               <excludedScopes>test</excludedScopes>
             </configuration>
           </execution>

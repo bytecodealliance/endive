@@ -135,7 +135,7 @@ public final class WasiPreview1 implements Closeable {
             } catch (ClassNotFoundException e) {
                 // Fallback: check known system property
                 String runtime = System.getProperty("java.runtime.name");
-                return runtime != null && runtime.toLowerCase(Locale.ENGLISH).contains("android");
+                return runtime != null && runtime.toLowerCase(Locale.ROOT).contains("android");
             }
         }
 

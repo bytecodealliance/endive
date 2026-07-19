@@ -7,7 +7,7 @@ title: Why
 
 Endive is a young project and we acknowledge that we are exploring and spearheading in many aspects the usage of Web Assembly on the JVM.
 
-Since there is(always) some degree of experimentation going on, and we want to have feedback by the community and early users, we decide to publish also `experimental` modules; everyone is welcome to try things out and report back the experience.
+Since there is (always) some degree of experimentation going on, and we want to have feedback by the community and early users, we decide to publish also `experimental` modules; everyone is welcome to try things out and report back the experience.
 
 Please note that if "something works" for you, its very unlikely that it will be removed completely, in most cases, expect slight public API changes or module renames to happen.
 

@@ -10,7 +10,7 @@ title: Execution modes
 |---|---|---|---|---|---|
 | **Interpreter** | 🐢 Slow | ✅ Supported | None | None - fully interpreted | Default mode; highly portable; suitable for development and environments requiring dynamic loading. |
 | **Runtime Compilation** | 🐇 Fast | ✅ Supported | Requires reflection and ASM dependency | In-memory Java Bytecode | Enhanced performance; suitable when dynamic loading is needed and the usage of reflection is fine. |
-| **Build time Compilation** | 🐇 Fast | ❌ Not Supported | Build-time tools(e.g., Maven or Gradle plugins) | Plain Java Bytecode | Optimal performance; no dynamic loading; ideal for production with static modules. |
+| **Build time Compilation** | 🐇 Fast | ❌ Not Supported | Build-time tools (e.g., Maven or Gradle plugins) | Plain Java Bytecode | Optimal performance; no dynamic loading; ideal for production with static modules. |
 
 ## Summary
 

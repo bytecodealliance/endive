@@ -1,10 +1,12 @@
 ---
 sidebar_position: 2
-sidebar_label: Simd
-title: Simd support
+sidebar_label: SIMD
+title: SIMD support
 ---
 
-> **NOTE:** SIMD support is available only for Java 21+ and interpreter mode
+:::info[Availability]
+SIMD support is available only for Java 21+ and interpreter mode.
+:::
 
 If you are using a version of Java that supports [JEP 448 - Vector API](https://openjdk.org/jeps/448) you can leverage [Vector instructions](https://webassembly.github.io/spec/core/syntax/instructions.html#vector-instructions).
 
@@ -45,7 +47,9 @@ var module = Parser.parse(new File("your.wasm"));
 var instance = Instance.builder(module).withMachineFactory(SimdInterpreterMachine::new).build();
 ```
 
-> **_NOTE:_**  SIMD support **REQUIRES** validation. Disabling validation  (`WasmModule.builder().withValidation(false)`) is likely to produce incorrect results.
+:::warning
+SIMD support **REQUIRES** validation. Disabling validation (`WasmModule.builder().withValidation(false)`) is likely to produce incorrect results.
+:::
 
 <!--
 ```java

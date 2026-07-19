@@ -35,7 +35,9 @@ var instance = Instance.builder(module).withMemoryFactory(limits -> {
     }).build();
 ```
 
-> **NOTE:** Since Endive 1.1.0, an optimized memory implementation called `ByteArrayMemory` is also available. We recommend plugging this  implementation on all recent OpenJDK systems for enhanced performance. On different Java runtimes (in particular, on Android VMs) you should stick to `ByteBufferMemory`.
+:::note
+Since Endive 1.1.0, an optimized memory implementation called `ByteArrayMemory` is also available. We recommend plugging this implementation on all recent OpenJDK systems for enhanced performance. On different Java runtimes (in particular, on Android VMs) you should stick to `ByteBufferMemory`.
+:::
 
 <!--
 ```java

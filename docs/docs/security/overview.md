@@ -47,13 +47,13 @@ The critical trust boundary is between **Wasm guest code** and **host functions*
 - **CPU limits**: Wasm modules can execute infinite loops. The host must enforce timeouts (see [CPU Limits](/docs/advanced/cpu-limits)).
 - **Memory growth limits**: Modules can request memory growth up to the declared maximum. The host should set appropriate limits.
 - **Post-compilation verification**: The build-time and runtime compilers translate Wasm to JVM bytecode without a separate verification pass. For maximum assurance with untrusted code, prefer the interpreter.
-- **Cache integrity**: The directory-based compiler cache does not verify bytecode integrity on load. Protect cache directories with restrictive permissions.
+- **Cache integrity**: The [directory-based compiler cache](/docs/execution/compiler-cache/#the-directory-cache) does not verify bytecode integrity on load. Protect cache directories with restrictive permissions.
 
 ## WASI and Capability-Based Security
 
 When using WASI, the host controls what capabilities the guest receives:
 
-- **Filesystem access** is opt-in. Use a virtual filesystem (e.g., ZeroFS) to restrict access to specific directories.
+- **Filesystem access** is opt-in. Use a virtual filesystem (e.g., [ZeroFs](https://github.com/roastedroot/zerofs)) to restrict access to specific directories.
 - **Environment variables** and **command-line arguments** are explicitly passed by the host.
 - **Standard I/O** streams are host-controlled.
 

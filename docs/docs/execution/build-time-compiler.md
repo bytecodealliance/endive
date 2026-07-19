@@ -20,10 +20,10 @@ The build time compiler has several advantages over the [Runtime Compiler](runti
 
 - improved instance initialization time: the translation occurs at build time
 - no reflection needed: easier to use with `native-image`
-- fewer runtime dependencies: asm is only needed at build time
+- fewer runtime dependencies: ASM is only needed at build time
 - distribute Wasm modules as self-contained jars: making it a convenient way to distribute software that was not originally meant to run on the Java platform
 
-You can use the compiler at build-time via Maven plug-in, Gradle plug-in, or plain CLI
+You can use the compiler at build-time via Maven plug-in, Gradle plug-in, or plain CLI.
 
 ### Interpreter Fall Back
 
@@ -35,7 +35,7 @@ Since interpreted functions have worse performance, we want to make sure you are
 WASM function size exceeds the Java method size limits and cannot be compiled to Java bytecode. It can only be run in the interpreter. Either reduce the size of the function or enable the interpreter fallback mode: WASM function index: 3938
 ```
 
-If this happens you can configure your build tool, to just issue warning messages, or to be silent.  Another way to silence the message is to configure the build too with an explicit list of functions that should be interpreted. Typically, you obtain the list of the functions by running the compiler once with `interpreterFallback` set to `WARN`
+If this happens you can configure your build tool, to just issue warning messages, or to be silent.  Another way to silence the message is to configure the build tool with an explicit list of functions that should be interpreted. Typically, you obtain the list of the functions by running the compiler once with `interpreterFallback` set to `WARN`
 
 ## Using Maven
 
@@ -103,9 +103,9 @@ import run.endive.runtime.Instance;
 var module = Add.load();
 
 // instantiate the module with the pre-compiled code
-var instance = Instance.builder(module).
-        withMachineFactory(Add::create).
-        build();
+var instance = Instance.builder(module)
+        .withMachineFactory(Add::create)
+        .build();
 ```
 
 ### Generating Module Exports and Imports
@@ -159,9 +159,9 @@ class Demo_ModuleExports {
 -->
 
 ```java
-var instance = Instance.builder(DemoModule.load()).
-        withMachineFactory(DemoModule::create).
-        build();
+var instance = Instance.builder(DemoModule.load())
+        .withMachineFactory(DemoModule::create)
+        .build();
 var exports = new Demo_ModuleExports(instance);
 ```
 

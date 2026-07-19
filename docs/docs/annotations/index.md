@@ -20,7 +20,7 @@ useful when you have many host functions.
 @HostModule("demo")
 public final class Demo {
     
-    public Demo() {};
+    public Demo() {}
     
     @WasmExport
     public long add(int a, int b) {
@@ -58,7 +58,7 @@ import run.endive.runtime.HostFunction;
 
 // bug in JShell: https://github.com/jbangdev/jbang/issues/1854
 public class Demo {
-    public Demo() {};
+    public Demo() {}
 
     public HostFunction[] toHostFunctions() {
         return new HostFunction[0];
@@ -108,7 +108,7 @@ This annotation generates several things, depending on the provided module:
 - `ModuleExports`: Represents the Wasm module's exported functions, mapped to typed Java parameters and return values.
 - `ModuleImports`: Represents the module's imported host functions and includes a convenient `toImportValues()` method to obtain ImportValues after implementing the interfaces.
 
-You can find examples of how to use the generated code in the host-module/it folder of the repository.
+You can find examples of how to use the generated code in the [`annotations/it` folder of the repository](https://github.com/bytecodealliance/endive/tree/main/annotations/it).
 
 ## Enabling the Annotation Processor
 

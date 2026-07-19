@@ -111,7 +111,6 @@ We can do so by using a `Store`:
 
 ```java
 import run.endive.wasm.Parser;
-import run.endive.runtime.ImportValues;
 import run.endive.runtime.Store;
 
 // instantiate the store
@@ -124,4 +123,6 @@ logIt.apply();
 // should print "Hello, World!" 10 times
 ```
 
-> **_NOTE:_** For an easier way to write host function and interact with a wasm module, see [Annotations](../annotations/index.md).
+:::tip
+For an easier way to write host function and interact with a Wasm module, see [Annotations](../annotations/index.md).
+:::

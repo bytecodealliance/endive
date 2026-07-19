@@ -51,7 +51,7 @@ var thread = new Thread() {
     }
 };
 thread.start();
-Thread.sleep(200);
+thread.join(200);
 thread.interrupt();
 ```
 
@@ -67,6 +67,7 @@ var future = service.submit(() -> function.apply());
 try {
   future.get(100, TimeUnit.MILLISECONDS);
 } catch (TimeoutException e) {
+    future.cancel(true);
     // handle the failure
 }
 ```

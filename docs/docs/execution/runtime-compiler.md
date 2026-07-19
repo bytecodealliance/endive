@@ -39,7 +39,7 @@ Add the following dependency:
 
 ### Code Changes
 
-You enable the runtime compiler by configuring the instance to use `CompilerMachine::new` as the machine factory instead 
+You enable the runtime compiler by configuring the instance to use `MachineFactoryCompiler::compile` as the machine factory instead 
 of the default `InterpreterMachine`.
 
 <!--
@@ -59,9 +59,9 @@ import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
 
 var module = Parser.parse(new File("your.wasm"));
-var instance = Instance.builder(module).
-        withMachineFactory(MachineFactoryCompiler::compile).
-        build();
+var instance = Instance.builder(module)
+        .withMachineFactory(MachineFactoryCompiler::compile)
+        .build();
 ```
 
 ### Interpreter Fall Back
@@ -84,13 +84,13 @@ import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
 
 var module = Parser.parse(new File("your.wasm"));
-var instance = Instance.builder(module).
-        withMachineFactory(
+var instance = Instance.builder(module)
+        .withMachineFactory(
                 MachineFactoryCompiler.builder(module)
                 .withInterpreterFallback(InterpreterFallback.SILENT)
                 .compile()
-        ).
-        build();
+        )
+        .build();
 ```
 
 If you want to ensure the functions are never interpreted, you can modify the above to use `InterpreterFallback.FAIL` instead. This will throw an exception if any function is too large to compile.
@@ -107,13 +107,13 @@ import java.io.File;
 import java.util.Set;
 
 var module = Parser.parse(new File("your.wasm"));
-var instance = Instance.builder(module).
-        withMachineFactory(
+var instance = Instance.builder(module)
+        .withMachineFactory(
                 MachineFactoryCompiler.builder(module)
                 .withInterpretedFunctions(Set.of(232, 251))
                 .compile()
-        ).
-        build();
+        )
+        .build();
 ```
 
 Typically, you can obtain the list of the functions by running the compiler once with `InterpreterFallback.WARN`

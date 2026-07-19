@@ -6,10 +6,6 @@ title: Runtime Compiler Cache
 
 # Overview of the Runtime Compiler Cache
 
-:::warning[Security Consideration]
-The directory cache stores compiled bytecode on disk without integrity verification. Ensure the cache directory has restrictive permissions (`chmod 700`) and is not writable by untrusted users. Do not share caches across trust boundaries.
-:::
-
 The runtime compiler cache lets the Endive runtime compiler store the results of compiling WASM modules to Java bytecode. Subsequent executions can skip compilation and start faster.
 
 Use the experimental directory-based cache, or implement the simple `run.endive.compiler.Cache` interface:
@@ -25,8 +21,12 @@ The compiler uses the module digest (default SHA-256) as the cache key. For exam
 
 ## The Directory Cache
 
+:::warning[Security Consideration]
+The directory cache stores compiled bytecode on disk without integrity verification. Ensure the cache directory has restrictive permissions (`chmod 700`) and is not writable by untrusted users. Do not share caches across trust boundaries.
+:::
+
 The directory cache stores entries as files under a configured directory.   For example, 
-ff the cache directory is `/cache`, and you store the following cache key: 
+if the cache directory is `/cache`, and you store the following cache key: 
 
 `sha-256:KRgyTkCm43c34ksqtA8gmdDw4YCfquC2G0qfIFCpb+w=`
  
@@ -38,7 +38,7 @@ It transforms the key to:
 * translate characters to be file-system-friendly
 * use a two-character subdirectory prefix to avoid directory scaling issues
 
-The implementation uses file system atomic moves (write to a temp file, then move to the final location). This makes the cache thread safe and safe to share across processes and avoids partial-write failures. Temp files are written under `/cache/.tmp`. Partially written temp files may be left after a crash; there is no automatic cleanup or eviction. The cache size is not limited—delete files manually to free disk space.
+The implementation uses file system atomic moves (write to a temp file, then move to the final location). This makes the cache thread-safe and safe to share across processes and avoids partial-write failures. Temp files are written under `/cache/.tmp`. Partially written temp files may be left after a crash; there is no automatic cleanup or eviction. The cache size is not limited — delete files manually to free disk space.
 
 ### Using the Directory Cache
 
@@ -91,11 +91,11 @@ var cache = new DirectoryCache(Files.createTempDirectory("cache"));
 
 ```java
 var module = Parser.parse(new File("your.wasm"));
-var instance = Instance.builder(module).
-        withMachineFactory(
+var instance = Instance.builder(module)
+        .withMachineFactory(
             MachineFactoryCompiler.builder(module).withCache(cache).compile()
-        ).
-        build();
+        )
+        .build();
 ```
 
 <!--

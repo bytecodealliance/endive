@@ -6,24 +6,33 @@ public class WasmException extends RuntimeException {
     private final Object[] refArgs;
     private final Instance instance;
 
+    private WasmException(Instance instance, int tagIdx, long[] args, Object[] refArgs) {
+        super(
+                null,
+                null,
+                false, // disable attaching suppressed exceptions
+                false // disable stack trace
+                );
+        this.instance = instance;
+        this.tagIdx = tagIdx;
+        this.args = args;
+        this.refArgs = refArgs;
+    }
+
     /**
      * @deprecated use {@link #builder()}
      */
     @Deprecated(since = "use builder()")
     public WasmException(Instance instance, int tagIdx, long[] args) {
-        this.instance = instance;
-        this.tagIdx = tagIdx;
-        this.args = args.clone();
-        this.refArgs = null;
-        this.setStackTrace(new StackTraceElement[0]);
+        this(instance, tagIdx, args.clone(), null);
     }
 
     private WasmException(Builder b) {
-        this.instance = b.instance;
-        this.tagIdx = b.tagIdx;
-        this.args = (b.args != null) ? b.args.clone() : null;
-        this.refArgs = (b.refArgs != null) ? b.refArgs.clone() : null;
-        this.setStackTrace(new StackTraceElement[0]);
+        this(
+                b.instance,
+                b.tagIdx,
+                (b.args != null) ? b.args.clone() : null,
+                (b.refArgs != null) ? b.refArgs.clone() : null);
     }
 
     public Instance instance() {

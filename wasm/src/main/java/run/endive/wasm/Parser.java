@@ -274,7 +274,7 @@ public final class Parser {
                     e);
         }
         if (messageDigest != null) {
-            String algo = DIGEST_ALGORITHM.toLowerCase(Locale.getDefault()).replace(":", "");
+            String algo = DIGEST_ALGORITHM.toLowerCase(Locale.ROOT).replace(":", "");
             moduleBuilder.withDigest(
                     algo + ":" + Base64.getEncoder().encodeToString(messageDigest.digest()));
         }

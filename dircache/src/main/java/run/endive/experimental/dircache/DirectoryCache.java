@@ -11,7 +11,6 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import run.endive.compiler.Cache;
-import run.endive.experimental.dircache.internal.PathUtils;
 
 /**
  * Disk-backed sharded file cache.
@@ -96,7 +95,11 @@ public class DirectoryCache implements Cache {
         } catch (UncheckedIOException e) {
             throw e.getCause();
         } finally {
-            PathUtils.recursiveDelete(tmpFile);
+            try {
+                Files.deleteIfExists(tmpFile);
+            } catch (IOException e) {
+                // ignored
+            }
         }
     }
 

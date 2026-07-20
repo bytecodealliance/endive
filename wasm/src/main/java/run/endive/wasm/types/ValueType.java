@@ -6,7 +6,7 @@ import run.endive.wasm.MalformedException;
 /**
  * @deprecated use {@link run.endive.wasm.types.ValType}
  */
-@Deprecated(since = "1.3.0")
+@Deprecated
 public enum ValueType {
     UNKNOWN(-1),
     F64(ID.F64),

@@ -18,7 +18,7 @@ public class Table {
     /**
      * @deprecated use {@link #Table(ValType, TableLimits)}
      */
-    @Deprecated(since = "1.3.0")
+    @Deprecated
     public Table(ValueType elementType, TableLimits limits) {
         this(
                 elementType.toValType(),

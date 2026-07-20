@@ -10,7 +10,7 @@ public class HostFunction extends ImportFunction {
     /**
      * @deprecated use {@link #HostFunction(String, String, FunctionType, WasmFunctionHandle)}
      */
-    @Deprecated(since = "1.3.0")
+    @Deprecated
     public HostFunction(
             String moduleName,
             String symbolName,

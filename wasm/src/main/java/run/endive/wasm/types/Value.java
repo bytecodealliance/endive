@@ -120,7 +120,7 @@ public class Value {
     /**
      * @deprecated use {@link #Value(ValType, long)}
      */
-    @Deprecated(since = "1.3.0")
+    @Deprecated
     public Value(ValueType type, long value) {
         this.type = requireNonNull(type, "type").toValType();
         data = value;

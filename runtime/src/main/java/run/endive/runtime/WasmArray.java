@@ -17,7 +17,7 @@ public final class WasmArray implements WasmGcRef {
     /**
      * @deprecated use {@link #builder()}
      */
-    @Deprecated(since = "use builder()")
+    @Deprecated
     public WasmArray(int typeIdx, long[] elements) {
         this(typeIdx, elements, null);
     }
@@ -25,7 +25,7 @@ public final class WasmArray implements WasmGcRef {
     /**
      * @deprecated use {@link #builder()}
      */
-    @Deprecated(since = "use builder()")
+    @Deprecated
     public WasmArray(int typeIdx, long[] elements, Object[] elementRefs) {
         this.typeIdx = typeIdx;
         this.elements = elements;

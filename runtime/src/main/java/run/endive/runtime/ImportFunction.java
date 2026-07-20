@@ -15,7 +15,7 @@ public class ImportFunction implements ImportValue {
     // Optional: source instance for cross-module canonical type matching
     private final Instance sourceInstance;
 
-    @Deprecated(since = "1.3.0")
+    @Deprecated
     protected static List<ValType> convert(List objs) {
         var result = new ArrayList<ValType>(objs.size());
         for (var v : objs) {
@@ -51,7 +51,7 @@ public class ImportFunction implements ImportValue {
         this.sourceInstance = sourceInstance;
     }
 
-    @Deprecated(since = "1.3.0")
+    @Deprecated
     public ImportFunction(
             String module,
             String name,

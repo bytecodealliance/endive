@@ -801,7 +801,10 @@ public final class ValType {
             return false;
         }
 
-        @Deprecated(since = "use .build.resolve(typeSection) instead")
+        /**
+         * @deprecated use {@code .build().resolve(typeSection)} instead
+         */
+        @Deprecated
         public ValType build(Function<Integer, FunctionType> context) {
             if (!isValidOpcode(opcode)) {
                 throw new WasmEngineException("Invalid type opcode: " + opcode);
@@ -834,7 +837,10 @@ public final class ValType {
                             : -1);
         }
 
-        @Deprecated(since = "use .build.resolve(typeSection) instead")
+        /**
+         * @deprecated use {@code .build().resolve(typeSection)} instead
+         */
+        @Deprecated
         public FunctionType substitute(
                 int opcode, int typeIdx, Function<Integer, FunctionType> context) {
             if (ValType.isReference(opcode) && typeIdx >= 0) {

@@ -302,24 +302,23 @@ final class NativeEmitters {
         ctx.valueStack.push(satResult);
     }
 
-    // Emit: fval >= upperBound (GE=5)
     private static int emitTruncUpperCheck(
             EmitContext ctx, int fval, int targetType, int sourceType, boolean signed) {
         if (sourceType == 2 /* F32 */) {
             float bound;
             if (targetType == 0 /* I32 */) {
-                bound = signed ? 2147483648.0f : 4294967296.0f;
+                bound = signed ? 0x1.0p31f : 0x1.0p32f;
             } else {
-                bound = signed ? 9223372036854775808.0f : 18446744073709551616.0f;
+                bound = signed ? 0x1.0p63f : 0x1.0p64f;
             }
             int c = ctx.bridge.exports().emitF32const(Float.floatToRawIntBits(bound));
             return ctx.bridge.exports().emitFcmp(5, fval, c); // GE
         } else {
             double bound;
             if (targetType == 0 /* I32 */) {
-                bound = signed ? 2147483648.0 : 4294967296.0;
+                bound = signed ? 0x1.0p31 : 0x1.0p32;
             } else {
-                bound = signed ? 9223372036854775808.0 : 18446744073709551616.0;
+                bound = signed ? 0x1.0p63 : 0x1.0p64;
             }
             long bits = Double.doubleToRawLongBits(bound);
             int c = ctx.bridge.exports().emitF64const((int) bits, (int) (bits >>> 32));
@@ -327,17 +326,12 @@ final class NativeEmitters {
         }
     }
 
-    // Emit: fval <= lowerBound (LE=4)
     private static int emitTruncLowerCheck(
             EmitContext ctx, int fval, int targetType, int sourceType, boolean signed) {
         if (sourceType == 2 /* F32 */) {
             float bound;
             if (signed) {
-                // For signed: trap if val < MIN (use LE with MIN - 1 equivalent)
-                // i32: -2147483648.0f is exactly representable, trap if val < it
-                // i64: -9223372036854775808.0f is exactly representable
-                bound = targetType == 0 /* I32 */ ? -2147483904.0f : -9223373136366403584.0f;
-                // Use LE: trap if fval <= bound (since bound is just below MIN)
+                bound = targetType == 0 /* I32 */ ? -0x1.000002p31f : -0x1.000002p63f;
             } else {
                 bound = -1.0f;
             }
@@ -346,7 +340,7 @@ final class NativeEmitters {
         } else {
             double bound;
             if (signed) {
-                bound = targetType == 0 /* I32 */ ? -2147483649.0 : -9223372036854777856.0;
+                bound = targetType == 0 /* I32 */ ? -0x1.00000002p31 : -0x1.0000000000001p63;
             } else {
                 bound = -1.0;
             }

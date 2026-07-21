@@ -209,8 +209,7 @@ public final class NativeMemory implements Memory, AutoCloseable {
             return;
         }
         for (var s : dataSegments) {
-            if (s instanceof ActiveDataSegment) {
-                var seg = (ActiveDataSegment) s;
+            if (s instanceof ActiveDataSegment seg) {
                 var data = seg.data();
                 var offset = (int) computeConstantValue(instance, seg.offsetInstructions())[0];
                 if (offset < 0 || offset + data.length > sizeInBytes()) {

@@ -22,7 +22,7 @@ public final class NativeGlobalInstance extends GlobalInstance {
             long initialValue,
             ValType valType,
             MutabilityType mutabilityType) {
-        super(initialValue, 0, valType, mutabilityType);
+        super(valType, mutabilityType, initialValue, 0);
         this.buffer = buffer;
         this.offset = (long) index * 8;
         // Write initial value to buffer

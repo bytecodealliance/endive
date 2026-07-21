@@ -325,13 +325,12 @@ public final class NativeMachine implements Machine {
                                 trampOffset,
                                 ctxBuffer,
                                 CtxBuffer.MEMMOVE_PTR);
-                trampOffset =
-                        copyCodeAndUpdateCtx(
-                                trampolines.memsetTramp(),
-                                trampolineRegion,
-                                trampOffset,
-                                ctxBuffer,
-                                CtxBuffer.MEMSET_PTR);
+                copyCodeAndUpdateCtx(
+                        trampolines.memsetTramp(),
+                        trampolineRegion,
+                        trampOffset,
+                        ctxBuffer,
+                        CtxBuffer.MEMSET_PTR);
 
                 PanamaExecutor.mprotectExec(trampolineRegion, trampTotalSize);
 

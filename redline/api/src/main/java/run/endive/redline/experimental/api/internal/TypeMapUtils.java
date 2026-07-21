@@ -18,17 +18,12 @@ public final class TypeMapUtils {
         int[] map = new int[count];
         var seen = new HashMap<FunctionType, Integer>();
         for (int i = 0; i < count; i++) {
-            var type = ts.getType(i);
-            if (type instanceof FunctionType) {
-                FunctionType ft = (FunctionType) type;
-                Integer canonical = seen.get(ft);
-                if (canonical != null) {
-                    map[i] = canonical;
-                } else {
-                    seen.put(ft, i);
-                    map[i] = i;
-                }
+            FunctionType ft = ts.getType(i);
+            Integer canonical = seen.get(ft);
+            if (canonical != null) {
+                map[i] = canonical;
             } else {
+                seen.put(ft, i);
                 map[i] = i;
             }
         }

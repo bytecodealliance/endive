@@ -16,10 +16,6 @@
   <dependencies>
     <dependency>
       <groupId>run.endive</groupId>
-      <artifactId>log</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>run.endive</groupId>
       <artifactId>runtime</artifactId>
     </dependency>
     <dependency>
@@ -34,31 +30,6 @@
 
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>check-cranelift-wasm</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <phase>validate</phase>
-            <configuration>
-              <rules>
-                <requireFilesExist>
-                  <files>
-                    <file>${project.basedir}/../cranelift_bridge.wasm</file>
-                  </files>
-                  <message>cranelift_bridge.wasm not found. Build it with:
-  cd redline/wasm-build &amp;&amp; make all
-(requires Rust with wasm32-wasip1 target)</message>
-                </requireFilesExist>
-              </rules>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>run.endive</groupId>
         <artifactId>endive-compiler-maven-plugin</artifactId>

@@ -24,10 +24,6 @@
     </dependency>
     <dependency>
       <groupId>run.endive</groupId>
-      <artifactId>runtime</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>run.endive</groupId>
       <artifactId>wasm</artifactId>
     </dependency>
   </dependencies>

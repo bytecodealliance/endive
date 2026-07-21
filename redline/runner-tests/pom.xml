@@ -20,22 +20,6 @@
 
   <dependencies>
     <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>redline-api-experimental</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>redline-runner-experimental</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>runtime</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>run.endive</groupId>
-      <artifactId>wasm</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
       <scope>test</scope>
@@ -47,7 +31,27 @@
     </dependency>
     <dependency>
       <groupId>run.endive</groupId>
+      <artifactId>redline-api-experimental</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
       <artifactId>redline-compiler-experimental</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>redline-runner-experimental</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>runtime</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>wasm</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

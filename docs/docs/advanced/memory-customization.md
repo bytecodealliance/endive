@@ -31,12 +31,14 @@ It's possible to provide a custom implementation of the entire Memory used by th
 
 ```java
 var instance = Instance.builder(module).withMemoryFactory(limits -> {
-        return new ByteArrayMemory(limits);
+        return new MyCustomMemory(limits);
     }).build();
 ```
 
 :::note
-Since Endive 1.1.0, an optimized memory implementation called `ByteArrayMemory` is also available. We recommend plugging this implementation on all recent OpenJDK systems for enhanced performance. On different Java runtimes (in particular, on Android VMs) you should stick to `ByteBufferMemory`.
+Endive provides two built-in Memory implementations:
+- `ByteArrayMemory`: An optimized memory implementation, recommended for recent OpenJDK systems
+- `ByteBufferMemory`: Recommended for different Java runtimes (in particular, on Android VMs)
 :::
 
 <!--

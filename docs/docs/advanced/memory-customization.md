@@ -31,7 +31,7 @@ It's possible to provide a custom implementation of the entire Memory used by th
 
 ```java
 var instance = Instance.builder(module).withMemoryFactory(limits -> {
-        return new MyCustomMemory(limits);
+        return new ByteArrayMemory(limits);
     }).build();
 ```
 

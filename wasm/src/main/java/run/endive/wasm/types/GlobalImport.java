@@ -27,7 +27,7 @@ public final class GlobalImport extends Import {
     /**
      * @deprecated use {@link #GlobalImport(String, String, MutabilityType, ValType)}
      */
-    @Deprecated(since = "1.3.0")
+    @Deprecated
     public GlobalImport(
             String moduleName, String name, MutabilityType mutabilityType, ValueType type) {
         super(moduleName, name);

@@ -22,7 +22,7 @@ public class WasmException extends RuntimeException {
     /**
      * @deprecated use {@link #builder()}
      */
-    @Deprecated(since = "use builder()")
+    @Deprecated
     public WasmException(Instance instance, int tagIdx, long[] args) {
         this(instance, tagIdx, args.clone(), null);
     }

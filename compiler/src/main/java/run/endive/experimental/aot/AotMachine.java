@@ -12,7 +12,7 @@ import run.endive.wasm.WasmEngineException;
  * This class is deprecated and will be removed in a future version. Please use
  * the {@link run.endive.compiler.MachineFactoryCompiler} instead.
  */
-@Deprecated(since = "1.4.0")
+@Deprecated
 public final class AotMachine implements Machine {
 
     private final Machine machine;
@@ -24,7 +24,7 @@ public final class AotMachine implements Machine {
      *
      * @param instance the instance to use for the machine
      */
-    @Deprecated(since = "1.4.0")
+    @Deprecated
     public AotMachine(Instance instance) {
         this.machine = new MachineFactory(instance.module()).apply(instance);
     }

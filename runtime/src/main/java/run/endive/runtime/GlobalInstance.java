@@ -16,7 +16,7 @@ public class GlobalInstance {
     /**
      * @deprecated use {@link #builder()}
      */
-    @Deprecated(since = "use builder()")
+    @Deprecated
     public GlobalInstance(Value value) {
         this(value, MutabilityType.Const);
     }
@@ -24,7 +24,7 @@ public class GlobalInstance {
     /**
      * @deprecated use {@link #builder()}
      */
-    @Deprecated(since = "use builder()")
+    @Deprecated
     public GlobalInstance(Value value, MutabilityType mutabilityType) {
         this.valueLow = value.raw();
         this.valueHigh = 0;
@@ -35,7 +35,7 @@ public class GlobalInstance {
     /**
      * @deprecated use {@link #builder()}
      */
-    @Deprecated(since = "use builder()")
+    @Deprecated
     public GlobalInstance(
             long valueLow, long valueHigh, ValueType valueType, MutabilityType mutabilityType) {
         this.valueLow = valueLow;
@@ -47,7 +47,7 @@ public class GlobalInstance {
     /**
      * @deprecated use {@link #builder()}
      */
-    @Deprecated(since = "use builder()")
+    @Deprecated
     public GlobalInstance(
             long valueLow, long valueHigh, ValType valType, MutabilityType mutabilityType) {
         this.valueLow = valueLow;

@@ -17,7 +17,7 @@ public final class WasmStruct implements WasmGcRef {
     /**
      * @deprecated use {@link #builder()}
      */
-    @Deprecated(since = "use builder()")
+    @Deprecated
     public WasmStruct(int typeIdx, long[] fields) {
         this(typeIdx, fields, null);
     }
@@ -25,7 +25,7 @@ public final class WasmStruct implements WasmGcRef {
     /**
      * @deprecated use {@link #builder()}
      */
-    @Deprecated(since = "use builder()")
+    @Deprecated
     public WasmStruct(int typeIdx, long[] fields, Object[] fieldRefs) {
         this.typeIdx = typeIdx;
         this.fields = fields;

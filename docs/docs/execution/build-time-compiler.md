@@ -103,9 +103,9 @@ import run.endive.runtime.Instance;
 var module = Add.load();
 
 // instantiate the module with the pre-compiled code
-var instance = Instance.builder(module)
-        .withMachineFactory(Add::create)
-        .build();
+var instance = Instance.builder(module).
+        withMachineFactory(Add::create).
+        build();
 ```
 
 ### Generating Module Exports and Imports
@@ -159,9 +159,9 @@ class Demo_ModuleExports {
 -->
 
 ```java
-var instance = Instance.builder(DemoModule.load())
-        .withMachineFactory(DemoModule::create)
-        .build();
+var instance = Instance.builder(DemoModule.load()).
+        withMachineFactory(DemoModule::create).
+        build();
 var exports = new Demo_ModuleExports(instance);
 ```
 

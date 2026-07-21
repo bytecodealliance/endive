@@ -165,10 +165,10 @@ var wasi = WasiOptions.builder().withArguments(List.of("executable-name", "--mor
 To expose environment variables to your WASI module you can list them in the options:
 
 ```java
-var wasi = WasiOptions.builder()
-    .withEnvironment("ENV_ONE_KEY", "my-one-key-value")
-    .withEnvironment("ENV_TWO_KEY", "my-two-key-value")
-    .build();
+var wasi = WasiOptions.builder().
+    withEnvironment("ENV_ONE_KEY", "my-one-key-value").
+    withEnvironment("ENV_TWO_KEY", "my-two-key-value").
+    build();
 ```
 
 ## disk

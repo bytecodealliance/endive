@@ -91,11 +91,11 @@ var cache = new DirectoryCache(Files.createTempDirectory("cache"));
 
 ```java
 var module = Parser.parse(new File("your.wasm"));
-var instance = Instance.builder(module)
-        .withMachineFactory(
+var instance = Instance.builder(module).
+        withMachineFactory(
             MachineFactoryCompiler.builder(module).withCache(cache).compile()
-        )
-        .build();
+        ).
+        build();
 ```
 
 <!--

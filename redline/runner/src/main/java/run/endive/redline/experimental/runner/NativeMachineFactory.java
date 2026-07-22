@@ -5,7 +5,6 @@ import java.lang.foreign.MemorySegment;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
-import run.endive.redline.experimental.api.Interruptible;
 import run.endive.redline.experimental.runner.internal.NativeGlobalInstance;
 import run.endive.redline.experimental.runner.internal.NativeMachine;
 import run.endive.redline.experimental.runner.internal.NativeMemory;
@@ -22,7 +21,7 @@ import run.endive.wasm.types.MutabilityType;
 import run.endive.wasm.types.Table;
 import run.endive.wasm.types.ValType;
 
-public final class NativeMachineFactory implements AutoCloseable, Interruptible {
+public final class NativeMachineFactory {
 
     private final Arena arena = Arena.ofShared();
     private final WasmModule module;
@@ -68,6 +67,10 @@ public final class NativeMachineFactory implements AutoCloseable, Interruptible 
         return nativeTable;
     }
 
+    public static TableInstance createImportTable(Table table, int initValue) {
+        return new NativeTable(table, Arena.ofAuto());
+    }
+
     public GlobalInstance createGlobal(
             long value, long highValue, ValType type, MutabilityType mutability) {
         return new NativeGlobalInstance(globalsBuffer, globalIndex++, value, type, mutability);
@@ -98,32 +101,6 @@ public final class NativeMachineFactory implements AutoCloseable, Interruptible 
                         precompiledCode,
                         compilerFunction);
         return nativeMachine;
-    }
-
-    @Override
-    public void requestInterrupt() {
-        if (nativeMachine != null) {
-            nativeMachine.requestInterrupt();
-        }
-    }
-
-    @Override
-    public void clearInterrupt() {
-        if (nativeMachine != null) {
-            nativeMachine.clearInterrupt();
-        }
-    }
-
-    @Override
-    public void close() {
-        if (nativeMachine != null) {
-            nativeMachine.close();
-        }
-        try {
-            arena.close();
-        } catch (IllegalStateException e) {
-            // may already be closed by NativeMachine
-        }
     }
 
     public static final class Builder {

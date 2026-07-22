@@ -1,6 +1,6 @@
 package run.endive.testing;
 
-import run.endive.redline.experimental.api.RedlineTarget;
+import run.endive.redline.experimental.api.internal.RedlineTarget;
 import run.endive.redline.experimental.compiler.internal.NativeCompiler;
 import run.endive.redline.experimental.runner.NativeMachineFactory;
 import run.endive.runtime.ImportValues;
@@ -19,8 +19,8 @@ public final class NativeInstanceBuilder {
         var b = NativeMachineFactory.builder(module);
         b.withCompilerFunction(
                 m ->
-                        new NativeCompiler(RedlineTarget.detectHost().orElseThrow().triple(), m)
-                                .compileAll());
+                        NativeCompiler.compileAll(
+                                RedlineTarget.detectHost().orElseThrow().triple(), m));
         return new NativeInstanceBuilder(b);
     }
 

@@ -11,7 +11,6 @@ import run.endive.runtime.ImportMemory;
 import run.endive.runtime.ImportTable;
 import run.endive.runtime.ImportValues;
 import run.endive.runtime.Instance;
-import run.endive.runtime.TableInstance;
 import run.endive.runtime.WasmFunctionHandle;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.MemoryLimits;
@@ -122,7 +121,7 @@ public final class Spectest {
                         new ImportTable(
                                 "spectest",
                                 "table",
-                                new TableInstance(
+                                NativeMachineFactory.createImportTable(
                                         new Table(ValType.FuncRef, new TableLimits(10, 20)),
                                         REF_NULL_VALUE)))
                 .build();

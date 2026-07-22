@@ -8,6 +8,7 @@ import java.lang.foreign.ValueLayout;
 import run.endive.redline.experimental.api.internal.CtxBuffer;
 import run.endive.runtime.Instance;
 import run.endive.runtime.TableInstance;
+import run.endive.wasm.UninstantiableException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.Table;
 import run.endive.wasm.types.TableLimits;
@@ -154,7 +155,7 @@ public final class NativeTable extends TableInstance {
     @Override
     public void setRef(int index, int value, Instance instance) {
         if (index < 0 || index >= size()) {
-            throw new WasmEngineException("out of bounds table access");
+            throw new UninstantiableException("out of bounds table access");
         }
         if (value == REF_NULL_VALUE) {
             writeNullEntry(index);

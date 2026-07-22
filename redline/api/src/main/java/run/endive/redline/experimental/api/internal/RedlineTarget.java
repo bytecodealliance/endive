@@ -1,4 +1,4 @@
-package run.endive.redline.experimental.api;
+package run.endive.redline.experimental.api.internal;
 
 import java.util.Locale;
 import java.util.Optional;

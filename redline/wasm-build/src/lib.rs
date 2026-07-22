@@ -6,7 +6,7 @@
 
 use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::types;
-use cranelift_codegen::ir::{AbiParam, AtomicRmwOp, BlockArg, BlockCall, Function, InstBuilder, MemFlags, Signature, UserFuncName};
+use cranelift_codegen::ir::{AbiParam, AtomicRmwOp, BlockArg, BlockCall, Function, InstBuilder, MemFlagsData, Signature, UserFuncName};
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable};
 use cranelift_codegen::Context;
@@ -564,7 +564,7 @@ pub extern "C" fn emit_load_i32(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I32, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I32, MemFlagsData::new(), effective, offset);
     let session = s();
     let id = session.values.len() as u32;
     session.values.push(val);
@@ -578,7 +578,7 @@ pub extern "C" fn emit_store_i32(base: u32, wasm_addr: u32, value: u32, offset: 
     let vvalue = s().values[value as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    b().ins().store(MemFlags::new(), vvalue, effective, offset);
+    b().ins().store(MemFlagsData::new(), vvalue, effective, offset);
 }
 
 // --- Memory: f32 ---
@@ -589,7 +589,7 @@ pub extern "C" fn emit_load_f32(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::F32, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::F32, MemFlagsData::new(), effective, offset);
     let session = s();
     let id = session.values.len() as u32;
     session.values.push(val);
@@ -603,7 +603,7 @@ pub extern "C" fn emit_store_f32(base: u32, wasm_addr: u32, value: u32, offset: 
     let vvalue = s().values[value as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    b().ins().store(MemFlags::new(), vvalue, effective, offset);
+    b().ins().store(MemFlagsData::new(), vvalue, effective, offset);
 }
 
 // --- Memory: f64 ---
@@ -614,7 +614,7 @@ pub extern "C" fn emit_load_f64(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::F64, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::F64, MemFlagsData::new(), effective, offset);
     let session = s();
     let id = session.values.len() as u32;
     session.values.push(val);
@@ -628,7 +628,7 @@ pub extern "C" fn emit_store_f64(base: u32, wasm_addr: u32, value: u32, offset: 
     let vvalue = s().values[value as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    b().ins().store(MemFlags::new(), vvalue, effective, offset);
+    b().ins().store(MemFlagsData::new(), vvalue, effective, offset);
 }
 
 // --- Memory: sub-word i32 loads ---
@@ -640,7 +640,7 @@ pub extern "C" fn emit_load_8u(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I8, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I8, MemFlagsData::new(), effective, offset);
     let r = b().ins().uextend(types::I32, val);
     let session = s();
     let id = session.values.len() as u32;
@@ -655,7 +655,7 @@ pub extern "C" fn emit_load_8s(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I8, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I8, MemFlagsData::new(), effective, offset);
     let r = b().ins().sextend(types::I32, val);
     let session = s();
     let id = session.values.len() as u32;
@@ -670,7 +670,7 @@ pub extern "C" fn emit_load_16u(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I16, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I16, MemFlagsData::new(), effective, offset);
     let r = b().ins().uextend(types::I32, val);
     let session = s();
     let id = session.values.len() as u32;
@@ -685,7 +685,7 @@ pub extern "C" fn emit_load_16s(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I16, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I16, MemFlagsData::new(), effective, offset);
     let r = b().ins().sextend(types::I32, val);
     let session = s();
     let id = session.values.len() as u32;
@@ -702,7 +702,7 @@ pub extern "C" fn emit_store_8(base: u32, wasm_addr: u32, value: u32, offset: i3
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
     let truncated = b().ins().ireduce(types::I8, vvalue);
-    b().ins().store(MemFlags::new(), truncated, effective, offset);
+    b().ins().store(MemFlagsData::new(), truncated, effective, offset);
 }
 
 /// Store low 16 bits of i32
@@ -714,7 +714,7 @@ pub extern "C" fn emit_store_16(base: u32, wasm_addr: u32, value: u32, offset: i
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
     let truncated = b().ins().ireduce(types::I16, vvalue);
-    b().ins().store(MemFlags::new(), truncated, effective, offset);
+    b().ins().store(MemFlagsData::new(), truncated, effective, offset);
 }
 
 // --- Memory: i64 sub-word loads ---
@@ -726,7 +726,7 @@ pub extern "C" fn emit_load_8u_i64(base: u32, wasm_addr: u32, offset: i32) -> u3
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I8, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I8, MemFlagsData::new(), effective, offset);
     let r = b().ins().uextend(types::I64, val);
     let session = s();
     let id = session.values.len() as u32;
@@ -741,7 +741,7 @@ pub extern "C" fn emit_load_8s_i64(base: u32, wasm_addr: u32, offset: i32) -> u3
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I8, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I8, MemFlagsData::new(), effective, offset);
     let r = b().ins().sextend(types::I64, val);
     let session = s();
     let id = session.values.len() as u32;
@@ -756,7 +756,7 @@ pub extern "C" fn emit_load_16u_i64(base: u32, wasm_addr: u32, offset: i32) -> u
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I16, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I16, MemFlagsData::new(), effective, offset);
     let r = b().ins().uextend(types::I64, val);
     let session = s();
     let id = session.values.len() as u32;
@@ -771,7 +771,7 @@ pub extern "C" fn emit_load_16s_i64(base: u32, wasm_addr: u32, offset: i32) -> u
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I16, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I16, MemFlagsData::new(), effective, offset);
     let r = b().ins().sextend(types::I64, val);
     let session = s();
     let id = session.values.len() as u32;
@@ -786,7 +786,7 @@ pub extern "C" fn emit_load_32u_i64(base: u32, wasm_addr: u32, offset: i32) -> u
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I32, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I32, MemFlagsData::new(), effective, offset);
     let r = b().ins().uextend(types::I64, val);
     let session = s();
     let id = session.values.len() as u32;
@@ -801,7 +801,7 @@ pub extern "C" fn emit_load_32s_i64(base: u32, wasm_addr: u32, offset: i32) -> u
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I32, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I32, MemFlagsData::new(), effective, offset);
     let r = b().ins().sextend(types::I64, val);
     let session = s();
     let id = session.values.len() as u32;
@@ -818,7 +818,7 @@ pub extern "C" fn emit_store_8_i64(base: u32, wasm_addr: u32, value: u32, offset
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
     let truncated = b().ins().ireduce(types::I8, vvalue);
-    b().ins().store(MemFlags::new(), truncated, effective, offset);
+    b().ins().store(MemFlagsData::new(), truncated, effective, offset);
 }
 
 /// Store low 16 bits of i64
@@ -830,7 +830,7 @@ pub extern "C" fn emit_store_16_i64(base: u32, wasm_addr: u32, value: u32, offse
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
     let truncated = b().ins().ireduce(types::I16, vvalue);
-    b().ins().store(MemFlags::new(), truncated, effective, offset);
+    b().ins().store(MemFlagsData::new(), truncated, effective, offset);
 }
 
 /// Store low 32 bits of i64
@@ -842,7 +842,7 @@ pub extern "C" fn emit_store_32_i64(base: u32, wasm_addr: u32, value: u32, offse
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
     let truncated = b().ins().ireduce(types::I32, vvalue);
-    b().ins().store(MemFlags::new(), truncated, effective, offset);
+    b().ins().store(MemFlagsData::new(), truncated, effective, offset);
 }
 
 // --- Atomic helpers ---
@@ -883,21 +883,21 @@ fn push_val(val: cranelift_codegen::ir::Value) -> u32 {
 #[no_mangle]
 pub extern "C" fn emit_atomic_load_i32(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let addr = effective_addr(base, wasm_addr, offset);
-    let val = b().ins().atomic_load(types::I32, MemFlags::new(), addr);
+    let val = b().ins().atomic_load(types::I32, MemFlagsData::new(), addr);
     push_val(val)
 }
 
 #[no_mangle]
 pub extern "C" fn emit_atomic_load_i64(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let addr = effective_addr(base, wasm_addr, offset);
-    let val = b().ins().atomic_load(types::I64, MemFlags::new(), addr);
+    let val = b().ins().atomic_load(types::I64, MemFlagsData::new(), addr);
     push_val(val)
 }
 
 #[no_mangle]
 pub extern "C" fn emit_atomic_load8_u_i32(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let addr = effective_addr(base, wasm_addr, offset);
-    let val = b().ins().atomic_load(types::I8, MemFlags::new(), addr);
+    let val = b().ins().atomic_load(types::I8, MemFlagsData::new(), addr);
     let r = b().ins().uextend(types::I32, val);
     push_val(r)
 }
@@ -905,7 +905,7 @@ pub extern "C" fn emit_atomic_load8_u_i32(base: u32, wasm_addr: u32, offset: i32
 #[no_mangle]
 pub extern "C" fn emit_atomic_load16_u_i32(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let addr = effective_addr(base, wasm_addr, offset);
-    let val = b().ins().atomic_load(types::I16, MemFlags::new(), addr);
+    let val = b().ins().atomic_load(types::I16, MemFlagsData::new(), addr);
     let r = b().ins().uextend(types::I32, val);
     push_val(r)
 }
@@ -913,7 +913,7 @@ pub extern "C" fn emit_atomic_load16_u_i32(base: u32, wasm_addr: u32, offset: i3
 #[no_mangle]
 pub extern "C" fn emit_atomic_load8_u_i64(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let addr = effective_addr(base, wasm_addr, offset);
-    let val = b().ins().atomic_load(types::I8, MemFlags::new(), addr);
+    let val = b().ins().atomic_load(types::I8, MemFlagsData::new(), addr);
     let r = b().ins().uextend(types::I64, val);
     push_val(r)
 }
@@ -921,7 +921,7 @@ pub extern "C" fn emit_atomic_load8_u_i64(base: u32, wasm_addr: u32, offset: i32
 #[no_mangle]
 pub extern "C" fn emit_atomic_load16_u_i64(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let addr = effective_addr(base, wasm_addr, offset);
-    let val = b().ins().atomic_load(types::I16, MemFlags::new(), addr);
+    let val = b().ins().atomic_load(types::I16, MemFlagsData::new(), addr);
     let r = b().ins().uextend(types::I64, val);
     push_val(r)
 }
@@ -929,7 +929,7 @@ pub extern "C" fn emit_atomic_load16_u_i64(base: u32, wasm_addr: u32, offset: i3
 #[no_mangle]
 pub extern "C" fn emit_atomic_load32_u_i64(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let addr = effective_addr(base, wasm_addr, offset);
-    let val = b().ins().atomic_load(types::I32, MemFlags::new(), addr);
+    let val = b().ins().atomic_load(types::I32, MemFlagsData::new(), addr);
     let r = b().ins().uextend(types::I64, val);
     push_val(r)
 }
@@ -940,14 +940,14 @@ pub extern "C" fn emit_atomic_load32_u_i64(base: u32, wasm_addr: u32, offset: i3
 pub extern "C" fn emit_atomic_store_i32(base: u32, wasm_addr: u32, value: u32, offset: i32) {
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
-    b().ins().atomic_store(MemFlags::new(), vvalue, addr);
+    b().ins().atomic_store(MemFlagsData::new(), vvalue, addr);
 }
 
 #[no_mangle]
 pub extern "C" fn emit_atomic_store_i64(base: u32, wasm_addr: u32, value: u32, offset: i32) {
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
-    b().ins().atomic_store(MemFlags::new(), vvalue, addr);
+    b().ins().atomic_store(MemFlagsData::new(), vvalue, addr);
 }
 
 #[no_mangle]
@@ -955,7 +955,7 @@ pub extern "C" fn emit_atomic_store8(base: u32, wasm_addr: u32, value: u32, offs
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
     let truncated = b().ins().ireduce(types::I8, vvalue);
-    b().ins().atomic_store(MemFlags::new(), truncated, addr);
+    b().ins().atomic_store(MemFlagsData::new(), truncated, addr);
 }
 
 #[no_mangle]
@@ -963,7 +963,7 @@ pub extern "C" fn emit_atomic_store16(base: u32, wasm_addr: u32, value: u32, off
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
     let truncated = b().ins().ireduce(types::I16, vvalue);
-    b().ins().atomic_store(MemFlags::new(), truncated, addr);
+    b().ins().atomic_store(MemFlagsData::new(), truncated, addr);
 }
 
 #[no_mangle]
@@ -971,7 +971,7 @@ pub extern "C" fn emit_atomic_store8_i64(base: u32, wasm_addr: u32, value: u32, 
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
     let truncated = b().ins().ireduce(types::I8, vvalue);
-    b().ins().atomic_store(MemFlags::new(), truncated, addr);
+    b().ins().atomic_store(MemFlagsData::new(), truncated, addr);
 }
 
 #[no_mangle]
@@ -979,7 +979,7 @@ pub extern "C" fn emit_atomic_store16_i64(base: u32, wasm_addr: u32, value: u32,
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
     let truncated = b().ins().ireduce(types::I16, vvalue);
-    b().ins().atomic_store(MemFlags::new(), truncated, addr);
+    b().ins().atomic_store(MemFlagsData::new(), truncated, addr);
 }
 
 #[no_mangle]
@@ -987,7 +987,7 @@ pub extern "C" fn emit_atomic_store32_i64(base: u32, wasm_addr: u32, value: u32,
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
     let truncated = b().ins().ireduce(types::I32, vvalue);
-    b().ins().atomic_store(MemFlags::new(), truncated, addr);
+    b().ins().atomic_store(MemFlagsData::new(), truncated, addr);
 }
 
 // --- Atomic RMW ---
@@ -996,7 +996,7 @@ pub extern "C" fn emit_atomic_store32_i64(base: u32, wasm_addr: u32, value: u32,
 pub extern "C" fn emit_atomic_rmw_i32(op: u32, base: u32, wasm_addr: u32, value: u32, offset: i32) -> u32 {
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
-    let val = b().ins().atomic_rmw(types::I32, MemFlags::new(), wasm_rmw_op(op), addr, vvalue);
+    let val = b().ins().atomic_rmw(types::I32, MemFlagsData::new(), wasm_rmw_op(op), addr, vvalue);
     push_val(val)
 }
 
@@ -1004,7 +1004,7 @@ pub extern "C" fn emit_atomic_rmw_i32(op: u32, base: u32, wasm_addr: u32, value:
 pub extern "C" fn emit_atomic_rmw_i64(op: u32, base: u32, wasm_addr: u32, value: u32, offset: i32) -> u32 {
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
-    let val = b().ins().atomic_rmw(types::I64, MemFlags::new(), wasm_rmw_op(op), addr, vvalue);
+    let val = b().ins().atomic_rmw(types::I64, MemFlagsData::new(), wasm_rmw_op(op), addr, vvalue);
     push_val(val)
 }
 
@@ -1013,7 +1013,7 @@ pub extern "C" fn emit_atomic_rmw8_u_i32(op: u32, base: u32, wasm_addr: u32, val
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
     let truncated = b().ins().ireduce(types::I8, vvalue);
-    let val = b().ins().atomic_rmw(types::I8, MemFlags::new(), wasm_rmw_op(op), addr, truncated);
+    let val = b().ins().atomic_rmw(types::I8, MemFlagsData::new(), wasm_rmw_op(op), addr, truncated);
     let r = b().ins().uextend(types::I32, val);
     push_val(r)
 }
@@ -1023,7 +1023,7 @@ pub extern "C" fn emit_atomic_rmw16_u_i32(op: u32, base: u32, wasm_addr: u32, va
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
     let truncated = b().ins().ireduce(types::I16, vvalue);
-    let val = b().ins().atomic_rmw(types::I16, MemFlags::new(), wasm_rmw_op(op), addr, truncated);
+    let val = b().ins().atomic_rmw(types::I16, MemFlagsData::new(), wasm_rmw_op(op), addr, truncated);
     let r = b().ins().uextend(types::I32, val);
     push_val(r)
 }
@@ -1033,7 +1033,7 @@ pub extern "C" fn emit_atomic_rmw8_u_i64(op: u32, base: u32, wasm_addr: u32, val
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
     let truncated = b().ins().ireduce(types::I8, vvalue);
-    let val = b().ins().atomic_rmw(types::I8, MemFlags::new(), wasm_rmw_op(op), addr, truncated);
+    let val = b().ins().atomic_rmw(types::I8, MemFlagsData::new(), wasm_rmw_op(op), addr, truncated);
     let r = b().ins().uextend(types::I64, val);
     push_val(r)
 }
@@ -1043,7 +1043,7 @@ pub extern "C" fn emit_atomic_rmw16_u_i64(op: u32, base: u32, wasm_addr: u32, va
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
     let truncated = b().ins().ireduce(types::I16, vvalue);
-    let val = b().ins().atomic_rmw(types::I16, MemFlags::new(), wasm_rmw_op(op), addr, truncated);
+    let val = b().ins().atomic_rmw(types::I16, MemFlagsData::new(), wasm_rmw_op(op), addr, truncated);
     let r = b().ins().uextend(types::I64, val);
     push_val(r)
 }
@@ -1053,7 +1053,7 @@ pub extern "C" fn emit_atomic_rmw32_u_i64(op: u32, base: u32, wasm_addr: u32, va
     let addr = effective_addr(base, wasm_addr, offset);
     let vvalue = s().values[value as usize];
     let truncated = b().ins().ireduce(types::I32, vvalue);
-    let val = b().ins().atomic_rmw(types::I32, MemFlags::new(), wasm_rmw_op(op), addr, truncated);
+    let val = b().ins().atomic_rmw(types::I32, MemFlagsData::new(), wasm_rmw_op(op), addr, truncated);
     let r = b().ins().uextend(types::I64, val);
     push_val(r)
 }
@@ -1065,7 +1065,7 @@ pub extern "C" fn emit_atomic_cas_i32(base: u32, wasm_addr: u32, expected: u32, 
     let addr = effective_addr(base, wasm_addr, offset);
     let vexpected = s().values[expected as usize];
     let vreplacement = s().values[replacement as usize];
-    let val = b().ins().atomic_cas(MemFlags::new(), addr, vexpected, vreplacement);
+    let val = b().ins().atomic_cas(MemFlagsData::new(), addr, vexpected, vreplacement);
     push_val(val)
 }
 
@@ -1074,7 +1074,7 @@ pub extern "C" fn emit_atomic_cas_i64(base: u32, wasm_addr: u32, expected: u32, 
     let addr = effective_addr(base, wasm_addr, offset);
     let vexpected = s().values[expected as usize];
     let vreplacement = s().values[replacement as usize];
-    let val = b().ins().atomic_cas(MemFlags::new(), addr, vexpected, vreplacement);
+    let val = b().ins().atomic_cas(MemFlagsData::new(), addr, vexpected, vreplacement);
     push_val(val)
 }
 
@@ -1085,7 +1085,7 @@ pub extern "C" fn emit_atomic_cas8_u_i32(base: u32, wasm_addr: u32, expected: u3
     let vreplacement = s().values[replacement as usize];
     let te = b().ins().ireduce(types::I8, vexpected);
     let tr = b().ins().ireduce(types::I8, vreplacement);
-    let val = b().ins().atomic_cas(MemFlags::new(), addr, te, tr);
+    let val = b().ins().atomic_cas(MemFlagsData::new(), addr, te, tr);
     let r = b().ins().uextend(types::I32, val);
     push_val(r)
 }
@@ -1097,7 +1097,7 @@ pub extern "C" fn emit_atomic_cas16_u_i32(base: u32, wasm_addr: u32, expected: u
     let vreplacement = s().values[replacement as usize];
     let te = b().ins().ireduce(types::I16, vexpected);
     let tr = b().ins().ireduce(types::I16, vreplacement);
-    let val = b().ins().atomic_cas(MemFlags::new(), addr, te, tr);
+    let val = b().ins().atomic_cas(MemFlagsData::new(), addr, te, tr);
     let r = b().ins().uextend(types::I32, val);
     push_val(r)
 }
@@ -1109,7 +1109,7 @@ pub extern "C" fn emit_atomic_cas8_u_i64(base: u32, wasm_addr: u32, expected: u3
     let vreplacement = s().values[replacement as usize];
     let te = b().ins().ireduce(types::I8, vexpected);
     let tr = b().ins().ireduce(types::I8, vreplacement);
-    let val = b().ins().atomic_cas(MemFlags::new(), addr, te, tr);
+    let val = b().ins().atomic_cas(MemFlagsData::new(), addr, te, tr);
     let r = b().ins().uextend(types::I64, val);
     push_val(r)
 }
@@ -1121,7 +1121,7 @@ pub extern "C" fn emit_atomic_cas16_u_i64(base: u32, wasm_addr: u32, expected: u
     let vreplacement = s().values[replacement as usize];
     let te = b().ins().ireduce(types::I16, vexpected);
     let tr = b().ins().ireduce(types::I16, vreplacement);
-    let val = b().ins().atomic_cas(MemFlags::new(), addr, te, tr);
+    let val = b().ins().atomic_cas(MemFlagsData::new(), addr, te, tr);
     let r = b().ins().uextend(types::I64, val);
     push_val(r)
 }
@@ -1133,7 +1133,7 @@ pub extern "C" fn emit_atomic_cas32_u_i64(base: u32, wasm_addr: u32, expected: u
     let vreplacement = s().values[replacement as usize];
     let te = b().ins().ireduce(types::I32, vexpected);
     let tr = b().ins().ireduce(types::I32, vreplacement);
-    let val = b().ins().atomic_cas(MemFlags::new(), addr, te, tr);
+    let val = b().ins().atomic_cas(MemFlagsData::new(), addr, te, tr);
     let r = b().ins().uextend(types::I64, val);
     push_val(r)
 }
@@ -1226,7 +1226,7 @@ pub extern "C" fn emit_i32_wrap_i64(a: u32) -> u32 {
 #[no_mangle]
 pub extern "C" fn emit_bitcast_i32_to_f32(a: u32) -> u32 {
     let va = s().values[a as usize];
-    let r = b().ins().bitcast(types::F32, MemFlags::new(), va);
+    let r = b().ins().bitcast(types::F32, MemFlagsData::new(), va);
     let session = s();
     let id = session.values.len() as u32;
     session.values.push(r);
@@ -1236,7 +1236,7 @@ pub extern "C" fn emit_bitcast_i32_to_f32(a: u32) -> u32 {
 #[no_mangle]
 pub extern "C" fn emit_bitcast_f32_to_i32(a: u32) -> u32 {
     let va = s().values[a as usize];
-    let r = b().ins().bitcast(types::I32, MemFlags::new(), va);
+    let r = b().ins().bitcast(types::I32, MemFlagsData::new(), va);
     let session = s();
     let id = session.values.len() as u32;
     session.values.push(r);
@@ -1246,7 +1246,7 @@ pub extern "C" fn emit_bitcast_f32_to_i32(a: u32) -> u32 {
 #[no_mangle]
 pub extern "C" fn emit_bitcast_i64_to_f64(a: u32) -> u32 {
     let va = s().values[a as usize];
-    let r = b().ins().bitcast(types::F64, MemFlags::new(), va);
+    let r = b().ins().bitcast(types::F64, MemFlagsData::new(), va);
     let session = s();
     let id = session.values.len() as u32;
     session.values.push(r);
@@ -1256,7 +1256,7 @@ pub extern "C" fn emit_bitcast_i64_to_f64(a: u32) -> u32 {
 #[no_mangle]
 pub extern "C" fn emit_bitcast_f64_to_i64(a: u32) -> u32 {
     let va = s().values[a as usize];
-    let r = b().ins().bitcast(types::I64, MemFlags::new(), va);
+    let r = b().ins().bitcast(types::I64, MemFlagsData::new(), va);
     let session = s();
     let id = session.values.len() as u32;
     session.values.push(r);
@@ -1396,7 +1396,7 @@ pub extern "C" fn emit_load_i64(base: u32, wasm_addr: u32, offset: i32) -> u32 {
     let vaddr = s().values[wasm_addr as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    let val = b().ins().load(types::I64, MemFlags::new(), effective, offset);
+    let val = b().ins().load(types::I64, MemFlagsData::new(), effective, offset);
     let session = s();
     let id = session.values.len() as u32;
     session.values.push(val);
@@ -1410,7 +1410,7 @@ pub extern "C" fn emit_store_i64(base: u32, wasm_addr: u32, value: u32, offset: 
     let vvalue = s().values[value as usize];
     let extended = b().ins().uextend(types::I64, vaddr);
     let effective = b().ins().iadd(vbase, extended);
-    b().ins().store(MemFlags::new(), vvalue, effective, offset);
+    b().ins().store(MemFlagsData::new(), vvalue, effective, offset);
 }
 
 // --- Float arithmetic (polymorphic: works for both f32 and f64) ---
@@ -1592,7 +1592,8 @@ pub extern "C" fn emit_select(cond: u32, val_true: u32, val_false: u32) -> u32 {
     let vt = s().values[val_true as usize];
     let vf = s().values[val_false as usize];
     // Convert i32 condition to boolean (i8): cond != 0
-    let bool_cond = b().ins().icmp_imm(IntCC::NotEqual, vcond, 0);
+    let zero = b().ins().iconst(types::I32, 0);
+    let bool_cond = b().ins().icmp(IntCC::NotEqual, vcond, zero);
     let r = b().ins().select(bool_cond, vt, vf);
     let session = s();
     let id = session.values.len() as u32;
@@ -1727,7 +1728,7 @@ pub extern "C" fn compile() -> u32 {
 
     // Take ownership of the builder and finalize it
     let builder = unsafe { Box::from_raw(session.builder) };
-    builder.finalize();
+    builder.finalize(isa.frontend_config());
     session.builder = std::ptr::null_mut();
 
     // Take ownership of the function (avoids cloning the entire IR)
@@ -1812,7 +1813,7 @@ fn compile_trampoline(
     let inst = build_call(&mut builder, sig_ref, &params);
     let results = builder.inst_results(inst).to_vec();
     builder.ins().return_(&results);
-    builder.finalize();
+    builder.finalize(isa.frontend_config());
 
     let mut ctx = Context::for_function(func);
     let compiled = ctx

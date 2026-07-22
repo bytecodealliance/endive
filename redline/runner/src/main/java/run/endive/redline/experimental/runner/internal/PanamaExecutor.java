@@ -6,6 +6,7 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
+import run.endive.redline.experimental.api.internal.RedlineTarget;
 
 /**
  * Helpers for native memory management via Panama FFM.
@@ -50,9 +51,10 @@ final class PanamaExecutor {
     private static final int PAGE_EXECUTE_READ = 0x20;
 
     static {
-        String os = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT);
-        IS_WINDOWS = os.contains("windows");
-        MAP_ANONYMOUS = os.contains("mac") || os.contains("darwin") ? 0x1000 : 0x20;
+        var host = RedlineTarget.detectHost().orElseThrow();
+        IS_WINDOWS = host == RedlineTarget.WINDOWS_X86_64 || host == RedlineTarget.WINDOWS_AARCH64;
+        boolean isMac = host == RedlineTarget.MACOS_X86_64 || host == RedlineTarget.MACOS_AARCH64;
+        MAP_ANONYMOUS = isMac ? 0x1000 : 0x20;
 
         var lookup = LINKER.defaultLookup();
         MEMMOVE_ADDR = lookup.find("memmove").orElseThrow().address();

@@ -1,4 +1,4 @@
-package run.endive.redline.experimental.bridge;
+package run.endive.redline.experimental.bridge.internal;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -138,7 +138,7 @@ public final class CraneliftBridge implements AutoCloseable {
         private final byte[] memmoveTramp;
         private final byte[] memsetTramp;
 
-        CompiledTrampolines(
+        private CompiledTrampolines(
                 Map<FunctionType, byte[]> entryTrampolines,
                 byte[][] importTrampolines,
                 byte[] trampolineStubTramp,

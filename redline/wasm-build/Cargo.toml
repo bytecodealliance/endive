@@ -7,9 +7,9 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-cranelift-codegen = { version = "0.130", default-features = false, features = ["std", "x86", "arm64"] }
-cranelift-frontend = "0.130"
-cranelift-control = "0.130"
+cranelift-codegen = { version = "0.134", default-features = false, features = ["std", "x86", "arm64"] }
+cranelift-frontend = "0.134"
+cranelift-control = "0.134"
 target-lexicon = "0.13"
 
 [profile.release]

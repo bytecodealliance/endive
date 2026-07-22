@@ -12,7 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import run.endive.redline.experimental.api.internal.CtxBuffer;
 import run.endive.redline.experimental.api.internal.TypeMapUtils;
-import run.endive.redline.experimental.bridge.CraneliftBridge;
+import run.endive.redline.experimental.bridge.internal.CraneliftBridge;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.AnnotatedInstruction;
@@ -25,12 +25,8 @@ import run.endive.wasm.types.ValType;
  * Thin orchestrator that compiles Wasm functions to native code via Cranelift.
  *
  * <p>Walks instructions, delegates opcodes to {@link NativeEmitters},
- * handles control flow (BLOCK/LOOP/IF/ELSE/END/BR/BR_IF/BR_TABLE/RETURN) inline.
- * Dead code after unconditional transfers is tracked via the control stack's
- * {@code unreachable} flag.
- *
- * <p>The {@link NativeValueStack} tracks Cranelift value IDs as the
- * operand stack during emission.
+ * handles control flow inline. Dead code after unconditional transfers
+ * is tracked via the control stack's {@code unreachable} flag.
  */
 public final class NativeCompiler {
 
@@ -39,18 +35,6 @@ public final class NativeCompiler {
     private final WasmModule module;
     private final int numImports;
     private final int[] canonicalTypeMap;
-
-    public NativeCompiler(String triple, WasmModule module) {
-        this.bridge = null;
-        this.triple = triple;
-        this.module = module;
-        this.numImports =
-                (int)
-                        module.importSection().stream()
-                                .filter(i -> i.importType() == ExternalType.FUNCTION)
-                                .count();
-        this.canonicalTypeMap = TypeMapUtils.buildCanonicalTypeMap(module);
-    }
 
     private NativeCompiler(CraneliftBridge bridge, String triple, WasmModule module) {
         this.bridge = bridge;
@@ -118,8 +102,8 @@ public final class NativeCompiler {
 
     private static final ExecutorService POOL = Executors.newFixedThreadPool(THREAD_COUNT);
 
-    public byte[][] compileAll() {
-        return compileAll(null);
+    public static byte[][] compileAll(String triple, WasmModule module) {
+        return new NativeCompiler(null, triple, module).compileAll((boolean[]) null);
     }
 
     /**
@@ -127,7 +111,7 @@ public final class NativeCompiler {
      * functions where {@code filter[numImports + bodyIndex]} is {@code true}
      * are compiled; others get {@code null} entries.
      */
-    public byte[][] compileAll(boolean[] filter) {
+    private byte[][] compileAll(boolean[] filter) {
         int count = module.codeSection().functionBodyCount();
         byte[][] results = new byte[count][];
         int threads = Math.min(THREAD_COUNT, count);

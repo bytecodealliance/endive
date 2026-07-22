@@ -167,6 +167,9 @@ public final class WasiOptions {
             return this;
         }
 
+        /**
+         * Inherits {@code System.in}, {@code System.out} and {@code System.err}.
+         */
         public Builder inheritSystem() {
             this.stdout = System.out;
             this.stdin = System.in;

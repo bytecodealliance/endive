@@ -49,12 +49,13 @@ WASI file access does not enforce path sandboxing by default. Passing the host f
 var options = WasiOptions.builder()
         // Use ZeroFs to restrict access to specific directories
         .withDirectory("/guest/data", zeroFs.getPath("/host/sandboxed/data"))
-        .withStdout(myStdout)
-        .withStderr(myStderr)
         .build();
 ```
 
-**Never use `inheritSystem()` with untrusted modules** — it grants full host filesystem, environment, and stdio access.
+**Provide only access to what is needed by the Wasm module, especially if it is untrusted:**
+- Pass a virtual file system, and copy needed data to it in advance 
+- Pass only the needed environment variables and not all host environment variables
+- Inherit the host stdin, stdout and stderr only if needed; alternatively provide a custom `InputStream` and `OutputStream`
 
 ## Resource Limits
 

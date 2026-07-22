@@ -24,6 +24,13 @@ jobs:
           cache: maven
       - name: Build
         run: mvn -B -Dquickly
+      - name: Cache dependency-check data
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-data-${{ github.run_id }}
+          restore-keys: |
+            dependency-check-data-
       - name: Run OWASP Dependency Check
         run: |
           mvn -B org.owasp:dependency-check-maven:check \
@@ -31,6 +38,7 @@ jobs:
             -DsuppressedPaths=./dependency-check-suppressions.xml \
             -Dformats=HTML,JSON \
             -Danalyzer.ossindexAnalyzerEnabled=true \
+            -DnvdDatafeedUrl=https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz \
             -DnvdApiKey=${{ secrets.NVD_API_KEY }}
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}

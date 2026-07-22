@@ -50,11 +50,12 @@ import run.endive.runtime.Memory;
 
 Memory memory = instance.memory();
 String message = "Hello, World!";
-int len = message.getBytes().length;
+byte[] bytes = message.getBytes();
+int len = bytes.length;
 // allocate {len} bytes of memory, this returns a pointer to that memory
 int ptr = (int) alloc.apply(len)[0];
 // We can now write the message to the module's memory:
-memory.writeString(ptr, message);
+memory.write(ptr, bytes);
 ```
 
 Now we can call `countVowels` with this pointer to the string.

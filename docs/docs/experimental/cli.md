@@ -12,7 +12,7 @@ The experimental CLI uses `inheritSystem()` by default, granting the Wasm module
 The experimental Endive CLI is available for download on Maven at the link:
 
 ```
-https://repo1.maven.org/maven2/run/endive/cli/<version>/cli-<version>.sh
+https://repo1.maven.org/maven2/run/endive/cli-experimental/<version>/cli-experimental-<version>.sh
 ```
 
 you can download the latest version and use it locally by typing:

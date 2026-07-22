@@ -91,4 +91,6 @@ docs.FileOps.writeResult("docs", "index.md.result", "" + result);
 ```
 -->
 
-> *Note*: Functions in Wasm can return multiple values, hence the array. This function only returns one value, so we take the first value.
+:::note
+Functions in Wasm can return multiple values, hence the array. This function only returns one value, so we take the first value.
+:::

@@ -6,7 +6,7 @@ title: Wasi Preview 1
 # WASI Preview 1
 
 :::warning[Security Consideration]
-WASI file access does not enforce path sandboxing by default. Always use a virtual filesystem (e.g., ZeroFS or JimFS) to restrict guest access to pre-opened directories. Passing the host filesystem directly exposes all files the JVM process can access. See [Security Best Practices](/docs/security/best-practices).
+WASI file access does not enforce path sandboxing by default. Always use a virtual filesystem (e.g., [ZeroFs](https://github.com/roastedroot/zerofs) or [Jimfs](https://github.com/google/jimfs)) to restrict guest access to pre-opened directories. Passing the host filesystem directly exposes all files the JVM process can access. See [Security Best Practices](/docs/security/best-practices).
 :::
 
 <!--
@@ -25,7 +25,7 @@ to provide system-level capabilities, such as:
 * command line arguments
 * system clock
 * random number generation
-* basic reading and writing of files (through use of a [virtual file system](https://github.com/google/jimfs))
+* basic reading and writing of files (through use of a virtual file system)
 
 All such capabilities are virtualized; i.e., the _guest_ will not have direct
 access to the corresponding _host_ resources, but they will be mediated by the WASI layer,
@@ -84,13 +84,15 @@ var store = new Store().addFunction(wasi.toHostFunctions());
 store.instantiate("hello-wasi", Parser.parse(new File("hello-wasi.wasm")));
 ```
 
-> **Note**: Notice that we don't explicitly execute the module. The module will run when you instantiate it. This
-> is part of the WASI spec. A WASI module will implicitly call [`_start`](https://webassembly.github.io/spec/core/syntax/modules.html#start-function). To learn more [read this blog post](https://endive.run/historical-blog/wasi-command-reactor).
+:::note
+Notice that we don't explicitly execute the module. The module will run when you instantiate it. This
+is part of the WASI spec. A WASI module will implicitly call [`_start`](https://webassembly.github.io/spec/core/syntax/modules.html#start-function). To learn more [read this blog post](https://dylibso.com/blog/wasi-command-reactor/).
+:::
 
 ### stdin, stdout, and stderr
 
 To start with, you want to orchestrate stdin, stdout, and stderr of the module.
-Often, this is the way you communicate with basic WASI-enabled modules by way of the [command pattern](https://endive.run/historical-blog/wasi-command-reactor).
+Often, this is the way you communicate with basic WASI-enabled modules by way of the [command pattern](https://dylibso.com/blog/wasi-command-reactor/).
 In order to make it easy to manipulate these streams, we expose stdin as an [InputStream](https://docs.oracle.com/javase/8/docs/api/java/io/InputStream.html)
 and stdout/stderr as an [OutputStream](https://docs.oracle.com/javase/8/docs/api/java/io/OutputStream.html).
 
@@ -136,7 +138,7 @@ docs.FileOps.writeResult("docs/wasi", "index.md.result", fakeStdout.toString() +
 -->
 
 Notice that it is always possible to connect standard output, standard input and standard error to the system's real streams. 
-For instance, in the case of stdout, you would write:
+For instance, you would write:
 
 ```java
 var wasi = WasiOptions.builder().withStdout(System.out).withStderr(System.err).withStdin(System.in).build();
@@ -163,7 +165,10 @@ var wasi = WasiOptions.builder().withArguments(List.of("executable-name", "--mor
 To expose environment variables to your WASI module you can list them in the options:
 
 ```java
-var wasi = WasiOptions.builder().withEnvironment("ENV_ONE_KEY", "my-one-key-value").withEnvironment("ENV_TWO_KEY", "my-two-key-value").build();
+var wasi = WasiOptions.builder().
+    withEnvironment("ENV_ONE_KEY", "my-one-key-value").
+    withEnvironment("ENV_TWO_KEY", "my-two-key-value").
+    build();
 ```
 
 ## disk
@@ -196,7 +201,7 @@ try (FileSystem fs = Jimfs.newFileSystem(Configuration.unix().toBuilder().setAtt
 ## Supported Features
 
 
-If your module calls a wasi function that we don't support, or uses a feature that we don't support, we will throw a `WasmRuntimeException`.
+If your module calls a WASI function that we don't support, or uses a feature that we don't support, we will throw a `WasmRuntimeException`.
 
 For the most up-to-date info, and to see what specific functions we support, see the [WasiPreview1.java](https://github.com/bytecodealliance/endive/blob/main/wasi/src/main/java/run/endive/wasi/WasiPreview1.java) and the following table:
 

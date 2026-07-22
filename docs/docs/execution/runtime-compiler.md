@@ -39,7 +39,7 @@ Add the following dependency:
 
 ### Code Changes
 
-You enable the runtime compiler by configuring the instance to use `CompilerMachine::new` as the machine factory instead 
+You enable the runtime compiler by configuring the instance to use `MachineFactoryCompiler::compile` as the machine factory instead 
 of the default `InterpreterMachine`.
 
 <!--

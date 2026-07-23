@@ -181,6 +181,7 @@ public final class WasiOptions {
          * @deprecated renamed to {@link #inheritSystemStreams()}
          */
         @Deprecated
+        @SuppressWarnings("InlineMeSuggester")
         public Builder inheritSystem() {
             return inheritSystemStreams();
         }

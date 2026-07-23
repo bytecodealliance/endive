@@ -57,7 +57,7 @@ public final class Wast2Json {
 
             var wasiOpts = WasiOptions.builder();
 
-            wasiOpts.inheritSystem();
+            wasiOpts.inheritSystemStreams();
 
             Path inputFolder = fs.getPath("input");
             java.nio.file.Files.createDirectory(inputFolder);

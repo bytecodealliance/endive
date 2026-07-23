@@ -167,11 +167,23 @@ public final class WasiOptions {
             return this;
         }
 
-        public Builder inheritSystem() {
+        /**
+         * Inherits {@code System.in}, {@code System.out} and {@code System.err}.
+         */
+        public Builder inheritSystemStreams() {
             this.stdout = System.out;
             this.stdin = System.in;
             this.stderr = System.err;
             return this;
+        }
+
+        /**
+         * @deprecated renamed to {@link #inheritSystemStreams()}
+         */
+        @Deprecated
+        @SuppressWarnings("InlineMeSuggester")
+        public Builder inheritSystem() {
+            return inheritSystemStreams();
         }
 
         public Builder withArguments(List<String> arguments) {

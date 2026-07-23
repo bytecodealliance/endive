@@ -147,7 +147,7 @@ var wasi = WasiOptions.builder().withStdout(System.out).withStderr(System.err).w
 a convenient shorthand for doing the same is:
 
 ```java
-var wasi = WasiOptions.builder().inheritSystem().build()
+var wasi = WasiOptions.builder().inheritSystemStreams().build()
 ```
 
 ## arguments

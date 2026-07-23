@@ -24,7 +24,7 @@ public class ZigTestsuiteTest {
 
             var wasiOpts =
                     WasiOptions.builder()
-                            .inheritSystem()
+                            .inheritSystemStreams()
                             .withArguments(List.of("test.wasm"))
                             .withDirectory(target.toString(), target)
                             .build();

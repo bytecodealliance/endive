@@ -62,7 +62,7 @@ public class Cli implements Runnable {
                                         WasiPreview1.builder()
                                                 .withOptions(
                                                         WasiOptions.builder()
-                                                                .inheritSystem()
+                                                                .inheritSystemStreams()
                                                                 .build())
                                                 .build()
                                                 .toHostFunctions())

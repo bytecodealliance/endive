@@ -170,11 +170,19 @@ public final class WasiOptions {
         /**
          * Inherits {@code System.in}, {@code System.out} and {@code System.err}.
          */
-        public Builder inheritSystem() {
+        public Builder inheritSystemStreams() {
             this.stdout = System.out;
             this.stdin = System.in;
             this.stderr = System.err;
             return this;
+        }
+
+        /**
+         * @deprecated renamed to {@link #inheritSystemStreams()}
+         */
+        @Deprecated
+        public Builder inheritSystem() {
+            return inheritSystemStreams();
         }
 
         public Builder withArguments(List<String> arguments) {

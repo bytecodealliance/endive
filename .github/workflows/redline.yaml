@@ -1,0 +1,41 @@
+name: Redline CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  redline:
+    name: Redline (Java 25, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v7
+      - name: Checkout testsuite
+        uses: actions/checkout@v7
+        with:
+          repository: WebAssembly/testsuite
+          path: testsuite
+          ref: 88e97b0f742f4c3ee01fea683da130f344dd7b02
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: maven
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+      - name: Build cranelift_bridge.wasm
+        working-directory: redline/wasm-build
+        run: make all
+      - name: Build and test redline
+        run: mvn -B clean install -Predline
+        env:
+          MAVEN_OPTS: "-ea"

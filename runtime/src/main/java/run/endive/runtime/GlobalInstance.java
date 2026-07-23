@@ -56,6 +56,14 @@ public class GlobalInstance {
         this.mutabilityType = mutabilityType;
     }
 
+    protected GlobalInstance(
+            ValType valType, MutabilityType mutabilityType, long valueLow, long valueHigh) {
+        this.valueLow = valueLow;
+        this.valueHigh = valueHigh;
+        this.valType = valType;
+        this.mutabilityType = mutabilityType;
+    }
+
     private GlobalInstance(Builder b) {
         this.valueLow = b.valueLow;
         this.valueHigh = b.valueHigh;

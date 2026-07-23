@@ -666,6 +666,7 @@ public final class ModuleInterfaceCodegen {
                                         new ReturnStmt(importApplyHandle));
                             }
 
+                            importsCu.addImport(FunctionType.class);
                             importedHostFunctionBinding =
                                     new ObjectCreationExpr(
                                             null,
@@ -673,9 +674,14 @@ public final class ModuleInterfaceCodegen {
                                             NodeList.nodeList(
                                                     new StringLiteralExpr(imprt.getKey()),
                                                     new StringLiteralExpr(importedFun.name()),
-                                                    listOfValueTypes(importType.params()),
-                                                    listOfValueTypes(importType.returns()),
-                                                    // (Instance instance, long... args) -> null;
+                                                    new MethodCallExpr(
+                                                            new NameExpr("FunctionType"),
+                                                            "of",
+                                                            NodeList.nodeList(
+                                                                    listOfValueTypes(
+                                                                            importType.params()),
+                                                                    listOfValueTypes(
+                                                                            importType.returns()))),
                                                     new LambdaExpr(
                                                             NodeList.nodeList(
                                                                     new Parameter(

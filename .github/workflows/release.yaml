@@ -29,7 +29,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
-          java-version: 21
+          java-version: 25
           distribution: 'temurin'
           server-id: central
           server-username: MAVEN_USERNAME
@@ -37,14 +37,23 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+
       - id: install-secret-key
         name: Install gpg secret key
         run: |
           cat <(echo -e "${{ secrets.GPG_PRIVATE_KEY }}") | gpg --batch --import
           gpg --list-secret-keys --keyid-format LONG
 
+      - name: Build cranelift_bridge.wasm
+        working-directory: redline/wasm-build
+        run: make all
+
       - name: Compile
-        run: mvn --batch-mode -Dquickly
+        run: mvn --batch-mode -Dquickly -Predline
 
       - name: Setup Git
         run: |
@@ -53,7 +62,7 @@ jobs:
 
       - name: Set the version
         run: |
-          mvn versions:set -DgenerateBackupPoms=false -DnewVersion=${{ github.event.inputs.release-version }}
+          mvn versions:set -DgenerateBackupPoms=false -DnewVersion=${{ github.event.inputs.release-version }} -Predline
           git add .
           git commit -m "Release version update ${{ github.event.inputs.release-version }}"
           git push
@@ -65,8 +74,8 @@ jobs:
       - name: Release to Maven Central
         run: |
           # -Dquickly is needed to locally publish wasm-corpus
-          mvn --batch-mode -Dquickly
-          mvn --batch-mode clean deploy -Drelease -DskipTests=true -X
+          mvn --batch-mode -Dquickly -Predline
+          mvn --batch-mode clean deploy -Drelease -Predline -DskipTests=true -X
         env:
           MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           MAVEN_CENTRAL_TOKEN: ${{ secrets.SONATYPE_PASSWORD }}
@@ -74,7 +83,7 @@ jobs:
 
       - name: Back to Snapshot
         run: |
-          mvn versions:set -DgenerateBackupPoms=false -DnewVersion=999-SNAPSHOT
+          mvn versions:set -DgenerateBackupPoms=false -DnewVersion=999-SNAPSHOT -Predline
           git add .
           git commit -m "Snapshot version update"
           git push

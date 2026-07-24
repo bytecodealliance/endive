@@ -13,12 +13,36 @@
   <name>Endive - Redline</name>
   <description>Redline native compiler for WebAssembly</description>
 
-  <modules>
-    <module>api</module>
-    <module>bridge</module>
-    <module>compiler</module>
-    <module>runner</module>
-    <module>runner-tests</module>
-  </modules>
+  <profiles>
+    <profile>
+      <id>default-redline-modules</id>
+      <activation>
+        <property>
+          <name>!release</name>
+        </property>
+      </activation>
+      <modules>
+        <module>api</module>
+        <module>bridge</module>
+        <module>compiler</module>
+        <module>runner</module>
+        <module>runner-tests</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>release</id>
+      <activation>
+        <property>
+          <name>release</name>
+        </property>
+      </activation>
+      <modules>
+        <module>api</module>
+        <module>bridge</module>
+        <module>compiler</module>
+        <module>runner</module>
+      </modules>
+    </profile>
+  </profiles>
 
 </project>

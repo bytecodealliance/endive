@@ -2,6 +2,7 @@ package run.endive.build.time.maven;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.maven.model.Resource;
@@ -14,6 +15,7 @@ import org.apache.maven.project.MavenProject;
 import run.endive.build.time.compiler.Config;
 import run.endive.build.time.compiler.Generator;
 import run.endive.compiler.InterpreterFallback;
+import run.endive.redline.experimental.build.RedlineGenerator;
 
 /**
  * This plugin generates an invokable library from the compiled Wasm
@@ -78,6 +80,23 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
     String moduleInterface;
 
     /**
+     * Target triples for Redline native compilation. When set, the plugin
+     * cross-compiles the Wasm module to native code for each target using
+     * Cranelift and generates builder()/safeBuilder() methods in the module class.
+     * Example: x86_64-unknown-linux-gnu, aarch64-apple-darwin
+     */
+    @Parameter(required = false)
+    List<String> redlineTargets;
+
+    /**
+     * The target resource folder for native code files (.native).
+     */
+    @Parameter(
+            required = true,
+            defaultValue = "${project.build.directory}/generated-resources/endive-compiler")
+    private File targetResourceFolder;
+
+    /**
      * The current Maven project.
      */
     @Parameter(property = "project", required = true, readonly = true)
@@ -87,7 +106,7 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
     public void execute() throws MojoExecutionException {
         getLog().info("Compiling classes for " + name + " from " + wasmFile);
 
-        var config =
+        var configBuilder =
                 Config.builder()
                         .withWasmFile(wasmFile.toPath())
                         .withName(name)
@@ -97,7 +116,11 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
                         .withInterpreterFallback(interpreterFallback)
                         .withInterpretedFunctions(interpretedFunctions)
                         .withModuleInterface(moduleInterface)
-                        .build();
+                        .withTargetResourceFolder(targetResourceFolder.toPath());
+        if (redlineTargets != null && !redlineTargets.isEmpty()) {
+            configBuilder.withRedlineTargets(redlineTargets);
+        }
+        var config = configBuilder.build();
 
         var generator = new Generator(config);
 
@@ -105,6 +128,12 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
             var finalInterpretedFunctions = generator.generateResources();
             generator.generateMetaWasm(finalInterpretedFunctions);
             generator.generateSources();
+
+            if (config.hasRedlineTargets()) {
+                var redlineGenerator = new RedlineGenerator(config);
+                redlineGenerator.generateNativeCode();
+                redlineGenerator.extendGeneratedSources();
+            }
 
             if (moduleInterface != null && !moduleInterface.isEmpty()) {
                 generator.generateModuleInterface(moduleInterface);

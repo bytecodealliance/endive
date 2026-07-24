@@ -29,21 +29,76 @@
   </dependencies>
 
   <build>
+    <!--
+      Uses exec:java with Generator.main() instead of endive-compiler-maven-plugin
+      to avoid a circular dependency: the plugin depends on redline-compiler which
+      depends on this bridge module. exec:java with build-time-compiler as a plugin
+      dependency breaks the cycle.
+    -->
     <plugins>
       <plugin>
-        <groupId>run.endive</groupId>
-        <artifactId>endive-compiler-maven-plugin</artifactId>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>${build-helper-maven-plugin.version}</version>
         <executions>
           <execution>
-            <id>redline-bridge</id>
+            <id>add-generated-sources</id>
             <goals>
-              <goal>compile</goal>
+              <goal>add-source</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
-              <name>run.endive.redline.experimental.bridge.internal.Cranelift</name>
-              <wasmFile>${project.basedir}/../cranelift_bridge.wasm</wasmFile>
-              <interpreterFallback>WARN</interpreterFallback>
-              <moduleInterface>run.endive.redline.experimental.bridge.internal.CraneliftBridge</moduleInterface>
+              <sources>
+                <source>${project.build.directory}/generated-sources/endive-compiler</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-generated-resources</id>
+            <goals>
+              <goal>add-resource</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${project.build.directory}/generated-resources/endive-compiler</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>run.endive</groupId>
+            <artifactId>build-time-compiler</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>redline-bridge-compile</id>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <mainClass>run.endive.build.time.compiler.Generator</mainClass>
+              <arguments>
+                <argument>${project.basedir}/../cranelift_bridge.wasm</argument>
+                <argument>run.endive.redline.experimental.bridge.internal.Cranelift</argument>
+                <argument>${project.build.directory}/generated-resources/endive-compiler</argument>
+                <argument>${project.build.directory}/generated-sources/endive-compiler</argument>
+                <argument>${project.build.directory}/generated-resources/endive-compiler</argument>
+                <argument>WARN</argument>
+                <argument>run.endive.redline.experimental.bridge.internal.CraneliftBridge</argument>
+              </arguments>
+              <includePluginDependencies>true</includePluginDependencies>
+              <includeProjectDependencies>false</includeProjectDependencies>
             </configuration>
           </execution>
         </executions>

@@ -270,6 +270,11 @@
       </dependency>
       <dependency>
         <groupId>run.endive</groupId>
+        <artifactId>redline-build-time-compiler-experimental</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>run.endive</groupId>
         <artifactId>redline-compiler-experimental</artifactId>
         <version>${project.version}</version>
       </dependency>

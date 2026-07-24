@@ -17,6 +17,7 @@
   <modules>
     <module>api</module>
     <module>bridge</module>
+    <module>build-time-compiler</module>
     <module>compiler</module>
     <module>runner-jffi</module>
     <module>runner-jffi-tests</module>
@@ -29,6 +30,7 @@
         <jdk>[25,)</jdk>
       </activation>
       <modules>
+        <module>it</module>
         <module>runner</module>
         <module>runner-tests</module>
       </modules>

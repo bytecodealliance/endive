@@ -87,7 +87,7 @@
             </goals>
             <phase>generate-sources</phase>
             <configuration>
-              <mainClass>run.endive.build.time.compiler.Generator</mainClass>
+              <mainClass>run.endive.build.time.compiler.GeneratorMain</mainClass>
               <arguments>
                 <argument>${project.basedir}/../cranelift_bridge.wasm</argument>
                 <argument>run.endive.redline.experimental.bridge.internal.Cranelift</argument>

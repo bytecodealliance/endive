@@ -23,82 +23,55 @@ import run.endive.redline.experimental.build.RedlineGenerator;
 @Mojo(name = "compile", defaultPhase = LifecyclePhase.GENERATE_SOURCES, threadSafe = true)
 public class EndiveCompilerGenMojo extends AbstractMojo {
 
-    /**
-     * the wasm module to be used
-     */
     @Parameter(required = true)
     private File wasmFile;
 
-    /**
-     * the base name to be used for the generated classes
-     */
     @Parameter(required = true)
     private String name;
 
-    /**
-     * the target folder to generate classes
-     */
     @Parameter(
             required = true,
             defaultValue = "${project.build.directory}/generated-resources/endive-compiler")
     private File targetClassFolder;
 
-    /**
-     * the target source folder to generate the Machine implementation
-     */
     @Parameter(
             required = true,
             defaultValue = "${project.build.directory}/generated-sources/endive-compiler")
     private File targetSourceFolder;
 
-    /**
-     * the target wasm folder to generate the stripped meta wasm module
-     */
     @Parameter(
             required = true,
             defaultValue = "${project.build.directory}/generated-resources/endive-compiler")
     private File targetWasmFolder;
 
-    /**
-     * the action to take if the compiler needs to use the interpreter because a function is too big
-     */
     @Parameter(required = true, defaultValue = "FAIL")
     InterpreterFallback interpreterFallback;
 
-    /**
-     * The indexes of functions that should be interpreted, separated by commas
-     */
     @Parameter(required = false, defaultValue = "")
     Set<Integer> interpretedFunctions;
 
-    /**
-     * Fully qualified name of the user's class that will use the compiled module.
-     * When set, the plugin generates _ModuleExports and _ModuleImports wrapper classes,
-     * eliminating the need for @WasmModuleInterface annotation and the annotation processor.
-     */
     @Parameter(required = false)
     String moduleInterface;
 
     /**
-     * Target triples for Redline native compilation. When set, the plugin
-     * cross-compiles the Wasm module to native code for each target using
-     * Cranelift and generates builder()/safeBuilder() methods in the module class.
-     * Example: x86_64-unknown-linux-gnu, aarch64-apple-darwin
+     * Enable Redline native compilation (experimental) for all supported
+     * platforms (x86_64 and aarch64 on Linux, macOS, and Windows).
+     */
+    @Parameter(required = false, defaultValue = "false")
+    boolean redlineExperimental;
+
+    /**
+     * Target triples for Redline native compilation. Overrides {@code redlineExperimental}
+     * for fine-grained control over which platforms to cross-compile for.
      */
     @Parameter(required = false)
     List<String> redlineTargets;
 
-    /**
-     * The target resource folder for native code files (.native).
-     */
     @Parameter(
             required = true,
             defaultValue = "${project.build.directory}/generated-resources/endive-compiler")
     private File targetResourceFolder;
 
-    /**
-     * The current Maven project.
-     */
     @Parameter(property = "project", required = true, readonly = true)
     private MavenProject project;
 
@@ -119,6 +92,8 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
                         .withTargetResourceFolder(targetResourceFolder.toPath());
         if (redlineTargets != null && !redlineTargets.isEmpty()) {
             configBuilder.withRedlineTargets(redlineTargets);
+        } else if (redlineExperimental) {
+            configBuilder.withRedlineTargets(RedlineGenerator.allTargets());
         }
         var config = configBuilder.build();
 
@@ -130,6 +105,7 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
             generator.generateSources();
 
             if (config.hasRedlineTargets()) {
+                getLog().info("Redline native compilation for targets: " + config.redlineTargets());
                 var redlineGenerator = new RedlineGenerator(config);
                 redlineGenerator.generateNativeCode();
                 redlineGenerator.extendGeneratedSources();

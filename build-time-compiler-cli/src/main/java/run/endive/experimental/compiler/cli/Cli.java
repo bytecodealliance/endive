@@ -71,6 +71,14 @@ public class Cli implements Runnable {
                     "The indexes of functions that should be interpreted, separated by commas")
     Set<Integer> interpretedFunctions;
 
+    @CommandLine.Option(
+            order = 7,
+            names = "--module-interface",
+            description =
+                    "Fully qualified class name for which to generate _ModuleExports and"
+                            + " _ModuleImports wrappers")
+    String moduleInterface;
+
     @Override
     public void run() {
         var config =
@@ -82,6 +90,7 @@ public class Cli implements Runnable {
                         .withTargetWasmFolder(targetWasmFolder)
                         .withInterpreterFallback(interpreterFallback)
                         .withInterpretedFunctions(interpretedFunctions)
+                        .withModuleInterface(moduleInterface)
                         .build();
 
         var generator = new Generator(config);
@@ -90,13 +99,19 @@ public class Cli implements Runnable {
             var interpretedFunctions = generator.generateResources();
             generator.generateMetaWasm(interpretedFunctions);
             generator.generateSources();
+            if (moduleInterface != null && !moduleInterface.isEmpty()) {
+                generator.generateModuleInterface(moduleInterface);
+            }
         } catch (IOException e) {
             throw new CommandLine.PicocliException("Failed to execute the command", e);
         }
     }
 
+    public static int execute(String[] args) {
+        return new CommandLine(new Cli()).execute(args);
+    }
+
     public static void main(String[] args) {
-        int exitCode = new CommandLine(new Cli()).execute(args);
-        System.exit(exitCode);
+        System.exit(execute(args));
     }
 }

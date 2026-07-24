@@ -1047,13 +1047,6 @@
     </profile>
 
     <profile>
-      <id>redline</id>
-      <modules>
-        <module>redline</module>
-      </modules>
-    </profile>
-
-    <profile>
       <id>default-all-modules</id>
       <activation>
         <property>
@@ -1078,6 +1071,7 @@
         <module>jmh</module>
         <module>log</module>
         <module>machine-tests</module>
+        <module>redline</module>
         <module>runtime</module>
         <module>runtime-tests</module>
         <module>test-gen-lib</module>

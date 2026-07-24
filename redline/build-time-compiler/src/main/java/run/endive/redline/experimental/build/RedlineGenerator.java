@@ -13,6 +13,9 @@ import com.github.javaparser.ast.stmt.ReturnStmt;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 import run.endive.build.time.compiler.Config;
 import run.endive.redline.experimental.api.NativeCodeSerializer;
 import run.endive.redline.experimental.api.internal.RedlineTarget;
@@ -22,6 +25,12 @@ import run.endive.wasm.Parser;
 public final class RedlineGenerator {
 
     private final Config config;
+
+    public static List<String> allTargets() {
+        return Arrays.stream(RedlineTarget.values())
+                .map(RedlineTarget::triple)
+                .collect(Collectors.toList());
+    }
 
     public RedlineGenerator(Config config) {
         this.config = config;

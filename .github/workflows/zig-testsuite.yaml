@@ -27,6 +27,6 @@ jobs:
         if: github.repository_owner == 'bytecodealliance'
         run: |
           # Build everything
-          mvn -B -Dquickly
+          ./mvnw -B -Dquickly
           # Run only the ZigTestsuite
-          mvn -B test -f nightly-testsuite/pom.xml
+          ./mvnw -B test -f nightly-testsuite/pom.xml

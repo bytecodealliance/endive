@@ -26,7 +26,7 @@ jobs:
         # Use maven cache. Gradle's caching is controlled by its own action.
         cache: maven
     - name: Prepare local repo for the tests
-      run: mvn -B -Dandroid-prepare
+      run: ./mvnw -B -Dandroid-prepare
     # Setup Gradle. Cache will be readonly except for the main branch.
     # see: https://github.com/gradle/actions/blob/main/docs/setup-gradle.md#using-the-cache-read-only
     - name: Setup Gradle

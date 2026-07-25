@@ -23,7 +23,7 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Build
-        run: mvn -B -Dquickly
+        run: ./mvnw -B -Dquickly
       - name: Cache dependency-check data
         uses: actions/cache@v6
         with:
@@ -33,7 +33,7 @@ jobs:
             dependency-check-data-
       - name: Run OWASP Dependency Check
         run: |
-          mvn -B org.owasp:dependency-check-maven:check \
+          ./mvnw -B org.owasp:dependency-check-maven:check \
             -DfailBuildOnCVSS=7 \
             -DsuppressedPaths=./dependency-check-suppressions.xml \
             -Dformats=HTML,JSON \

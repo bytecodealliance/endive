@@ -3215,7 +3215,7 @@ public class InterpreterMachine implements Machine {
                 frame = callStack.peek(); // peek, don't pop - keep catcher on callStack
             }
         }
-        throw new RuntimeException("unreacheable");
+        throw new RuntimeException("unreachable");
     }
 
     private static void BLOCK(

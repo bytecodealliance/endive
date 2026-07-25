@@ -65,23 +65,30 @@ public class Value {
         return Value.f32(floatToLong(data));
     }
 
+    private void expectType(ValType expected) {
+        if (type != expected) {
+            throw new IllegalStateException(
+                    "Expected value to have type " + expected + " but is " + type);
+        }
+    }
+
     public int asInt() {
-        assert (type == ValType.I32);
+        expectType(ValType.I32);
         return (int) data;
     }
 
     public long asLong() {
-        assert (type == ValType.I64);
+        expectType(ValType.I64);
         return data;
     }
 
     public float asFloat() {
-        assert (type == ValType.F32);
+        expectType(ValType.F32);
         return longToFloat(data);
     }
 
     public double asDouble() {
-        assert (type == ValType.F64);
+        expectType(ValType.F64);
         return longToDouble(data);
     }
 
@@ -332,7 +339,7 @@ public class Value {
             case ValType.ID.RefNull:
                 return "refnull[" + (int) data + "]";
             default:
-                throw new AssertionError("Unhandled type: " + type);
+                throw new RuntimeException("Unhandled type: " + type);
         }
     }
 

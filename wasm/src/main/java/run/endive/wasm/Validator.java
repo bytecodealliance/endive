@@ -1033,7 +1033,9 @@ final class Validator {
                         }
                         var type = module.typeSection().getType(getTagType(tagNumber).typeIdx());
                         popVals(type.params());
-                        assert (type.returns().size() == 0);
+                        if (!type.returns().isEmpty()) {
+                            throw new InvalidException("expected no returns");
+                        }
                         unreachable();
                         break;
                     }

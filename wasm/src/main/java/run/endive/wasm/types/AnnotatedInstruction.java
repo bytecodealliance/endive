@@ -156,10 +156,14 @@ public final class AnnotatedInstruction extends Instruction {
                 case END:
                 case IF:
                 case TRY_TABLE:
-                    assert (scope.isPresent());
+                    if (scope.isEmpty()) {
+                        throw new InvalidException("unknown scope");
+                    }
                     break;
                 default:
-                    assert (scope.isEmpty());
+                    if (scope.isPresent()) {
+                        throw new InvalidException("scope is not empty");
+                    }
                     break;
             }
             switch (base.opcode()) {
@@ -180,8 +184,9 @@ public final class AnnotatedInstruction extends Instruction {
                     }
                     break;
                 default:
-                    assert (labelTrue.isEmpty());
-                    assert (labelFalse.isEmpty());
+                    if (!(labelTrue.isEmpty() && labelFalse.isEmpty())) {
+                        throw new InvalidException("labels are not empty");
+                    }
                     break;
             }
             switch (base.opcode()) {
@@ -191,7 +196,9 @@ public final class AnnotatedInstruction extends Instruction {
                     }
                     break;
                 default:
-                    assert (labelTable.isEmpty());
+                    if (labelTable.isPresent()) {
+                        throw new InvalidException("label table is not empty");
+                    }
                     break;
             }
             switch (base.opcode()) {
@@ -201,7 +208,9 @@ public final class AnnotatedInstruction extends Instruction {
                     }
                     break;
                 default:
-                    assert (catches.isEmpty());
+                    if (catches.isPresent()) {
+                        throw new InvalidException("catches is not empty");
+                    }
                     break;
             }
 

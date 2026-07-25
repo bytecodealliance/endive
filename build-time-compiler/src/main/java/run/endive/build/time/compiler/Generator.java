@@ -155,7 +155,9 @@ public class Generator {
                         int count = module.codeSection().functionBodyCount();
                         writeVarUInt32(out, count);
                         var actual = readVarUInt32(source);
-                        assert count == actual;
+                        if (count != actual) {
+                            throw new RuntimeException("wrong number of function bodies");
+                        }
                         for (int i = 0; i < count; i++) {
                             var funcId = importFuncs + i;
                             if (interpretedFunctions.contains(funcId)) {
@@ -177,7 +179,9 @@ public class Generator {
                                 var bodySize = (int) readVarUInt32(source);
                                 source.position(source.position() + bodySize - 1);
                                 var end_op = source.get();
-                                assert end_op == OpCode.END.opcode();
+                                if (end_op != OpCode.END.opcode()) {
+                                    throw new RuntimeException("unexpected end opcode: " + end_op);
+                                }
 
                                 // Write an empty function body
                                 writeVarUInt32(out, 3); // function size in bytes

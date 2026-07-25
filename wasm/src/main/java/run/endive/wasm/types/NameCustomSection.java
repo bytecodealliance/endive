@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.ToIntFunction;
+import run.endive.wasm.WasmEngineException;
 
 /**
  * The "name" custom section.
@@ -74,7 +75,9 @@ public final class NameCustomSection extends CustomSection {
             // todo: IDs 4 and 10 are reserved for the Host GC spec
             switch (id) {
                 case 0:
-                    assert (moduleName == null);
+                    if (moduleName != null) {
+                        throw new WasmEngineException("duplicate module name");
+                    }
                     moduleName = readName(slice);
                     break;
                 case 1:

@@ -33,7 +33,7 @@ public class ValTypeTest {
         for (var vt : cases) {
             long id = vt.id();
             ValType roundTrip = ValType.builder().fromId(id).build();
-            assert vt.equals(roundTrip) : "Failed to roundtrip: " + vt;
+            assertEquals(vt, roundTrip);
         }
     }
 

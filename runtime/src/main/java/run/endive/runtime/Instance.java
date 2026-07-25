@@ -1072,6 +1072,15 @@ public class Instance implements AutoCloseable {
             return exports;
         }
 
+        /**
+         * Builds the instance.
+         *
+         * <p>When running in 'runtime compilation' mode, invalid or unsupported Wasm code might already cause an
+         * exception when calling this method. For 'interpreter' mode such exceptions might instead occur during
+         * execution of the Wasm code.
+         *
+         * @throws RuntimeException if the Wasm code is invalid or contains unsupported instructions
+         */
         public Instance build() {
             Map<String, Export> exports = genExports(module.exportSection());
             var globalInitializers = module.globalSection().globals();

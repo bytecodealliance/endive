@@ -3,6 +3,7 @@ package run.endive.wasm.types;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import run.endive.wasm.WasmEngineException;
 
 public enum CatchOpCode {
     CATCH(0x00),
@@ -98,7 +99,9 @@ public enum CatchOpCode {
                     }
             }
         }
-        assert (result.size() == length);
+        if (result.size() != length) {
+            throw new WasmEngineException("wrong result size");
+        }
         return result;
     }
 

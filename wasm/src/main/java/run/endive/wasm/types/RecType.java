@@ -21,7 +21,9 @@ public final class RecType {
     }
 
     public FunctionType legacy() {
-        assert subTypes.length == 1;
+        if (!isLegacy()) {
+            throw new IllegalStateException("type is not legacy");
+        }
         return subTypes[0].compType().funcType();
     }
 

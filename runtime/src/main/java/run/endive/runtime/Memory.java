@@ -24,6 +24,11 @@ public interface Memory {
 
     int pages();
 
+    /**
+     * Tries to grow the memory by the specified additional size (in pages).
+     *
+     * @return the previous size (in pages), or -1 on error
+     */
     int grow(int size);
 
     int initialPages();

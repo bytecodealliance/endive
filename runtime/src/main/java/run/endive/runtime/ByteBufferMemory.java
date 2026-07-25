@@ -23,9 +23,9 @@ import run.endive.wasm.types.PassiveDataSegment;
 
 /**
  * Represents the linear memory in the Wasm program. Can be shared
- * reference b/w the host and the guest.
+ * reference between the host and the guest.
  *
- * This is the preferred memory implementation on Android systems.
+ * <p>This is the preferred memory implementation on Android systems.
  */
 public final class ByteBufferMemory implements Memory {
     // Package private for usage as default impl. in Memory. Can become private in next major

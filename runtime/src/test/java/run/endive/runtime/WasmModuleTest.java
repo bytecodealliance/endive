@@ -405,6 +405,7 @@ public class WasmModuleTest {
 
         assertNotNull(instance.exports().memory("mem").pages());
         assertNotNull(instance.exports().table("tab").size());
+        assertNotNull(instance.exports().tag("tag").tagType());
         assertNotNull(instance.exports().global("glob1").getValue());
         assertNotNull(instance.exports().function("get-1").apply());
     }

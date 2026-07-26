@@ -1358,7 +1358,7 @@ public final class Parser {
                         operands.add(n);
                         for (var j = 0; j < n; j++) {
                             var catchOp = readByte(buffer);
-                            operands.add(0L | catchOp);
+                            operands.add((long) catchOp);
                             var catchOpcode = CatchOpCode.byOpCode(catchOp);
                             switch (catchOpcode) {
                                 case CATCH:

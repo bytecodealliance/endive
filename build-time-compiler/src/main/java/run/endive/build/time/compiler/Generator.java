@@ -23,6 +23,7 @@ import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.utils.SourceRoot;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -168,7 +169,11 @@ public class Generator {
 
     public void generateMetaWasm(Set<Integer> interpretedFunctions) throws IOException {
         byte[] wasmBytes = Files.readAllBytes(config.wasmFile());
-        var module = Parser.builder().includeSectionId(SectionId.CODE).build().parse(wasmBytes);
+        var module =
+                Parser.builder()
+                        .includeSectionId(SectionId.CODE)
+                        .build()
+                        .parse(() -> new ByteArrayInputStream(wasmBytes));
 
         var writer = new WasmWriter();
         Parser.parseWithoutDecoding(

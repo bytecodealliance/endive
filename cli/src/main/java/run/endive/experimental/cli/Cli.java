@@ -86,11 +86,7 @@ public class Cli implements Runnable {
             var result = export.apply(params);
             if (result != null) {
                 for (var r : result) {
-                    if (result == null) {
-                        System.out.println(0);
-                    } else {
-                        System.out.println(r); // Check floating point results
-                    }
+                    System.out.println(r); // Check floating point results
                 }
             }
         }

@@ -3,7 +3,6 @@ package run.endive.runtime;
 import static java.lang.Math.min;
 import static run.endive.runtime.ConstantEvaluators.computeConstantValue;
 
-import java.lang.reflect.InvocationTargetException;
 import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
@@ -28,10 +27,6 @@ import run.endive.wasm.types.PassiveDataSegment;
  * This is the preferred memory implementation on Android systems.
  */
 public final class ByteBufferMemory implements Memory {
-    // Package private for usage as default impl. in Memory. Can become private in next major
-    // release.
-    static final Runnable ATOMIC_FENCE_IMPL = getAtomicFenceImpl();
-
     // Page addressing constants
     private static final int PAGE_SHIFT = 16; // PAGE_SIZE = 65536 = 2^16
     private static final int PAGE_MASK = PAGE_SIZE - 1;
@@ -684,36 +679,5 @@ public final class ByteBufferMemory implements Memory {
     @Override
     public void drop(int segment) {
         dataSegments[segment] = PassiveDataSegment.EMPTY;
-    }
-
-    private static Runnable getAtomicFenceImpl() {
-        try {
-            // to take into account older Android API level:
-            // https://developer.android.com/reference/java/lang/invoke/VarHandle#fullFence()
-            java.lang.invoke.VarHandle.fullFence();
-            return java.lang.invoke.VarHandle::fullFence;
-        } catch (NoSuchMethodError e) {
-            try {
-                Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
-                var theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");
-                theUnsafeField.setAccessible(true);
-                var theUnsafe = theUnsafeField.get(null);
-                var fullFence = unsafeClass.getMethod("fullFence");
-
-                return () -> {
-                    try {
-                        fullFence.invoke(theUnsafe);
-                    } catch (IllegalAccessException | InvocationTargetException ex) {
-                        throw new RuntimeException(
-                                "ATOMIC_FENCE implementation: Failed to invoke"
-                                        + " sun.misc.Unsafe",
-                                ex);
-                    }
-                };
-            } catch (Throwable ex) {
-                throw new RuntimeException(
-                        "ATOMIC_FENCE implementation: Failed to lookup sun.misc.Unsafe", ex);
-            }
-        }
     }
 }

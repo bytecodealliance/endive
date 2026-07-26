@@ -50,7 +50,7 @@ public interface Memory {
     ///////////////////////////
 
     default void atomicFence() {
-        ByteBufferMemory.ATOMIC_FENCE_IMPL.run();
+        OpcodeImpl.ATOMIC_FENCE();
     }
 
     default int atomicWait(int addr, int expected, long timeout) {

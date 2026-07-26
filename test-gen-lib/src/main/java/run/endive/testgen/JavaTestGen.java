@@ -143,7 +143,7 @@ public class JavaTestGen {
                 "store",
                 new NameExpr("new Store().addImportValues(Spectest.toImportValues())"));
 
-        String currentWasmFile = null;
+        String currentWasmFile;
         for (var cmd : wast.commands()) {
             switch (cmd.type()) {
                 case MODULE:
@@ -428,7 +428,7 @@ public class JavaTestGen {
                                         .collect(Collectors.toList())
                                 : List.<String>of();
                 var adaptedArgs =
-                        (args == null || args.size() == 0)
+                        args.isEmpty()
                                 ? ""
                                 : args.stream().collect(Collectors.joining(").add(", ".add(", ")"));
                 invocationMethod = ".apply(ArgsAdapter.builder()" + adaptedArgs + ".build()" + ")";
@@ -601,11 +601,11 @@ public class JavaTestGen {
 
         String wasmFile = getWasmFile(cmd, wasmClasspath);
 
-        var assignementStmt = (cmd.text() != null) ? "var exception = " : "";
+        var assignmentStmt = (cmd.text() != null) ? "var exception = " : "";
 
         var assertThrows =
                 new NameExpr(
-                        assignementStmt
+                        assignmentStmt
                                 + "assertThrows("
                                 + exceptionType
                                 + ".class, () -> "

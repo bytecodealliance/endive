@@ -12,7 +12,7 @@ import run.endive.wasm.WasmModule;
 
 public class TestModule {
 
-    private WasmModule module;
+    private final WasmModule module;
 
     private static final String HACK_MATCH_ALL_MALFORMED_EXCEPTION_TEXT =
             "Matching keywords to get the WebAssembly testsuite to pass: "

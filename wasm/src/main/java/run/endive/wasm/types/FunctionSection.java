@@ -54,7 +54,7 @@ public final class FunctionSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof FunctionSection)) {
+        if (!(o instanceof FunctionSection)) {
             return false;
         }
         FunctionSection that = (FunctionSection) o;

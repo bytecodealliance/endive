@@ -73,8 +73,7 @@ public class StackFrame {
 
         // initialize codesegment locals.
         int j = 0;
-        for (var i = 0; i < localTypes.size(); i++) {
-            ValType type = localTypes.get(i);
+        for (ValType type : localTypes) {
             var idx = j + sizeOf(argsTypes);
             if (!type.equals(ValType.V128)) {
                 if (type.isReference()) {

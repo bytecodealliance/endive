@@ -27,7 +27,7 @@ public class RegressionTest extends TestModule {
                 .flatMap(
                         dir -> {
                             var dirs = dir.listFiles();
-                            return dirs != null ? Arrays.stream(dirs) : Stream.<File>empty();
+                            return dirs != null ? Arrays.stream(dirs) : Stream.empty();
                         })
                 .filter(f -> f.isDirectory() && f.getName().startsWith("crash"))
                 .filter(f -> new File(f, "test.wasm").exists())

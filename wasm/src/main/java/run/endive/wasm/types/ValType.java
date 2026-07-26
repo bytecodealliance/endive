@@ -13,28 +13,29 @@ public final class ValType {
     private static final long OPCODE_MASK = 0xFFFFFFFFL;
     private static final long TYPEIDX_SHIFT = 32;
 
-    public static ValType BOT = new ValType(ID.BOT);
-    public static ValType F64 = new ValType(ID.F64);
+    public static final ValType BOT = new ValType(ID.BOT);
+    public static final ValType F64 = new ValType(ID.F64);
 
-    public static ValType F32 = new ValType(ID.F32);
-    public static ValType I64 = new ValType(ID.I64);
+    public static final ValType F32 = new ValType(ID.F32);
+    public static final ValType I64 = new ValType(ID.I64);
 
-    public static ValType I32 = new ValType(ID.I32);
+    public static final ValType I32 = new ValType(ID.I32);
 
-    public static ValType V128 = new ValType(ID.V128);
-    public static ValType FuncRef = new ValType(ID.FuncRef);
-    public static ValType ExnRef = new ValType(ID.ExnRef);
-    public static ValType ExternRef = new ValType(ID.ExternRef);
-    public static ValType AnyRef = new ValType(ID.AnyRef);
-    public static ValType EqRef = new ValType(ID.EqRef);
-    public static ValType I31Ref = new ValType(ID.i31);
-    public static ValType StructRef = new ValType(ID.StructRef);
-    public static ValType ArrayRef = new ValType(ID.ArrayRef);
-    public static ValType NoneRef = new ValType(ID.NoneRef);
-    public static ValType NoFuncRef = new ValType(ID.NoFuncRef);
-    public static ValType NoExternRef = new ValType(ID.NoExternRef);
+    public static final ValType V128 = new ValType(ID.V128);
+    public static final ValType FuncRef = new ValType(ID.FuncRef);
+    public static final ValType ExnRef = new ValType(ID.ExnRef);
+    public static final ValType ExternRef = new ValType(ID.ExternRef);
+    public static final ValType AnyRef = new ValType(ID.AnyRef);
+    public static final ValType EqRef = new ValType(ID.EqRef);
+    public static final ValType I31Ref = new ValType(ID.i31);
+    public static final ValType StructRef = new ValType(ID.StructRef);
+    public static final ValType ArrayRef = new ValType(ID.ArrayRef);
+    public static final ValType NoneRef = new ValType(ID.NoneRef);
+    public static final ValType NoFuncRef = new ValType(ID.NoFuncRef);
+    public static final ValType NoExternRef = new ValType(ID.NoExternRef);
 
-    public static ValType RefBot = new ValType(ValType.ID.Ref, ValType.TypeIdxCode.BOT.code());
+    public static final ValType RefBot =
+            new ValType(ValType.ID.Ref, ValType.TypeIdxCode.BOT.code());
 
     private final long id;
 

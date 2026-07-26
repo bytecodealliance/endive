@@ -51,7 +51,7 @@ public final class MemorySection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof MemorySection)) {
+        if (!(o instanceof MemorySection)) {
             return false;
         }
         MemorySection that = (MemorySection) o;

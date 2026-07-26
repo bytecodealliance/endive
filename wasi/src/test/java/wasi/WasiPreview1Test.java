@@ -42,7 +42,7 @@ public class WasiPreview1Test {
         Instance.builder(loadModule("compiled/hello-wasi.wat.wasm"))
                 .withImportValues(imports)
                 .build();
-        assertEquals(fakeStdout.output().strip(), "hello world");
+        assertEquals("hello world", fakeStdout.output().strip());
     }
 
     @Test
@@ -72,7 +72,7 @@ public class WasiPreview1Test {
         Instance.builder(loadModule("compiled/greet-wasi.rs.wasm"))
                 .withImportValues(imports)
                 .build();
-        assertEquals(fakeStdout.output().strip(), "Hello, Benjamin!");
+        assertEquals("Hello, Benjamin!", fakeStdout.output().strip());
     }
 
     @Test
@@ -88,7 +88,7 @@ public class WasiPreview1Test {
                 .withImportValues(imports)
                 .build();
 
-        assertEquals(fakeStdout.output(), "{\"foo\":3,\"newBar\":\"baz!\"}");
+        assertEquals("{\"foo\":3,\"newBar\":\"baz!\"}", fakeStdout.output());
     }
 
     @Test

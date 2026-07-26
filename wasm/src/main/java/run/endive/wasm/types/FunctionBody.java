@@ -25,7 +25,7 @@ public final class FunctionBody {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof FunctionBody)) {
+        if (!(o instanceof FunctionBody)) {
             return false;
         }
         FunctionBody that = (FunctionBody) o;

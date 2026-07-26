@@ -2,8 +2,8 @@ package run.endive.fuzz;
 
 public class TestResult {
 
-    private String oracleResult;
-    private String engineResult;
+    private final String oracleResult;
+    private final String engineResult;
 
     public TestResult(String oracleResult, String engineResult) {
         this.oracleResult = oracleResult;

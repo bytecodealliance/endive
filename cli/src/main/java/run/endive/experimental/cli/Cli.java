@@ -80,7 +80,7 @@ public class Cli implements Runnable {
             var export = instance.export(functionName);
             var params = new long[type.params().size()];
             for (var i = 0; i < type.params().size(); i++) {
-                params[i] = Long.valueOf(arguments[i]);
+                params[i] = arguments[i];
             }
 
             var result = export.apply(params);

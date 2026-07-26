@@ -5,7 +5,7 @@ package run.endive.runtime;
  * It is an address denoting either a function instance, table instance, memory instance,
  * or global instances in the shared store.
  *
- * See also <a href="https://webassembly.github.io/spec/core/exec/runtime.html#syntax-externval">External Values</a>.
+ * <p>See also <a href="https://webassembly.github.io/spec/core/exec/runtime.html#syntax-externval">External Values</a>.
  *
  * @see ExportFunction
  */

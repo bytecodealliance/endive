@@ -51,7 +51,7 @@ public final class ExportSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof ExportSection)) {
+        if (!(o instanceof ExportSection)) {
             return false;
         }
         ExportSection that = (ExportSection) o;

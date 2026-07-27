@@ -89,7 +89,7 @@ public class MemoryStressTest {
         final RwLock lock = new RwLock(memorySupplier.get(), 0);
         final long deadline = System.currentTimeMillis() + 3_000;
 
-        final List<Thread> threads = new ArrayList<Thread>();
+        final List<Thread> threads = new ArrayList<>();
         for (int r = 0; r < 6; r++) {
             threads.add(
                     new Thread(

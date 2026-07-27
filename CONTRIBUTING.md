@@ -12,7 +12,6 @@ But first, read this page (including the small print at the end).
   + [Coding Guidelines](#coding-guidelines)
   + [Continuous Integration](#continuous-integration)
   + [Tests and documentation are not optional](#tests-and-documentation-are-not-optional)
-  + [Current status](#current-status)
 * [Reporting an issue](#reporting-an-issue)
 * [AI Tool Use Policy](#ai-tool-use-policy)
 * [Legal](#legal)

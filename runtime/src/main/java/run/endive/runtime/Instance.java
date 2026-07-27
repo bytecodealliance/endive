@@ -325,6 +325,11 @@ public class Instance implements AutoCloseable {
             var export = getExport(MEMORY, name);
             return instance.memory(export.index());
         }
+
+        public TagInstance tag(String name) {
+            var export = getExport(TAG, name);
+            return instance.tag(export.index());
+        }
     }
 
     public Exports exports() {

@@ -375,7 +375,7 @@ public final class TypeSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof TypeSection)) {
+        if (!(o instanceof TypeSection)) {
             return false;
         }
         TypeSection that = (TypeSection) o;

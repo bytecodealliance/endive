@@ -51,7 +51,7 @@ public abstract class Element {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof Element)) {
+        if (!(o instanceof Element)) {
             return false;
         }
         Element element = (Element) o;

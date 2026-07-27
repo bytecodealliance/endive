@@ -134,7 +134,7 @@ public class WasmValue {
         if (value == null) {
             // according to
             // https://github.com/WebAssembly/spec/blob/05949f507908aac3ad2a21661b5c39fa013da950/interpreter/script/js.ml#L150
-            // ref.func should check that its a function, and ref.extern should check the returned
+            // ref.func should check that it's a function, and ref.extern should check the returned
             // reference is not null
             switch (type) {
                 case FUNC_REF:
@@ -285,14 +285,14 @@ public class WasmValue {
 
     public String intLaneValue(String v) {
         var longValue = Long.parseLong(v);
-        return Integer.toUnsignedString((int) (0xFFFFFFFF & longValue)) + "L";
+        return Integer.toUnsignedString((int) longValue) + "L";
     }
 
     /**
      * Generate assertion for CallResult from applyWithRefs.
      *
-     * Object ref types use cr.refResult(i) and compare with Java null/not-null.
-     * Numeric types use cr.longResult(i) and compare with expected values.
+     * <p>Object ref types use {@code cr.refResult(i)} and compare with Java null/not-null.
+     * Numeric types use {@code cr.longResult(i)} and compare with expected values.
      */
     public NameExpr toRefAssertion(String resultVar, String moduleName) {
         if (value == null) {
@@ -392,7 +392,7 @@ public class WasmValue {
             case EQ_REF:
             case I31_REF:
             case FUNC_REF:
-                if (value[0].toString().equals("null")) {
+                if (value[0].equals("null")) {
                     return "Value.REF_NULL_VALUE";
                 }
                 return value[0];

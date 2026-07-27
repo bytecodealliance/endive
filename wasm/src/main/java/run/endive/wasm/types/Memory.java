@@ -32,7 +32,7 @@ public final class Memory {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof Memory)) {
+        if (!(o instanceof Memory)) {
             return false;
         }
         Memory memory = (Memory) o;

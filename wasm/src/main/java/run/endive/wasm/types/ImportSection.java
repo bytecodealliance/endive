@@ -60,7 +60,7 @@ public final class ImportSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof ImportSection)) {
+        if (!(o instanceof ImportSection)) {
             return false;
         }
         ImportSection that = (ImportSection) o;

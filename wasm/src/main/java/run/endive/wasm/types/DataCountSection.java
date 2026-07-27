@@ -34,7 +34,7 @@ public final class DataCountSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof DataCountSection)) {
+        if (!(o instanceof DataCountSection)) {
             return false;
         }
         DataCountSection that = (DataCountSection) o;

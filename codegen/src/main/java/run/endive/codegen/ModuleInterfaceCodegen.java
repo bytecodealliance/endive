@@ -299,7 +299,7 @@ public final class ModuleInterfaceCodegen {
                                 "applyWithRefs",
                                 NodeList.nodeList(longArrayExpr, refArrayExpr));
 
-                if (exportType.returns().size() == 0) {
+                if (exportType.returns().isEmpty()) {
                     exportMethod.setType(void.class);
                     methodBody.addStatement(applyWithRefsCall);
                     methodBody.addStatement(new ReturnStmt());
@@ -352,7 +352,7 @@ public final class ModuleInterfaceCodegen {
                         new MethodCallExpr(
                                 exportFieldName, "apply", NodeList.nodeList(handleCallArguments));
 
-                if (exportType.returns().size() == 0) {
+                if (exportType.returns().isEmpty()) {
                     exportMethod.setType(void.class);
                     methodBody.addStatement(exportApplyHandle).addStatement(new ReturnStmt());
                 } else if (exportType.returns().size() > 1) {
@@ -400,7 +400,7 @@ public final class ModuleInterfaceCodegen {
                         });
             }
 
-            if (importedModules.size() > 0) {
+            if (!importedModules.isEmpty()) {
                 var toImportValuesBody = new BlockStmt();
                 toImportValuesBody.addStatement(
                         new AssignExpr(
@@ -552,7 +552,7 @@ public final class ModuleInterfaceCodegen {
                             importsCu.addImport("run.endive.runtime.WasmFunctionHandle");
 
                             // Set interface method return type
-                            if (importType.returns().size() == 0) {
+                            if (importType.returns().isEmpty()) {
                                 importMethod.setType(void.class);
                             } else if (importType.returns().size() == 1) {
                                 importMethod.setType(
@@ -564,7 +564,7 @@ public final class ModuleInterfaceCodegen {
 
                             // Build applyWithRefs body
                             var refsBody = new BlockStmt();
-                            if (importType.returns().size() == 0) {
+                            if (importType.returns().isEmpty()) {
                                 refsBody.addStatement(importApplyHandle);
                                 refsBody.addStatement(
                                         new ReturnStmt(
@@ -639,7 +639,7 @@ public final class ModuleInterfaceCodegen {
                             // No object refs - use original lambda path
                             var functionBodyStatement = new BlockStmt();
 
-                            if (importType.returns().size() == 0) {
+                            if (importType.returns().isEmpty()) {
                                 importMethod.setType(void.class);
                                 functionBodyStatement.addStatement(importApplyHandle);
                                 functionBodyStatement.addStatement(

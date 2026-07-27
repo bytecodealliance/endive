@@ -35,7 +35,7 @@ public final class StructType {
     }
 
     public static final class Builder {
-        private List<FieldType> fieldTypes = new ArrayList<>();
+        private final List<FieldType> fieldTypes = new ArrayList<>();
 
         private Builder() {}
 

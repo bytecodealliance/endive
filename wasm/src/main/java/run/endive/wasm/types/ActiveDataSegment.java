@@ -26,7 +26,7 @@ public final class ActiveDataSegment extends DataSegment {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof ActiveDataSegment)) {
+        if (!(o instanceof ActiveDataSegment)) {
             return false;
         }
         if (!super.equals(o)) {

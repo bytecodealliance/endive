@@ -148,7 +148,7 @@ public final class Validate {
         }
 
         public Validate build() {
-            return new Validate(Collections.unmodifiableList(new ArrayList<>(features)));
+            return new Validate(List.copyOf(features));
         }
     }
 }

@@ -39,8 +39,8 @@ public class ThreadsProposalTest {
         int lock(Instance instance, int mutexAddr, long expected);
     }
 
-    private static MemoryLimits memoryLimits = new MemoryLimits(1, 1, true);
-    private static List<Supplier<Memory>> memories =
+    private static final MemoryLimits memoryLimits = new MemoryLimits(1, 1, true);
+    private static final List<Supplier<Memory>> memories =
             List.of(
                     () -> new ByteArrayMemory(memoryLimits),
                     () -> new ByteBufferMemory(memoryLimits));
@@ -53,7 +53,7 @@ public class ThreadsProposalTest {
                             instBuilder.withMachineFactory(MachineFactoryCompiler::compile),
                     // build time compiler
                     (instBuilder) -> instBuilder.withMachineFactory(ThreadsExampleModule::create));
-    private static List<LockWithTimeout> locks =
+    private static final List<LockWithTimeout> locks =
             List.of(
                     ThreadsProposalTest::lockMutexWithTimeout,
                     ThreadsProposalTest::lock64MutexWithTimeout);
@@ -309,7 +309,7 @@ public class ThreadsProposalTest {
                 () -> {
                     long a;
                     do {
-                        a = (long) fencedReadAndVerify.apply()[0];
+                        a = fencedReadAndVerify.apply()[0];
                     } while (a < minIterations);
                 });
         done.set(true);

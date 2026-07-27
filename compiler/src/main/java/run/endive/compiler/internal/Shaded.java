@@ -254,7 +254,7 @@ public final class Shaded {
         var prop = System.getProperty("endive.memCopyWorkaround");
 
         if (prop != null) {
-            memCopyWorkaround = Boolean.valueOf(prop);
+            memCopyWorkaround = Boolean.parseBoolean(prop);
         } else {
             memCopyWorkaround = shouldUseMemWorkaround();
         }

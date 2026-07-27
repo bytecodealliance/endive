@@ -55,7 +55,7 @@ public final class DataSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof DataSection)) {
+        if (!(o instanceof DataSection)) {
             return false;
         }
         DataSection that = (DataSection) o;

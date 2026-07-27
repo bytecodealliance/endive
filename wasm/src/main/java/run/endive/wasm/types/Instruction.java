@@ -56,7 +56,7 @@ public class Instruction {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof Instruction)) {
+        if (!(o instanceof Instruction)) {
             return false;
         }
         Instruction that = (Instruction) o;

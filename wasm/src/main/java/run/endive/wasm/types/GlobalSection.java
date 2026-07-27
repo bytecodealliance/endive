@@ -55,7 +55,7 @@ public final class GlobalSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof GlobalSection)) {
+        if (!(o instanceof GlobalSection)) {
             return false;
         }
         GlobalSection that = (GlobalSection) o;

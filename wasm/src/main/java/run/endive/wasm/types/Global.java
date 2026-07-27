@@ -44,7 +44,7 @@ public final class Global {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof Global)) {
+        if (!(o instanceof Global)) {
             return false;
         }
         Global global = (Global) o;

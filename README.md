@@ -2,7 +2,7 @@
 
 <p align="center">
   <picture>
-    <img width="200" src="endive.png">
+    <img width="200" src="endive.png" alt="Endive logo">
   </picture>
   <br>
   <strong>A <a href="https://bytecodealliance.org/">Bytecode Alliance</a> hosted project</strong>

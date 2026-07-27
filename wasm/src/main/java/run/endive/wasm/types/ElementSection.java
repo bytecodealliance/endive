@@ -58,7 +58,7 @@ public final class ElementSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof ElementSection)) {
+        if (!(o instanceof ElementSection)) {
             return false;
         }
         ElementSection that = (ElementSection) o;

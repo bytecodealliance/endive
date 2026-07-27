@@ -304,7 +304,7 @@ public final class WasmModule {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof WasmModule)) {
+        if (!(o instanceof WasmModule)) {
             return false;
         }
         WasmModule that = (WasmModule) o;

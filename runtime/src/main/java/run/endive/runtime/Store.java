@@ -98,9 +98,8 @@ public class Store {
      * All the exported functions, globals, memories, and tables are added to the store
      * with the given name.
      *
-     * For instance, if a module named "myModule" exports a function
+     * <p>For instance, if a module named "myModule" exports a function
      * named "myFunction", the function will be added to the store with the name "myFunction.myModule".
-     *
      */
     public Store register(String name, Instance instance) {
         ExportSection exportSection = instance.module().exportSection();

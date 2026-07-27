@@ -3,6 +3,7 @@ package run.endive.wasm.types;
 import static run.endive.wasm.WasmLimits.MAX_TABLE_ENTRIES;
 
 import run.endive.wasm.InvalidException;
+import run.endive.wasm.WasmEngineException;
 
 public class TableLimits {
     public static final long LIMIT_MAX = MAX_TABLE_ENTRIES;
@@ -31,6 +32,9 @@ public class TableLimits {
     }
 
     public void grow(int size) {
+        if (Math.addExact(min, size) > max) {
+            throw new WasmEngineException("cannot grow past maximum");
+        }
         min += size;
     }
 

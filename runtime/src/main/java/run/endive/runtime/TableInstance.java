@@ -8,6 +8,7 @@ import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.Table;
 import run.endive.wasm.types.TableLimits;
 import run.endive.wasm.types.ValType;
+import run.endive.wasm.types.Value;
 
 public class TableInstance {
 
@@ -42,6 +43,14 @@ public class TableInstance {
         return table.limits();
     }
 
+    /**
+     * Tries to grow the table by the specified additional size.
+     *
+     * <p>New refs use {@code value} as initial value; new object refs (in case this is a GC table) remain {@code null}.
+     *
+     * @param value the value to use for the newly created ref entries
+     * @return the previous size, or -1 on error
+     */
     public int grow(int size, int value, Instance instance) {
         var oldSize = refs.length;
         var targetSize = oldSize + size;
@@ -61,6 +70,14 @@ public class TableInstance {
         return oldSize;
     }
 
+    /**
+     * Tries to grow the table by the specified additional size.
+     *
+     * <p>New refs use {@link Value#REF_NULL_VALUE} as initial value; new object refs use the {@code refValue} argument.
+     *
+     * @param refValue the value to use for the newly created object ref entries
+     * @return the previous size, or -1 on error
+     */
     public int growWithRef(int size, Object refValue, Instance instance) {
         var oldSize = refs.length;
         var targetSize = oldSize + size;

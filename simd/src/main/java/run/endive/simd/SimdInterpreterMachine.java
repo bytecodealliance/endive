@@ -1376,13 +1376,9 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
         }
     }
 
-    private static long addSatU(short a, Short b) {
+    private static long addSatU(short a, short b) {
         int result = Short.toUnsignedInt(a) + Short.toUnsignedInt(b);
-        if (result >= 0xFFFF) {
-            return 0xFFFF;
-        } else {
-            return result;
-        }
+        return Math.min(result, 0xFFFF);
     }
 
     private static byte subSatS(byte a, byte b) {
@@ -3000,7 +2996,7 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
         long resultHigh = 0L;
 
         for (int i = 0; i < 16; i++) {
-            long id = 0;
+            long id;
             if (i < 8) {
                 id = (idxLow >> (i * 8)) & 0xFFL;
             } else {

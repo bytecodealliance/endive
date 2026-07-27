@@ -454,7 +454,7 @@ public final class Parser {
 
     // https://webassembly.github.io/spec/core/binary/modules.html#binary-module
     private static class SectionsValidator {
-        private List<Integer> sectionsOrder = new ArrayList<>();
+        private final List<Integer> sectionsOrder = new ArrayList<>();
         private int maxSection = -1;
 
         SectionsValidator() {
@@ -651,9 +651,11 @@ public final class Parser {
                         r.resolve(typeSection);
                     }
                 }
-                if (ct.arrayType() != null
-                        && ct.arrayType().fieldType().storageType().valType() != null) {
-                    ct.arrayType().fieldType().storageType().valType().resolve(typeSection);
+                if (ct.arrayType() != null) {
+                    var valType = ct.arrayType().fieldType().storageType().valType();
+                    if (valType != null) {
+                        valType.resolve(typeSection);
+                    }
                 }
                 if (ct.structType() != null) {
                     for (var t : ct.structType().fieldTypes()) {
@@ -697,7 +699,7 @@ public final class Parser {
 
                         var limitType = readByte(buffer);
                         var min = (int) readVarUInt32(buffer);
-                        TableLimits limits = null;
+                        TableLimits limits;
                         switch (limitType) {
                             case 0x00:
                                 limits = new TableLimits(min);
@@ -1277,11 +1279,6 @@ public final class Parser {
             throw new MalformedException("illegal opcode, op value " + String.format("%02X ", b));
         }
         var signature = OpCode.signature(op);
-
-        switch (op) {
-            default:
-                break;
-        }
 
         // reserving an operand in those two operations to inject
         // a ValType hint at validation time

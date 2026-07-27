@@ -1,6 +1,7 @@
 (module
   (memory (export "mem") 0)
   (table  (export "tab") 10 funcref)
+  (tag $my_custom_exception (export "tag"))
   (global $glob1 (export "glob1") i32 (i32.const 42))
   (global $glob2 (export "glob2") i32 (i32.const 43))
   (global $glob3 (export "glob3") i32 (i32.const 44))

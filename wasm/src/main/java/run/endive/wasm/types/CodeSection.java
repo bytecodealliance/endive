@@ -67,7 +67,7 @@ public final class CodeSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof CodeSection)) {
+        if (!(o instanceof CodeSection)) {
             return false;
         }
         CodeSection that = (CodeSection) o;

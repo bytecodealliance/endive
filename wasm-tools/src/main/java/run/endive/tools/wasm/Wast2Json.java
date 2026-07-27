@@ -13,7 +13,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import run.endive.log.Logger;
 import run.endive.log.SystemLogger;
 import run.endive.runtime.ByteArrayMemory;
@@ -79,7 +78,7 @@ public final class Wast2Json {
             args.add("--output");
             args.add(outputFolder.resolve(output.getName()).resolve("spec.json").toString());
             args.addAll(List.of(options));
-            logger.info("Running command: " + args.stream().collect(Collectors.joining(" ")));
+            logger.info("Running command: " + String.join(" ", args));
             wasiOpts.withArguments(args);
 
             try (var wasi =

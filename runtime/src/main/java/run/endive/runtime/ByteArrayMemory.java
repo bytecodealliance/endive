@@ -22,12 +22,14 @@ import run.endive.wasm.types.PassiveDataSegment;
 
 /**
  * Represents the linear memory in the Wasm program. Can be shared
- * reference b/w the host and the guest.
+ * reference between the host and the guest.
  *
- * try-catch is faster than explicit checks and can be optimized by the JVM.
- * Catching generic RuntimeException to keep the method bodies short and easily inlinable.
+ * <p>This is the recommended memory implementation for recent OpenJDK systems.
  */
 public final class ByteArrayMemory implements Memory {
+    // Implementation note: try-catch is faster than explicit checks and can be optimized by the
+    // JVM. Catching generic RuntimeException to keep the method bodies short and easily inlinable.
+
     // get access to the byte array elements viewed as if it were
     // a different primitive array type, such as int[], long[], etc.
     // This is actually the fastest way to access and reinterpret the underlying bytes.

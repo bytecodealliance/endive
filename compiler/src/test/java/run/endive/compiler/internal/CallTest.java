@@ -24,7 +24,6 @@ public class CallTest {
     }
 
     @Test
-    @SuppressWarnings("deprecation")
     public void callLotsOfArgsOnDeprecatedAotMachine() throws InterruptedException {
         var module = Parser.parse(CorpusResources.getResource("compiled/lots-of-args.wat.wasm"));
         var instance =

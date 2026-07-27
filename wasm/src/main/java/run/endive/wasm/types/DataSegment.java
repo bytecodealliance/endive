@@ -19,7 +19,7 @@ public abstract class DataSegment {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof DataSegment)) {
+        if (!(o instanceof DataSegment)) {
             return false;
         }
         DataSegment that = (DataSegment) o;

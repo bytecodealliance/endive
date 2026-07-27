@@ -51,7 +51,7 @@ public final class TableSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof TableSection)) {
+        if (!(o instanceof TableSection)) {
             return false;
         }
         TableSection that = (TableSection) o;

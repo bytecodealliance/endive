@@ -227,7 +227,7 @@ public class WasmModuleTest {
                             return new ByteBufferMemory(limits);
                         })
                 .build();
-        assertEquals(true, memoryCreated.get());
+        assertTrue(memoryCreated.get());
     }
 
     @Test
@@ -396,16 +396,17 @@ public class WasmModuleTest {
         assertEquals(factorial(number), result[0]);
 
         // IIUC: 3 values returning from last CALL + 1 result
-        assertTrue(finalStackSize.get() == 4L);
+        assertEquals(4L, finalStackSize.get());
     }
 
     @Test
     public void shouldEasilyObtainExportedEntities() {
         var instance = Instance.builder(loadModule("compiled/exports.wat.wasm")).build();
 
-        assertNotNull(instance.exports().memory("mem").pages());
-        assertNotNull(instance.exports().table("tab").size());
-        assertNotNull(instance.exports().global("glob1").getValue());
+        instance.exports().memory("mem").pages();
+        instance.exports().table("tab").size();
+        instance.exports().tag("tag").tagType();
+        instance.exports().global("glob1").getValue();
         assertNotNull(instance.exports().function("get-1").apply());
     }
 
@@ -575,6 +576,7 @@ public class WasmModuleTest {
         ExecutorService service = Executors.newSingleThreadExecutor();
         var future = service.submit(() -> function.apply());
         assertThrows(TimeoutException.class, () -> future.get(100, TimeUnit.MILLISECONDS));
+        service.shutdown();
     }
 
     // Testing tail call edge cases
@@ -857,10 +859,7 @@ public class WasmModuleTest {
                         });
         var instance =
                 Instance.builder(loadModule("compiled/host-function.wat.wasm"))
-                        .withImportValues(
-                                ImportValues.builder()
-                                        .addFunction(new HostFunction[] {func})
-                                        .build())
+                        .withImportValues(ImportValues.builder().addFunction(func).build())
                         .build();
         var logIt = instance.export("logIt");
         var e = assertThrows(WasmEngineException.class, logIt::apply);

@@ -487,7 +487,7 @@ public final class Compiler {
     private Consumer<ClassVisitor> emitFunctionGroup(int start, int end, String internalClassName) {
         return (classWriter) -> {
             for (int i = start; i < end; i++) {
-                FunctionBody body = null;
+                FunctionBody body;
                 try {
                     int funcId = i;
                     var type = functionTypes.get(funcId);

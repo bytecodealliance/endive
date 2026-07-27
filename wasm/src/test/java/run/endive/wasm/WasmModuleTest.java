@@ -21,6 +21,7 @@ public class WasmModuleTest {
         var mod1 = Parser.parse(CorpusResources.getResource("compiled/count_vowels.rs.wasm"));
         var mod2 = Parser.parse(CorpusResources.getResource("compiled/count_vowels.rs.wasm"));
 
+        //noinspection SimplifiableAssertion; intentionally test `equals` implementation
         assertTrue(mod1.equals(mod2));
     }
 }

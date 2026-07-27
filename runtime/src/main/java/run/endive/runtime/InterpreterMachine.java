@@ -3922,8 +3922,7 @@ public class InterpreterMachine implements Machine {
         var tagType = exception.instance().type(tag.tagType().typeIdx());
         var params = tagType.params();
         int slot = 0;
-        for (int i = 0; i < params.size(); i++) {
-            var p = params.get(i);
+        for (ValType p : params) {
             if (p.isObjectRef()) {
                 // This position is a ref (even if the value is null)
                 stack.pushRef(refArgs != null && slot < refArgs.length ? refArgs[slot] : null);

@@ -72,7 +72,8 @@ public class InterpreterFallbackTest {
         generator.generateMetaWasm(interpretedFunctions);
     }
 
-    private String expectedMessageContent = "interpreter fallback mode: WASM function index: 2";
+    private final String expectedMessageContent =
+            "interpreter fallback mode: WASM function index: 2";
 
     @Test
     public void testDefaultInterpreterFallback() throws IOException {

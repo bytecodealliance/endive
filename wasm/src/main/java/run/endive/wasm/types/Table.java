@@ -56,7 +56,7 @@ public class Table {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof Table)) {
+        if (!(o instanceof Table)) {
             return false;
         }
         Table table = (Table) o;

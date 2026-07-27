@@ -221,7 +221,7 @@ public final class AnnotatedInstruction extends Instruction {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof AnnotatedInstruction)) {
+        if (!(o instanceof AnnotatedInstruction)) {
             return false;
         }
         AnnotatedInstruction that = (AnnotatedInstruction) o;

@@ -1,6 +1,7 @@
 package run.endive.wasm.types;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,6 +40,8 @@ public class ValueTest {
         assertTrue(true);
     }
 
+    // Suppress IntelliJ warnings for explicit `equals` calls
+    @SuppressWarnings({"SimplifiableAssertion", "EqualsWithItself", "ConstantValue"})
     @Test
     public void equalsContract() {
 
@@ -47,12 +50,13 @@ public class ValueTest {
         var i32TwentyOne = Value.i32(21);
         var f32TwentyOne = Value.f32(Float.floatToIntBits(21.0f));
 
-        assertEquals(i32FortyTwo, i32FortyTwo);
-        assertEquals(i32FortyTwo, Value.i32(42));
-        assertNotEquals(i32FortyTwo, i32TwentyOne);
-        assertNotEquals(i32FortyTwo, null);
-        assertNotEquals(i32TwentyOne, f32TwentyOne);
-        assertNotEquals(i32FortyTwo, i64FortyTwo);
+        // Explicitly call `equals` here to avoid any shortcuts by JUnit `assertEquals`
+        assertTrue(i32FortyTwo.equals(i32FortyTwo));
+        assertTrue(i32FortyTwo.equals(Value.i32(42)));
+        assertFalse(i32FortyTwo.equals(i32TwentyOne));
+        assertFalse(i32FortyTwo.equals(null));
+        assertFalse(i32TwentyOne.equals(f32TwentyOne));
+        assertFalse(i32FortyTwo.equals(i64FortyTwo));
     }
 
     @Test

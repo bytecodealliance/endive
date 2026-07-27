@@ -319,7 +319,7 @@ final class Validator {
     private void validateMemAlign(long current, long expected) {
         if (current != expected) {
             throw new InvalidException(
-                    "invalid memory alignement, current: " + current + ", expected: " + expected);
+                    "invalid memory alignment, current: " + current + ", expected: " + expected);
         }
     }
 
@@ -667,7 +667,7 @@ final class Validator {
     void validateTags() {
         for (var tagType : module.tagSection().map(ts -> ts.types()).orElse(new TagType[0])) {
             var type = module.typeSection().getType(tagType.typeIdx());
-            if (type.returns().size() > 0) {
+            if (!type.returns().isEmpty()) {
                 throw new InvalidException("non-empty tag result type index: " + tagType.typeIdx());
             }
         }
@@ -882,7 +882,7 @@ final class Validator {
             }
         }
 
-        if (valTypeStack.size() < 1) {
+        if (valTypeStack.isEmpty()) {
             throw new InvalidException("type mismatch, no constant expressions found");
         }
         if (valTypeStack.size() != 1) {
@@ -905,7 +905,7 @@ final class Validator {
         }
     }
 
-    private static int[] typesWithDefaultValue =
+    private static final int[] typesWithDefaultValue =
             new int[] {
                 ValType.ID.F64,
                 ValType.ID.F32,
@@ -977,8 +977,7 @@ final class Validator {
                         // and now the catches
                         var catches = CatchOpCode.decode(op.operands());
 
-                        for (int idx = 0; idx < catches.size(); idx++) {
-                            var currentCatch = catches.get(idx);
+                        for (CatchOpCode.Catch currentCatch : catches) {
                             if (ctrlFrameStack.size() < currentCatch.label()) {
                                 throw new InvalidException("something something");
                             }
@@ -1909,7 +1908,7 @@ final class Validator {
                         if (global.mutabilityType() == MutabilityType.Const) {
                             // global.wast in the origin spec and function references
                             // have exact same test that exact two different errors
-                            // TOOD: figure out which one
+                            // TODO: figure out which one
                             throw new InvalidException("global is immutable, immutable global");
                         }
                         popVal(global.valueType());

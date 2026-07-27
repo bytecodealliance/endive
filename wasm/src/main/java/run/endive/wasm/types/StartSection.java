@@ -36,7 +36,7 @@ public final class StartSection extends Section {
         if (this == o) {
             return true;
         }
-        if (o == null || !(o instanceof StartSection)) {
+        if (!(o instanceof StartSection)) {
             return false;
         }
         StartSection that = (StartSection) o;

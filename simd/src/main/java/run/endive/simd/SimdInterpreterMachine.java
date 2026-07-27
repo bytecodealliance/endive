@@ -1734,7 +1734,7 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
     }
 
     private static boolean lt(float a, float b) {
-        return a <= b;
+        return a < b;
     }
 
     private static boolean le(float a, float b) {

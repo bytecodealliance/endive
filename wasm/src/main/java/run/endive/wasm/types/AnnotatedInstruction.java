@@ -3,6 +3,8 @@ package run.endive.wasm.types;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
+
 import run.endive.wasm.InvalidException;
 
 /*
@@ -89,8 +91,8 @@ public final class AnnotatedInstruction extends Instruction {
     public static final class Builder {
         private Instruction base;
         private int depth;
-        private Optional<Integer> labelTrue = Optional.empty();
-        private Optional<Integer> labelFalse = Optional.empty();
+        private OptionalInt labelTrue = OptionalInt.empty();
+        private OptionalInt labelFalse = OptionalInt.empty();
         private Optional<List<Integer>> labelTable = Optional.empty();
         private Optional<List<CatchOpCode.Catch>> catches = Optional.empty();
         private Optional<Instruction> scope = Optional.empty();
@@ -116,18 +118,18 @@ public final class AnnotatedInstruction extends Instruction {
         }
 
         public Builder withLabelTrue(int label) {
-            this.labelTrue = Optional.of(label);
+            this.labelTrue = OptionalInt.of(label);
             return this;
         }
 
         public Builder withLabelFalse(int label) {
-            this.labelFalse = Optional.of(label);
+            this.labelFalse = OptionalInt.of(label);
             return this;
         }
 
         public Builder updateLabelFalse(int label) {
             if (this.labelFalse.equals(this.labelTrue)) {
-                this.labelFalse = Optional.of(label);
+                this.labelFalse = OptionalInt.of(label);
             }
             return this;
         }

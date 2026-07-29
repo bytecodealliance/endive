@@ -242,7 +242,7 @@ final class EmitterMap {
                     .shared(CompilerOpCode.I32_LE_S, OpcodeImpl.class)
                     .shared(CompilerOpCode.I32_LE_U, OpcodeImpl.class)
                     .shared(CompilerOpCode.I32_LT_S, OpcodeImpl.class)
-                    .shared(CompilerOpCode.I32_LT_U, OpcodeImpl.class)
+                    .intrinsic(CompilerOpCode.I32_LT_U, Emitters::I32_LT_U)
                     .intrinsic(CompilerOpCode.I32_MUL, Emitters::I32_MUL)
                     .shared(CompilerOpCode.I32_NE, OpcodeImpl.class)
                     .intrinsic(CompilerOpCode.I32_OR, Emitters::I32_OR)

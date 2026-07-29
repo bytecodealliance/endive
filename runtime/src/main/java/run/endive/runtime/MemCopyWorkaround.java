@@ -60,16 +60,23 @@ public final class MemCopyWorkaround {
                 MemCopyWorkaround.i32_ge_u(0, 0);
                 i32geuFunc = noop4;
                 MemCopyWorkaround.i32_ge_u(0, 0);
+
+                i32ltuFunc = noop3;
+                MemCopyWorkaround.i32_lt_u(0, 0);
+                i32ltuFunc = noop4;
+                MemCopyWorkaround.i32_lt_u(0, 0);
             }
 
             memoryCopyFunc =
                     (destination, offset, size, memory) -> memory.copy(destination, offset, size);
             i32geuFunc = (a, b) -> OpcodeImpl.I32_GE_U(a, b);
+            i32ltuFunc = (a, b) -> OpcodeImpl.I32_LT_U(a, b);
         }
     }
 
     private static MemoryCopyFunc memoryCopyFunc;
     private static I32GEUFunc i32geuFunc;
+    private static I32GEUFunc i32ltuFunc;
 
     public static void memoryCopy(int destination, int offset, int size, Memory memory) {
         memoryCopyFunc.apply(destination, offset, size, memory);
@@ -77,5 +84,9 @@ public final class MemCopyWorkaround {
 
     public static int i32_ge_u(int a, int b) {
         return i32geuFunc.apply(a, b);
+    }
+
+    public static int i32_lt_u(int a, int b) {
+        return i32ltuFunc.apply(a, b);
     }
 }

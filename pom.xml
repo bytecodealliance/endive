@@ -1087,6 +1087,7 @@
         <module>compiler-maven-plugin</module>
         <module>dircache</module>
         <module>log</module>
+        <module>redline</module>
         <module>runtime</module>
         <module>wabt</module>
         <module>wasi</module>

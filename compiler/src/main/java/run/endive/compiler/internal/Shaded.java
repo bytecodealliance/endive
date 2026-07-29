@@ -248,6 +248,14 @@ public final class Shaded {
         }
     }
 
+    public static int i32_lt_u(int a, int b) {
+        if (memCopyWorkaround) {
+            return MemCopyWorkaround.i32_lt_u(a, b);
+        } else {
+            return OpcodeImpl.I32_LT_U(a, b);
+        }
+    }
+
     private static final boolean memCopyWorkaround;
 
     static {

@@ -10,6 +10,7 @@ import java.util.List;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.AnnotatedInstruction;
+import run.endive.wasm.types.BlockType;
 import run.endive.wasm.types.CatchOpCode;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.Instruction;
@@ -3099,32 +3100,32 @@ public class InterpreterMachine implements Machine {
     }
 
     private static int numberOfParams(Instance instance, AnnotatedInstruction scope) {
-        var typeId = (int) scope.operand(0);
-        if (typeId == 0x40) { // epsilon
+        var blockType = scope.operand(0);
+        if (BlockType.isEmpty(blockType)) {
             return 0;
         }
-        if (ValType.isValid(typeId)) {
+        if (BlockType.isValueType(blockType)) {
             return 0;
         }
-        return sizeOf(instance.type(typeId).params());
+        return sizeOf(instance.type((int) BlockType.typeIndex(blockType)).params());
     }
 
     private static int numberOfValuesToReturn(Instance instance, AnnotatedInstruction scope) {
         if (scope.opcode() == OpCode.END) {
             return 0;
         }
-        var typeId = (int) scope.operand(0);
-        if (typeId == 0x40) { // epsilon
+        var blockType = scope.operand(0);
+        if (BlockType.isEmpty(blockType)) {
             return 0;
         }
-        if (ValType.isValid(typeId)) {
-            if (typeId == ValType.V128.id()) {
+        if (BlockType.isValueType(blockType)) {
+            if (BlockType.valueTypeId(blockType) == ValType.V128.id()) {
                 return 2;
             } else {
                 return 1;
             }
         }
-        return sizeOf(instance.type(typeId).returns());
+        return sizeOf(instance.type((int) BlockType.typeIndex(blockType)).returns());
     }
 
     protected static StackFrame THROW_REF(

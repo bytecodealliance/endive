@@ -16,6 +16,7 @@ import run.endive.wasm.types.ActiveDataSegment;
 import run.endive.wasm.types.ActiveElement;
 import run.endive.wasm.types.AnnotatedInstruction;
 import run.endive.wasm.types.ArrayType;
+import run.endive.wasm.types.BlockType;
 import run.endive.wasm.types.CatchOpCode;
 import run.endive.wasm.types.CompType;
 import run.endive.wasm.types.Element;
@@ -348,28 +349,29 @@ final class Validator {
     }
 
     private List<ValType> getReturns(AnnotatedInstruction op) {
-        var typeId = op.operand(0);
-        if (typeId == 0x40) { // epsilon
+        var blockType = op.operand(0);
+        if (BlockType.isEmpty(blockType)) {
             return List.of();
         }
-        if (ValType.isValid(typeId)) {
-            return List.of(valType(typeId));
+        if (BlockType.isValueType(blockType)) {
+            return List.of(valType(BlockType.valueTypeId(blockType)));
         }
-        return getType((int) typeId).returns();
+        return getType((int) BlockType.typeIndex(blockType)).returns();
     }
 
     private List<ValType> getParams(AnnotatedInstruction op) {
-        var typeId = op.operand(0);
-        if (typeId == 0x40) { // epsilon
+        var blockType = op.operand(0);
+        if (BlockType.isEmpty(blockType)) {
             return List.of();
         }
-        if (ValType.isValid(typeId)) {
+        if (BlockType.isValueType(blockType)) {
             return List.of();
         }
-        if (typeId >= module.typeSection().subTypeCount()) {
+        var typeIndex = BlockType.typeIndex(blockType);
+        if (typeIndex >= module.typeSection().subTypeCount()) {
             throw new MalformedException("unexpected end");
         }
-        return getType((int) typeId).params();
+        return getType((int) typeIndex).params();
     }
 
     private ValType getLocalType(int idx) {

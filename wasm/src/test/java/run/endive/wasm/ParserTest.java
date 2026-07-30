@@ -4,9 +4,11 @@ import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -18,8 +20,11 @@ import java.util.Locale;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import run.endive.corpus.BlockTypeTestModule;
 import run.endive.corpus.CorpusResources;
 import run.endive.wasm.types.ActiveDataSegment;
+import run.endive.wasm.types.BlockType;
+import run.endive.wasm.types.CodeSection;
 import run.endive.wasm.types.CustomSection;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.OpCode;
@@ -183,6 +188,114 @@ public class ParserTest {
             assertEquals(-1L, fbody.instructions().get(24).operand(0));
             assertEquals(1L, fbody.instructions().get(26).operand(0));
         }
+    }
+
+    @Test
+    public void shouldParseSignedBlockTypes() {
+        assertEquals(ValType.I32.id(), BlockType.valueTypeId(parseBlockType((byte) 0x7f)));
+        assertEquals(
+                ValType.I32.id(), BlockType.valueTypeId(parseBlockType((byte) 0xff, (byte) 0x7f)));
+        assertEquals(
+                ValType.FuncRef.id(),
+                BlockType.valueTypeId(parseBlockType((byte) 0x63, (byte) 0x70)));
+        assertTrue(BlockType.isEmpty(parseBlockType((byte) 0x40)));
+        assertTrue(BlockType.isEmpty(parseBlockType((byte) 0xc0, (byte) 0x7f)));
+        assertEquals(127L, BlockType.typeIndex(parseBlockType((byte) 0xff, (byte) 0x00)));
+        assertEquals(
+                0xffff_ffffL,
+                BlockType.typeIndex(
+                        parseBlockType(
+                                (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0x0f)));
+        assertFalse(
+                BlockType.empty() == BlockType.forTypeIndex(64),
+                "empty block types and type index 64 must have distinct operands");
+    }
+
+    @Test
+    public void shouldValidateTypeIndicesThatOverlapValueTypes() {
+        var module = Parser.parse(BlockTypeTestModule.create());
+
+        for (var typeIndex = BlockTypeTestModule.FIRST_TYPE_INDEX;
+                typeIndex <= BlockTypeTestModule.LAST_TYPE_INDEX;
+                typeIndex++) {
+            var functionIndex = typeIndex - BlockTypeTestModule.FIRST_TYPE_INDEX;
+            var block = module.codeSection().getFunctionBody(functionIndex).instructions().get(0);
+            assertEquals(OpCode.BLOCK, block.opcode());
+            assertEquals(typeIndex, BlockType.typeIndex(block.operand(0)));
+        }
+    }
+
+    @Test
+    public void shouldRejectInvalidSignedBlockTypes() {
+        assertThrows(MalformedException.class, () -> parseBlockType((byte) 0xbf, (byte) 0x7f));
+        assertThrows(
+                MalformedException.class,
+                () ->
+                        parseBlockType(
+                                (byte) 0x80, (byte) 0x80, (byte) 0x80, (byte) 0x80, (byte) 0x10));
+        assertThrows(
+                MalformedException.class,
+                () ->
+                        parseBlockType(
+                                (byte) 0x80,
+                                (byte) 0x80,
+                                (byte) 0x80,
+                                (byte) 0x80,
+                                (byte) 0x80,
+                                (byte) 0x00));
+    }
+
+    private static long parseBlockType(byte... blockType) {
+        var bodySize = blockType.length + 4;
+        var codeSectionSize = bodySize + 2;
+        var wasm = new byte[8 + 6 + 4 + 2 + codeSectionSize];
+        var offset = 0;
+
+        byte[] prefix = {
+            0x00,
+            0x61,
+            0x73,
+            0x6d,
+            0x01,
+            0x00,
+            0x00,
+            0x00,
+            0x01,
+            0x04,
+            0x01,
+            0x60,
+            0x00,
+            0x00,
+            0x03,
+            0x02,
+            0x01,
+            0x00,
+            0x0a,
+            (byte) codeSectionSize,
+            0x01,
+            (byte) bodySize,
+            0x00,
+            0x02
+        };
+        System.arraycopy(prefix, 0, wasm, offset, prefix.length);
+        offset += prefix.length;
+        System.arraycopy(blockType, 0, wasm, offset, blockType.length);
+        offset += blockType.length;
+        wasm[offset++] = 0x0b;
+        wasm[offset] = 0x0b;
+
+        var codeSection = new CodeSection[1];
+        Parser.builder()
+                .build()
+                .parse(
+                        new ByteArrayInputStream(wasm),
+                        section -> {
+                            if (section.sectionId() == SectionId.CODE) {
+                                codeSection[0] = (CodeSection) section;
+                            }
+                        });
+
+        return codeSection[0].getFunctionBody(0).instructions().get(0).operand(0);
     }
 
     @Test

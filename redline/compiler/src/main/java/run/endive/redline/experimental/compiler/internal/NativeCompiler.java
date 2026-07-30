@@ -16,6 +16,7 @@ import run.endive.redline.experimental.bridge.internal.CraneliftBridge;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.AnnotatedInstruction;
+import run.endive.wasm.types.BlockType;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.OpCode;
@@ -410,14 +411,15 @@ public final class NativeCompiler {
     // --- Block type decoding ---
 
     private FunctionType decodeBlockType(AnnotatedInstruction ins) {
-        long typeId = ins.operands()[0];
-        if (typeId == 0x40) {
+        var blockType = ins.operands()[0];
+        if (BlockType.isEmpty(blockType)) {
             return FunctionType.empty();
         }
-        if (ValType.isValid(typeId)) {
-            return FunctionType.returning(ValType.builder().fromId(typeId).build());
+        if (BlockType.isValueType(blockType)) {
+            return FunctionType.returning(
+                    ValType.builder().fromId(BlockType.valueTypeId(blockType)).build());
         }
-        return (FunctionType) module.typeSection().getType((int) typeId);
+        return (FunctionType) module.typeSection().getType((int) BlockType.typeIndex(blockType));
     }
 
     // --- Control stack helpers ---

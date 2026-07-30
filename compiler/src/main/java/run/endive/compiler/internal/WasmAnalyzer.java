@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.AnnotatedInstruction;
+import run.endive.wasm.types.BlockType;
 import run.endive.wasm.types.CatchOpCode;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FieldType;
@@ -1807,15 +1808,18 @@ final class WasmAnalyzer {
     }
 
     private FunctionType blockType(Instruction ins) {
-        var typeId = ins.operand(0);
-        if (typeId == 0x40) {
+        var blockType = ins.operand(0);
+        if (BlockType.isEmpty(blockType)) {
             return FunctionType.empty();
         }
-        if (ValType.isValid(typeId)) {
+        if (BlockType.isValueType(blockType)) {
             return FunctionType.returning(
-                    ValType.builder().fromId(typeId).build().resolve(module.typeSection()));
+                    ValType.builder()
+                            .fromId(BlockType.valueTypeId(blockType))
+                            .build()
+                            .resolve(module.typeSection()));
         }
-        return module.typeSection().getType((int) typeId);
+        return module.typeSection().getType((int) BlockType.typeIndex(blockType));
     }
 
     private static List<ValType> getGlobalTypes(WasmModule module) {

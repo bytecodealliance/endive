@@ -40,6 +40,7 @@ import run.endive.wasm.types.ActiveDataSegment;
 import run.endive.wasm.types.ActiveElement;
 import run.endive.wasm.types.AnnotatedInstruction;
 import run.endive.wasm.types.ArrayType;
+import run.endive.wasm.types.BlockType;
 import run.endive.wasm.types.CatchOpCode;
 import run.endive.wasm.types.CodeSection;
 import run.endive.wasm.types.CompType;
@@ -1354,14 +1355,7 @@ public final class Parser {
                         break;
                     }
                 case BLOCK_TYPE:
-                    var operand = (int) readVarUInt32(buffer);
-                    if (ValType.ID.isValidOpcode(operand)) {
-                        // is value type
-                        ValType.Builder v = readValueTypeBuilderFromOpCode(buffer, operand);
-                        operands.add(v.id());
-                    } else {
-                        operands.add((long) operand);
-                    }
+                    operands.add(readBlockType(buffer));
                     break;
                 case VEC_VALUE_TYPE:
                     var vcount = (int) readVarUInt32(buffer);
@@ -1403,6 +1397,54 @@ public final class Parser {
         }
         verifyAlignment(op, operandsArray);
         return new Instruction(address, op, operandsArray);
+    }
+
+    private static long readBlockType(ByteBuffer buffer) {
+        var blockType = readSignedBlockType(buffer);
+        if (blockType >= 0) {
+            return BlockType.forTypeIndex(blockType);
+        }
+        if (blockType == -0x40) {
+            return BlockType.empty();
+        }
+        if (blockType < -0x40) {
+            throw new MalformedException("invalid block type");
+        }
+
+        var valueTypeOpCode = Math.toIntExact(blockType + 0x80);
+        if (!ValType.ID.isValidOpcode(valueTypeOpCode)) {
+            throw new MalformedException("invalid block type");
+        }
+        return BlockType.forValueType(readValueTypeBuilderFromOpCode(buffer, valueTypeOpCode).id());
+    }
+
+    private static long readSignedBlockType(ByteBuffer buffer) {
+        long result = 0;
+        int shift = 0;
+
+        // A block type is encoded as s33, which occupies at most five bytes.
+        for (var i = 0; i < 5; i++) {
+            var currentByte = Byte.toUnsignedInt(readByte(buffer));
+            var payload = currentByte & 0x7f;
+
+            // Only five payload bits belong to s33 in the final byte. The remaining
+            // bits must be either all zero or all one according to the sign bit.
+            if (i == 4 && payload > 0x0f && payload < 0x70) {
+                throw new MalformedException("integer too large");
+            }
+
+            result |= (long) payload << shift;
+            shift += 7;
+
+            if ((currentByte & 0x80) == 0) {
+                if ((currentByte & 0x40) != 0) {
+                    result |= -1L << shift;
+                }
+                return result;
+            }
+        }
+
+        throw new MalformedException("integer representation too long");
     }
 
     private static void verifyAlignment(OpCode op, long[] operands) {

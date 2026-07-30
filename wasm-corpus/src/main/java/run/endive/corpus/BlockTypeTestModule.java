@@ -71,7 +71,7 @@ public final class BlockTypeTestModule {
         for (var typeIndex = FIRST_TYPE_INDEX; typeIndex <= LAST_TYPE_INDEX; typeIndex++) {
             var name = exportName(typeIndex).getBytes(StandardCharsets.UTF_8);
             writeUnsignedLeb(section, name.length);
-            section.writeBytes(name);
+            writeAll(section, name);
             section.write(0x00);
             writeUnsignedLeb(section, typeIndex - FIRST_TYPE_INDEX);
         }
@@ -92,7 +92,7 @@ public final class BlockTypeTestModule {
             body.write(0x0b);
 
             writeUnsignedLeb(section, body.size());
-            section.writeBytes(body.toByteArray());
+            writeAll(section, body.toByteArray());
         }
         writeSection(module, 10, section);
     }
@@ -101,7 +101,17 @@ public final class BlockTypeTestModule {
             ByteArrayOutputStream module, int sectionId, ByteArrayOutputStream section) {
         module.write(sectionId);
         writeUnsignedLeb(module, section.size());
-        module.writeBytes(section.toByteArray());
+        writeAll(module, section.toByteArray());
+    }
+
+    /**
+     * Appends every byte of {@code bytes} to {@code output}.
+     *
+     * <p>{@link ByteArrayOutputStream#writeBytes(byte[])} is Java 11 API that is missing from older
+     * Android runtimes, so the three-argument {@code write} is used instead.
+     */
+    private static void writeAll(ByteArrayOutputStream output, byte[] bytes) {
+        output.write(bytes, 0, bytes.length);
     }
 
     private static void writeUnsignedLeb(ByteArrayOutputStream output, long value) {

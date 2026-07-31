@@ -6,6 +6,7 @@ import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 import java.util.Arrays;
 import run.endive.runtime.CallResult;
 import run.endive.runtime.ConstantEvaluators;
+import run.endive.runtime.Fuel;
 import run.endive.runtime.Instance;
 import run.endive.runtime.MemCopyWorkaround;
 import run.endive.runtime.Memory;
@@ -483,6 +484,7 @@ public final class Shaded {
         if (Thread.currentThread().isInterrupted()) {
             throw new WasmInterruptedException("Thread interrupted");
         }
+        Fuel.consume();
     }
 
     public static long readGlobal(int index, Instance instance) {

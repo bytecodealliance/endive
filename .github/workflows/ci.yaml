@@ -47,6 +47,13 @@ jobs:
           distribution: 'temurin'
           java-version: '${{ matrix.version }}'
           cache: maven
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+      - name: Build cranelift_bridge.wasm
+        working-directory: redline/wasm-build
+        run: make all
       - name: Test Java
         run: ./mvnw -B clean install
         env:

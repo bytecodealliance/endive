@@ -43,18 +43,17 @@ public final class RedlineGenerator {
         var module = Parser.parse(config.wasmFile());
         var packagePath = config.getPackageName().replace('.', '/');
         var baseName = config.getBaseName();
-        var resourceDir = config.targetResourceFolder().resolve(packagePath);
+        var resourceDir = config.targetClassFolder().resolve(packagePath);
         Files.createDirectories(resourceDir);
 
         for (String triple : config.redlineTargets()) {
-            byte[][] compiledCode = NativeCompiler.compileAll(triple, module);
-
             var target =
                     RedlineTarget.fromTriple(triple)
                             .orElseThrow(
                                     () ->
                                             new IllegalArgumentException(
                                                     "Unknown target triple: " + triple));
+            byte[][] compiledCode = NativeCompiler.compileAll(triple, module);
             var nativeFile =
                     resourceDir.resolve(baseName + "." + target.resourceSuffix() + ".native");
 
@@ -77,8 +76,8 @@ public final class RedlineGenerator {
         var type = cu.getClassByName(baseName).orElseThrow();
 
         cu.addImport("run.endive.redline.experimental.api.NativeCodeSerializer");
+        cu.addImport("run.endive.redline.experimental.api.NativeMachineFactoryProvider");
         cu.addImport("run.endive.redline.experimental.api.internal.RedlineTarget");
-        cu.addImport("run.endive.redline.experimental.runner.NativeMachineFactory");
         cu.addImport("java.io.InputStream");
         cu.addImport("java.io.IOException");
         cu.addImport("java.io.UncheckedIOException");
@@ -114,7 +113,7 @@ public final class RedlineGenerator {
 
         initBody.addStatement(
                 StaticJavaParser.parseStatement(
-                        "if (host == null || Runtime.version().feature() < 25) {\n"
+                        "if (host == null) {\n"
                                 + "    CODE = null;\n"
                                 + "} else {\n"
                                 + "    String resource = \""
@@ -154,9 +153,10 @@ public final class RedlineGenerator {
         body.addStatement(
                 StaticJavaParser.parseStatement(
                         "if (nativeCode != null) {\n"
-                                + "    return NativeMachineFactory.builder(module)"
-                                + ".withPrecompiledCode(nativeCode)"
-                                + ".toInstanceBuilder();\n"
+                                + "    var provider = NativeMachineFactoryProvider.discover();\n"
+                                + "    if (provider.isPresent()) {\n"
+                                + "        return provider.get().builder(module, nativeCode);\n"
+                                + "    }\n"
                                 + "}"));
         body.addStatement(
                 StaticJavaParser.parseStatement(

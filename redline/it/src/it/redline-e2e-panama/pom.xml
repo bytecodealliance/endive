@@ -3,7 +3,7 @@
 
   <modelVersion>4.0.0</modelVersion>
   <groupId>run.endive</groupId>
-  <artifactId>redline-e2e-it</artifactId>
+  <artifactId>redline-e2e-panama-it</artifactId>
   <version>0.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
@@ -15,7 +15,7 @@
     </dependency>
     <dependency>
       <groupId>run.endive</groupId>
-      <artifactId>redline-runner-jffi-experimental</artifactId>
+      <artifactId>redline-runner-experimental</artifactId>
       <version>@project.version@</version>
     </dependency>
     <dependency>
@@ -45,7 +45,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>@maven-compiler-plugin.version@</version>
         <configuration>
-          <release>11</release>
+          <release>25</release>
         </configuration>
       </plugin>
       <plugin>

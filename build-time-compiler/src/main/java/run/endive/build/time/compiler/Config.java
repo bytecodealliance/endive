@@ -52,11 +52,6 @@ public final class Config {
      */
     private final List<String> redlineTargets;
 
-    /**
-     * the target resource folder for native code files
-     */
-    private final Path targetResourceFolder;
-
     private Config(
             Path wasmFile,
             String name,
@@ -66,8 +61,7 @@ public final class Config {
             InterpreterFallback interpreterFallback,
             Set<Integer> interpretedFunctions,
             String moduleInterface,
-            List<String> redlineTargets,
-            Path targetResourceFolder) {
+            List<String> redlineTargets) {
         this.wasmFile = wasmFile;
         this.name = name;
         this.targetClassFolder = targetClassFolder;
@@ -77,7 +71,6 @@ public final class Config {
         this.interpretedFunctions = interpretedFunctions;
         this.moduleInterface = moduleInterface;
         this.redlineTargets = redlineTargets;
-        this.targetResourceFolder = targetResourceFolder;
     }
 
     public Path wasmFile() {
@@ -116,10 +109,6 @@ public final class Config {
         return redlineTargets;
     }
 
-    public Path targetResourceFolder() {
-        return targetResourceFolder;
-    }
-
     public boolean hasRedlineTargets() {
         return redlineTargets != null && !redlineTargets.isEmpty();
     }
@@ -154,7 +143,6 @@ public final class Config {
         private Set<Integer> interpretedFunctions;
         private String moduleInterface;
         private List<String> redlineTargets = List.of();
-        private Path targetResourceFolder;
 
         private Builder() {}
 
@@ -203,11 +191,6 @@ public final class Config {
             return this;
         }
 
-        public Builder withTargetResourceFolder(Path targetResourceFolder) {
-            this.targetResourceFolder = targetResourceFolder;
-            return this;
-        }
-
         public Config build() {
             return new Config(
                     wasmFile,
@@ -218,8 +201,7 @@ public final class Config {
                     interpreterFallback,
                     interpretedFunctions,
                     moduleInterface,
-                    redlineTargets,
-                    targetResourceFolder);
+                    redlineTargets);
         }
     }
 }

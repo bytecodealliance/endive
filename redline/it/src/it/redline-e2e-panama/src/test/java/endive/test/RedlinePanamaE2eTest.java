@@ -8,31 +8,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import run.endive.redline.experimental.api.NativeMachineFactoryProvider;
 
-class RedlineE2eTest {
+class RedlinePanamaE2eTest {
 
     @Test
-    public void jffiProviderIsSelected() {
+    public void panamaProviderIsSelected() {
         var provider = NativeMachineFactoryProvider.discover();
         assertTrue(provider.isPresent(), "Should discover a native provider");
-        assertEquals(50, provider.get().priority(), "JFFI should be selected with priority 50");
+        assertEquals(100, provider.get().priority(), "Panama should win with priority 100");
     }
 
     @Test
     public void nativeBuilderProducesCorrectResults() {
         try (var instance = AddModule.builder().build()) {
-            var add = instance.export("add");
-            assertArrayEquals(new long[] {3}, add.apply(1, 2));
-            assertArrayEquals(new long[] {0}, add.apply(0, 0));
-            assertEquals(
-                    (int) add.apply(0, -1)[0],
-                    -1,
-                    "i32 add(0, -1) should be -1 when narrowed to int");
-        }
-    }
-
-    @Test
-    public void safeBuilderProducesCorrectResults() {
-        try (var instance = AddModule.safeBuilder().build()) {
             var add = instance.export("add");
             assertArrayEquals(new long[] {3}, add.apply(1, 2));
             assertArrayEquals(new long[] {0}, add.apply(0, 0));

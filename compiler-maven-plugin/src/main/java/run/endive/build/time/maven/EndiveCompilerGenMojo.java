@@ -23,33 +23,59 @@ import run.endive.redline.experimental.build.RedlineGenerator;
 @Mojo(name = "compile", defaultPhase = LifecyclePhase.GENERATE_SOURCES, threadSafe = true)
 public class EndiveCompilerGenMojo extends AbstractMojo {
 
+    /**
+     * the wasm module to be used
+     */
     @Parameter(required = true)
     private File wasmFile;
 
+    /**
+     * the base name to be used for the generated classes
+     */
     @Parameter(required = true)
     private String name;
 
+    /**
+     * the target folder to generate classes
+     */
     @Parameter(
             required = true,
             defaultValue = "${project.build.directory}/generated-resources/endive-compiler")
     private File targetClassFolder;
 
+    /**
+     * the target source folder to generate the Machine implementation
+     */
     @Parameter(
             required = true,
             defaultValue = "${project.build.directory}/generated-sources/endive-compiler")
     private File targetSourceFolder;
 
+    /**
+     * the target wasm folder to generate the stripped meta wasm module
+     */
     @Parameter(
             required = true,
             defaultValue = "${project.build.directory}/generated-resources/endive-compiler")
     private File targetWasmFolder;
 
+    /**
+     * the action to take if the compiler needs to use the interpreter because a function is too big
+     */
     @Parameter(required = true, defaultValue = "FAIL")
     InterpreterFallback interpreterFallback;
 
+    /**
+     * The indexes of functions that should be interpreted, separated by commas
+     */
     @Parameter(required = false, defaultValue = "")
     Set<Integer> interpretedFunctions;
 
+    /**
+     * Fully qualified name of the user's class that will use the compiled module.
+     * When set, the plugin generates _ModuleExports and _ModuleImports wrapper classes,
+     * eliminating the need for @WasmModuleInterface annotation and the annotation processor.
+     */
     @Parameter(required = false)
     String moduleInterface;
 
@@ -67,11 +93,9 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
     @Parameter(required = false)
     List<String> redlineTargets;
 
-    @Parameter(
-            required = true,
-            defaultValue = "${project.build.directory}/generated-resources/endive-compiler")
-    private File targetResourceFolder;
-
+    /**
+     * The current Maven project.
+     */
     @Parameter(property = "project", required = true, readonly = true)
     private MavenProject project;
 
@@ -88,8 +112,7 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
                         .withTargetWasmFolder(targetWasmFolder.toPath())
                         .withInterpreterFallback(interpreterFallback)
                         .withInterpretedFunctions(interpretedFunctions)
-                        .withModuleInterface(moduleInterface)
-                        .withTargetResourceFolder(targetResourceFolder.toPath());
+                        .withModuleInterface(moduleInterface);
         if (redlineTargets != null && !redlineTargets.isEmpty()) {
             configBuilder.withRedlineTargets(redlineTargets);
         } else if (redlineExperimental) {

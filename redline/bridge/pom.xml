@@ -30,10 +30,9 @@
 
   <build>
     <!--
-      Uses exec:java with Generator.main() instead of endive-compiler-maven-plugin
-      to avoid a circular dependency: the plugin depends on redline-compiler which
-      depends on this bridge module. exec:java with build-time-compiler as a plugin
-      dependency breaks the cycle.
+      Uses exec:java with build-time-compiler instead of endive-compiler-maven-plugin
+      to avoid a circular dependency:
+      plugin -> redline-build-time-compiler -> redline-compiler -> this module.
     -->
     <plugins>
       <plugin>

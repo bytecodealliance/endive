@@ -339,7 +339,7 @@ public class Value {
             case ValType.ID.RefNull:
                 return "refnull[" + (int) data + "]";
             default:
-                throw new RuntimeException("Unhandled type: " + type);
+                return data + "@" + type;
         }
     }
 

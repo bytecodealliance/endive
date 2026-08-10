@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
-
 import run.endive.wasm.InvalidException;
 
 /*

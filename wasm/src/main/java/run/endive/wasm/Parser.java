@@ -95,8 +95,6 @@ import run.endive.wasm.types.Value;
 
 /**
  * Parser for Web Assembly binaries.
- *
- * <p>If parsing fails, a {@link RuntimeException} or any subtype of it might be thrown.
  */
 @SuppressWarnings("UnnecessaryCodeBlock")
 public final class Parser {

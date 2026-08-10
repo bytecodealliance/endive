@@ -40,6 +40,7 @@ import run.endive.compiler.internal.Compiler;
 import run.endive.runtime.CompiledModule;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
+import run.endive.wasm.MalformedException;
 import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.WasmWriter;
@@ -156,7 +157,7 @@ public class Generator {
                         writeVarUInt32(out, count);
                         var actual = readVarUInt32(source);
                         if (count != actual) {
-                            throw new RuntimeException("wrong number of function bodies");
+                            throw new MalformedException("wrong number of function bodies");
                         }
                         for (int i = 0; i < count; i++) {
                             var funcId = importFuncs + i;
@@ -180,7 +181,8 @@ public class Generator {
                                 source.position(source.position() + bodySize - 1);
                                 var end_op = source.get();
                                 if (end_op != OpCode.END.opcode()) {
-                                    throw new RuntimeException("unexpected end opcode: " + end_op);
+                                    throw new MalformedException(
+                                            "unexpected end opcode: " + end_op);
                                 }
 
                                 // Write an empty function body

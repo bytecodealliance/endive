@@ -917,12 +917,10 @@ public final class OpcodeImpl {
             impl = java.lang.invoke.VarHandle::fullFence;
         } catch (NoSuchMethodError e) {
             try {
-                // Suppress IntelliJ warning about module-info.java needing `requires
-                // jdk.unsupported` for
-                // `sun.misc.Unsafe`. This code here is only a fallback when `VarHandle::fullFence`
-                // is unavailable,
-                // which is only the case for Java < 9 (and therefore module-info.java is
-                // irrelevant).
+                // Suppress IntelliJ warning about module-info.java needing
+                // `requires jdk.unsupported` for `sun.misc.Unsafe`. This code here is only a
+                // fallback when `VarHandle::fullFence` is unavailable, which is only the case for
+                // Java < 9 (and therefore module-info.java is irrelevant).
                 @SuppressWarnings("Java9ReflectionClassVisibility")
                 Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
                 var theUnsafeField = unsafeClass.getDeclaredField("theUnsafe");

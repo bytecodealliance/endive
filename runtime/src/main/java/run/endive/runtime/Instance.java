@@ -1072,6 +1072,23 @@ public class Instance implements AutoCloseable {
             return exports;
         }
 
+        /**
+         * Builds the instance.
+         *
+         * <p>If building fails, for example due to invalid or unsupported Wasm code, an exception
+         * is thrown. In many cases that exception will be a {@link WasmEngineException} or a
+         * subclass of it, but callers should be prepared to handle any kind of {@code
+         * RuntimeException}.<br>
+         * When such exceptions occur depends on how the code is compiled and executed:
+         *
+         * <ul>
+         *   <li>runtime compilation: many exceptions are thrown already when this {@code build()}
+         *       method is called
+         *   <li>interpreter: many exceptions are only thrown once the Wasm code is executed
+         * </ul>
+         *
+         * @throws RuntimeException if the Wasm code is invalid or contains unsupported instructions
+         */
         public Instance build() {
             Map<String, Export> exports = genExports(module.exportSection());
             var globalInitializers = module.globalSection().globals();

@@ -95,6 +95,10 @@ import run.endive.wasm.types.Value;
 
 /**
  * Parser for Web Assembly binaries.
+ *
+ * <p>If parsing fails, for example due to invalid or unsupported Wasm code, an exception is thrown.
+ * In many cases that exception will be a {@link WasmEngineException} or a subclass of it, but
+ * callers should be prepared to handle any kind of {@code RuntimeException}.
  */
 @SuppressWarnings("UnnecessaryCodeBlock")
 public final class Parser {
@@ -229,18 +233,30 @@ public final class Parser {
         }
     }
 
+    /**
+     * @throws RuntimeException if parsing fails
+     */
     public static WasmModule parse(InputStream input) {
         return new Parser().parse(() -> input);
     }
 
+    /**
+     * @throws RuntimeException if parsing fails
+     */
     public static WasmModule parse(byte[] buffer) {
         return new Parser().parse(() -> new ByteArrayInputStream(buffer));
     }
 
+    /**
+     * @throws RuntimeException if parsing fails
+     */
     public static WasmModule parse(File file) {
         return parse(file.toPath());
     }
 
+    /**
+     * @throws RuntimeException if parsing fails
+     */
     public static WasmModule parse(Path path) {
         return new Parser()
                 .parse(
@@ -254,6 +270,9 @@ public final class Parser {
                         });
     }
 
+    /**
+     * @throws RuntimeException if parsing fails
+     */
     public WasmModule parse(Supplier<InputStream> inputStreamSupplier) {
         WasmModule.Builder moduleBuilder = WasmModule.builder();
         moduleBuilder.withValidation(validate);
@@ -282,6 +301,9 @@ public final class Parser {
         return moduleBuilder.build();
     }
 
+    /**
+     * @throws RuntimeException if parsing fails
+     */
     public void parse(InputStream in, ParserListener listener) {
         parse(in, listener, true);
     }
@@ -445,10 +467,16 @@ public final class Parser {
         }
     }
 
+    /**
+     * @throws RuntimeException if parsing fails
+     */
     public static void parseWithoutDecoding(byte[] bytes, ParserListener listener) {
         new Parser().parseWithoutDecoding(new ByteArrayInputStream(bytes), listener);
     }
 
+    /**
+     * @throws RuntimeException if parsing fails
+     */
     public void parseWithoutDecoding(InputStream in, ParserListener listener) {
         parse(in, listener, false);
     }

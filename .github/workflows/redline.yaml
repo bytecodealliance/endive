@@ -28,13 +28,6 @@ jobs:
           distribution: 'temurin'
           java-version: '25'
           cache: maven
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-wasip1
-      - name: Build cranelift_bridge.wasm
-        working-directory: redline/wasm-build
-        run: make all
       - name: Build and test redline
         run: ./mvnw -B clean install
         env:

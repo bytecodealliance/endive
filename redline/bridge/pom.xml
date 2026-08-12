@@ -30,11 +30,31 @@
 
   <build>
     <!--
-      Uses exec:java with build-time-compiler instead of endive-compiler-maven-plugin
-      to avoid a circular dependency:
-      plugin -> redline-build-time-compiler -> redline-compiler -> this module.
+      1. inlay:fetch downloads cranelift_bridge.wasm from GHCR (skips if local file exists)
+      2. exec:java compiles it to Java source via GeneratorMain (breaks the plugin cycle)
     -->
     <plugins>
+      <plugin>
+        <groupId>io.roastedroot</groupId>
+        <artifactId>inlay-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>fetch-cranelift-bridge</id>
+            <goals>
+              <goal>fetch</goal>
+            </goals>
+            <configuration>
+              <modules>
+                <module>
+                  <imageRef>ghcr.io/bytecodealliance/endive-cranelift-bridge:999.0.0-SNAPSHOT</imageRef>
+                  <outputFile>${project.basedir}/../cranelift_bridge.wasm</outputFile>
+                </module>
+              </modules>
+              <lockFile>${project.basedir}/../wkg.lock</lockFile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>

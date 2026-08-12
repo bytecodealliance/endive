@@ -58,7 +58,7 @@ public class InterpreterMachine implements Machine {
             Instruction instruction,
             Operands operands)
             throws WasmEngineException {
-        throw new RuntimeException("Machine doesn't recognize Instruction " + instruction);
+        throw new WasmEngineException("Machine doesn't recognize Instruction " + instruction);
     }
 
     @Override

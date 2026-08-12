@@ -6,6 +6,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
+import run.endive.wasm.InvalidException;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.Instruction;
 import run.endive.wasm.types.OpCode;
@@ -91,10 +92,10 @@ final class TypeStack {
 
     public void verifyEmpty() {
         if (types.size() != 1) {
-            throw new RuntimeException("Bad types stack: " + types);
+            throw new InvalidException("Bad types stack: " + types);
         }
         if (!types().isEmpty()) {
-            throw new RuntimeException("Types not empty: " + types());
+            throw new InvalidException("Types not empty: " + types());
         }
     }
 }

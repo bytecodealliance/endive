@@ -37,6 +37,7 @@
           <ignoredUnusedDeclaredDependencies combine.children="append">
             <dependency>run.endive:endive-compiler-maven-plugin</dependency>
             <dependency>run.endive:redline-runner-jffi-experimental</dependency>
+            <dependency>run.endive:redline-runner-experimental</dependency>
           </ignoredUnusedDeclaredDependencies>
         </configuration>
       </plugin>
@@ -65,4 +66,19 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>java25</id>
+      <activation>
+        <jdk>[25,)</jdk>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>run.endive</groupId>
+          <artifactId>redline-runner-experimental</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

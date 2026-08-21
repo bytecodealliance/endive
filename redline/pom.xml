@@ -17,7 +17,9 @@
   <modules>
     <module>api</module>
     <module>bridge</module>
+    <module>build-time-compiler</module>
     <module>compiler</module>
+    <module>it</module>
     <module>runner-jffi</module>
     <module>runner-jffi-tests</module>
   </modules>

@@ -29,21 +29,95 @@
   </dependencies>
 
   <build>
+    <!--
+      1. inlay:fetch downloads cranelift_bridge.wasm from GHCR (skips if local file exists)
+      2. exec:java compiles it to Java source via GeneratorMain (breaks the plugin cycle)
+    -->
     <plugins>
       <plugin>
-        <groupId>run.endive</groupId>
-        <artifactId>endive-compiler-maven-plugin</artifactId>
+        <groupId>io.roastedroot</groupId>
+        <artifactId>inlay-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>redline-bridge</id>
+            <id>fetch-cranelift-bridge</id>
             <goals>
-              <goal>compile</goal>
+              <goal>fetch</goal>
             </goals>
             <configuration>
-              <name>run.endive.redline.experimental.bridge.internal.Cranelift</name>
-              <wasmFile>${project.basedir}/../cranelift_bridge.wasm</wasmFile>
-              <interpreterFallback>WARN</interpreterFallback>
-              <moduleInterface>run.endive.redline.experimental.bridge.internal.CraneliftBridge</moduleInterface>
+              <modules>
+                <module>
+                  <imageRef>ghcr.io/bytecodealliance/endive-cranelift-bridge:999.0.0-SNAPSHOT</imageRef>
+                  <outputFile>${project.basedir}/../cranelift_bridge.wasm</outputFile>
+                </module>
+              </modules>
+              <lockFile>${project.basedir}/../wkg.lock</lockFile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>${build-helper-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>add-generated-sources</id>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <sources>
+                <source>${project.build.directory}/generated-sources/endive-compiler</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-generated-resources</id>
+            <goals>
+              <goal>add-resource</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${project.build.directory}/generated-resources/endive-compiler</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>run.endive</groupId>
+            <artifactId>build-time-compiler</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>redline-bridge-compile</id>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <mainClass>run.endive.build.time.compiler.GeneratorMain</mainClass>
+              <arguments>
+                <argument>${project.basedir}/../cranelift_bridge.wasm</argument>
+                <argument>run.endive.redline.experimental.bridge.internal.Cranelift</argument>
+                <argument>${project.build.directory}/generated-resources/endive-compiler</argument>
+                <argument>${project.build.directory}/generated-sources/endive-compiler</argument>
+                <argument>${project.build.directory}/generated-resources/endive-compiler</argument>
+                <argument>WARN</argument>
+                <argument>run.endive.redline.experimental.bridge.internal.CraneliftBridge</argument>
+              </arguments>
+              <includePluginDependencies>true</includePluginDependencies>
+              <includeProjectDependencies>false</includeProjectDependencies>
             </configuration>
           </execution>
         </executions>

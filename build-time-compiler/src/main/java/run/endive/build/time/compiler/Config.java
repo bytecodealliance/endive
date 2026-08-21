@@ -1,6 +1,7 @@
 package run.endive.build.time.compiler;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
 import run.endive.compiler.InterpreterFallback;
@@ -46,6 +47,11 @@ public final class Config {
      */
     private final String moduleInterface;
 
+    /**
+     * target triples for redline native compilation (empty = no native compilation)
+     */
+    private final List<String> redlineTargets;
+
     private Config(
             Path wasmFile,
             String name,
@@ -54,7 +60,8 @@ public final class Config {
             Path targetWasmFolder,
             InterpreterFallback interpreterFallback,
             Set<Integer> interpretedFunctions,
-            String moduleInterface) {
+            String moduleInterface,
+            List<String> redlineTargets) {
         this.wasmFile = wasmFile;
         this.name = name;
         this.targetClassFolder = targetClassFolder;
@@ -63,6 +70,7 @@ public final class Config {
         this.interpreterFallback = interpreterFallback;
         this.interpretedFunctions = interpretedFunctions;
         this.moduleInterface = moduleInterface;
+        this.redlineTargets = redlineTargets;
     }
 
     public Path wasmFile() {
@@ -97,6 +105,14 @@ public final class Config {
         return moduleInterface;
     }
 
+    public List<String> redlineTargets() {
+        return redlineTargets;
+    }
+
+    public boolean hasRedlineTargets() {
+        return redlineTargets != null && !redlineTargets.isEmpty();
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -126,6 +142,7 @@ public final class Config {
         private InterpreterFallback interpreterFallback = InterpreterFallback.FAIL;
         private Set<Integer> interpretedFunctions;
         private String moduleInterface;
+        private List<String> redlineTargets = List.of();
 
         private Builder() {}
 
@@ -169,6 +186,11 @@ public final class Config {
             return this;
         }
 
+        public Builder withRedlineTargets(List<String> redlineTargets) {
+            this.redlineTargets = redlineTargets;
+            return this;
+        }
+
         public Config build() {
             return new Config(
                     wasmFile,
@@ -178,7 +200,8 @@ public final class Config {
                     targetWasmFolder,
                     interpreterFallback,
                     interpretedFunctions,
-                    moduleInterface);
+                    moduleInterface,
+                    redlineTargets);
         }
     }
 }

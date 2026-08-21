@@ -27,6 +27,15 @@ public enum RedlineTarget {
         return resourceSuffix;
     }
 
+    public static Optional<RedlineTarget> fromTriple(String triple) {
+        for (RedlineTarget target : values()) {
+            if (target.triple.equals(triple)) {
+                return Optional.of(target);
+            }
+        }
+        return Optional.empty();
+    }
+
     public static Optional<RedlineTarget> detectHost() {
         String osName =
                 System.getProperty("endive.redline.os.name", System.getProperty("os.name", ""))

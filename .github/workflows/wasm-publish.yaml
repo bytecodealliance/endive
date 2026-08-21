@@ -1,0 +1,38 @@
+name: Publish cranelift_bridge.wasm
+
+on:
+  push:
+    branches: [main]
+    paths: ['redline/wasm-build/**']
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v7
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+
+      - name: Build cranelift_bridge.wasm
+        working-directory: redline/wasm-build
+        run: make all
+
+      - name: Install ORAS
+        uses: oras-project/setup-oras@v1
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push to GHCR
+        run: |
+          oras push ghcr.io/bytecodealliance/endive-cranelift-bridge:latest \
+            redline/cranelift_bridge.wasm:application/wasm

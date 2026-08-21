@@ -1369,8 +1369,6 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
         int result = Byte.toUnsignedInt(a) + Byte.toUnsignedInt(b);
         if (result >= 0xFF) {
             return (byte) 0xFF;
-        } else if (result < 0) {
-            return 0;
         } else {
             return (byte) result;
         }
@@ -1736,53 +1734,23 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
     }
 
     private static boolean lt(float a, float b) {
-        if (Float.isNaN(b)) {
-            return false;
-        } else if ((a == 0.0f && b == -0.0f) || (a == -0.0f && b == 0.0f)) {
-            return false;
-        } else {
-            return Float.compare(a, b) < 0;
-        }
+        return a < b;
     }
 
     private static boolean le(float a, float b) {
-        if (Float.isNaN(b)) {
-            return false;
-        } else if ((a == 0.0f && b == -0.0f) || (a == -0.0f && b == 0.0f)) {
-            return true;
-        } else {
-            return Float.compare(a, b) <= 0;
-        }
+        return a <= b;
     }
 
     private static boolean gt(float a, float b) {
-        if (Float.isNaN(a)) {
-            return false;
-        } else if ((a == 0.0f && b == -0.0f) || (a == -0.0f && b == 0.0f)) {
-            return false;
-        } else {
-            return Float.compare(a, b) > 0;
-        }
+        return a > b;
     }
 
     private static boolean ge(float a, float b) {
-        if (Float.isNaN(a)) {
-            return false;
-        } else if ((a == 0.0f && b == -0.0f) || (a == -0.0f && b == 0.0f)) {
-            return true;
-        } else {
-            return Float.compare(a, b) >= 0;
-        }
+        return a >= b;
     }
 
     private static boolean equals(float a, float b) {
-        if (Float.isNaN(a) || Float.isNaN(b)) {
-            return false;
-        } else if ((a == 0.0f && b == -0.0f) || (a == -0.0f && b == 0.0f)) {
-            return true;
-        } else {
-            return Float.compare(a, b) == 0;
-        }
+        return a == b;
     }
 
     private static void F32x4(MStack stack, BiFunction<Float, Float, Long> fn) {
@@ -1925,7 +1893,7 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
         var result = 0L;
         for (int i = 0; i < vals.length; i++) {
             if (vals[i] < 0) {
-                result |= 1 << i;
+                result |= 1L << i;
             }
         }
 
@@ -2564,7 +2532,7 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
 
         var res =
                 new long[] {
-                    v1[0] * v2[0], v1[1] * v2[1],
+                    ((long) v1[0]) * v2[0], ((long) v1[1]) * v2[1],
                 };
         var result = Value.i64ToVec(res);
         System.arraycopy(result, 0, stack.array(), offset, 2);
@@ -2587,7 +2555,7 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
 
         var res =
                 new long[] {
-                    v1[2] * v2[2], v1[3] * v2[3],
+                    ((long) v1[2]) * v2[2], ((long) v1[3]) * v2[3],
                 };
         var result = Value.i64ToVec(res);
         System.arraycopy(result, 0, stack.array(), offset, 2);
@@ -3007,7 +2975,7 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
             if (id < 8) {
                 base = (baseLow >> (id * 8)) & 0xFFL;
             } else if (id < 16) {
-                base = (baseHigh >> (id * 8)) & 0xFFL;
+                base = (baseHigh >> ((id - 8) * 8)) & 0xFFL;
             } else {
                 base = 0x00L;
             }

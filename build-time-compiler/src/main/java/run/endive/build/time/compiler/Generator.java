@@ -141,7 +141,7 @@ public class Generator {
 
     public void generateMetaWasm(Set<Integer> interpretedFunctions) throws IOException {
         byte[] wasmBytes = Files.readAllBytes(config.wasmFile());
-        var module = Parser.builder().includeSectionId(SectionId.CODE).build().parse(wasmBytes);
+        var module = Parser.parse(wasmBytes);
 
         var writer = new WasmWriter();
         Parser.parseWithoutDecoding(

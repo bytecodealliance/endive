@@ -467,6 +467,10 @@ public final class Shaded {
         throw new WasmEngineException("call stack exhausted", e);
     }
 
+    public static RuntimeException throwOutOfMemory(OutOfMemoryError e) {
+        throw new WasmEngineException("out of memory", e);
+    }
+
     public static RuntimeException throwIndirectCallTypeMismatch() {
         return new WasmEngineException("indirect call type mismatch");
     }
@@ -951,22 +955,38 @@ public final class Shaded {
 
     public static Object structNew(
             long[] fields, Object[] fieldRefs, int typeIdx, Instance instance) {
-        return WasmStruct.builder().typeIdx(typeIdx).fields(fields).fieldRefs(fieldRefs).build();
+        try {
+            return WasmStruct.builder()
+                    .typeIdx(typeIdx)
+                    .fields(fields)
+                    .fieldRefs(fieldRefs)
+                    .build();
+        } catch (OutOfMemoryError e) {
+            throw throwOutOfMemory(e);
+        }
     }
 
     public static Object structNewDefault(int typeIdx, Instance instance) {
-        var st = instance.module().typeSection().getSubType(typeIdx).compType().structType();
-        var fields = new long[st.fieldTypes().length];
-        var fieldRefs = new Object[st.fieldTypes().length];
-        for (int i = 0; i < st.fieldTypes().length; i++) {
-            var ft = st.fieldTypes()[i];
-            if (ft.storageType().valType() != null
-                    && ft.storageType().valType().isReference()
-                    && !ft.storageType().isObjectRef()) {
-                fields[i] = REF_NULL_VALUE;
+        try {
+            var st = instance.module().typeSection().getSubType(typeIdx).compType().structType();
+            var fields = new long[st.fieldTypes().length];
+            var fieldRefs = new Object[st.fieldTypes().length];
+            for (int i = 0; i < st.fieldTypes().length; i++) {
+                var ft = st.fieldTypes()[i];
+                if (ft.storageType().valType() != null
+                        && ft.storageType().valType().isReference()
+                        && !ft.storageType().isObjectRef()) {
+                    fields[i] = REF_NULL_VALUE;
+                }
             }
+            return WasmStruct.builder()
+                    .typeIdx(typeIdx)
+                    .fields(fields)
+                    .fieldRefs(fieldRefs)
+                    .build();
+        } catch (OutOfMemoryError e) {
+            throw throwOutOfMemory(e);
         }
-        return WasmStruct.builder().typeIdx(typeIdx).fields(fields).fieldRefs(fieldRefs).build();
     }
 
     public static long structGet(Object ref, int typeIdx, int fieldIdx, Instance instance) {
@@ -1037,82 +1057,118 @@ public final class Shaded {
     }
 
     public static Object arrayNew(long initVal, int len, int typeIdx, Instance instance) {
-        var elems = new long[len];
-        Arrays.fill(elems, initVal);
-        return WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
+        try {
+            var elems = new long[len];
+            Arrays.fill(elems, initVal);
+            return WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
+        } catch (OutOfMemoryError e) {
+            throw throwOutOfMemory(e);
+        }
     }
 
     public static Object arrayNewRef(Object initVal, int len, int typeIdx, Instance instance) {
-        var elems = new long[len];
-        var elemRefs = new Object[len];
-        Arrays.fill(elemRefs, initVal);
-        return WasmArray.builder().typeIdx(typeIdx).elements(elems).elementRefs(elemRefs).build();
-    }
-
-    public static Object arrayNewDefault(int len, int typeIdx, Instance instance) {
-        var elems = new long[len];
-        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
-        var ft = at.fieldType();
-        if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
+        try {
+            var elems = new long[len];
+            var elemRefs = new Object[len];
+            Arrays.fill(elemRefs, initVal);
             return WasmArray.builder()
                     .typeIdx(typeIdx)
                     .elements(elems)
-                    .elementRefs(new Object[len])
+                    .elementRefs(elemRefs)
                     .build();
+        } catch (OutOfMemoryError e) {
+            throw throwOutOfMemory(e);
         }
-        if (ft.storageType().valType() != null
-                && ft.storageType().valType().isReference()
-                && !ft.storageType().isObjectRef()) {
-            Arrays.fill(elems, REF_NULL_VALUE);
+    }
+
+    public static Object arrayNewDefault(int len, int typeIdx, Instance instance) {
+        try {
+            var elems = new long[len];
+            var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+            var ft = at.fieldType();
+            if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
+                return WasmArray.builder()
+                        .typeIdx(typeIdx)
+                        .elements(elems)
+                        .elementRefs(new Object[len])
+                        .build();
+            }
+            if (ft.storageType().valType() != null
+                    && ft.storageType().valType().isReference()
+                    && !ft.storageType().isObjectRef()) {
+                Arrays.fill(elems, REF_NULL_VALUE);
+            }
+            return WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
+        } catch (OutOfMemoryError e) {
+            throw throwOutOfMemory(e);
         }
-        return WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
     }
 
     public static Object arrayNewFixed(long[] vals, int typeIdx, Instance instance) {
-        return WasmArray.builder().typeIdx(typeIdx).elements(vals).build();
+        try {
+            return WasmArray.builder().typeIdx(typeIdx).elements(vals).build();
+        } catch (OutOfMemoryError e) {
+            throw throwOutOfMemory(e);
+        }
     }
 
     public static Object arrayNewFixedRefs(Object[] vals, int typeIdx, Instance instance) {
-        var elems = new long[vals.length];
-        return WasmArray.builder().typeIdx(typeIdx).elements(elems).elementRefs(vals).build();
+        try {
+            var elems = new long[vals.length];
+            return WasmArray.builder().typeIdx(typeIdx).elements(elems).elementRefs(vals).build();
+        } catch (OutOfMemoryError e) {
+            throw throwOutOfMemory(e);
+        }
     }
 
     public static Object arrayNewData(
             int offset, int len, int typeIdx, int dataIdx, Instance instance) {
-        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
-        var elemSize = at.fieldType().storageType().byteSize();
-        var data = instance.dataSegmentData(dataIdx);
-        if ((long) offset + (long) len * elemSize > data.length) {
-            throw new TrapException("out of bounds memory access");
+        try {
+            var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+            var elemSize = at.fieldType().storageType().byteSize();
+            var data = instance.dataSegmentData(dataIdx);
+            if ((long) offset + (long) len * elemSize > data.length) {
+                throw new TrapException("out of bounds memory access");
+            }
+            var elems = new long[len];
+            for (int i = 0; i < len; i++) {
+                var byteOff = offset + i * elemSize;
+                elems[i] = readFromData(data, byteOff, elemSize);
+            }
+            return WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
+        } catch (OutOfMemoryError e) {
+            throw throwOutOfMemory(e);
         }
-        var elems = new long[len];
-        for (int i = 0; i < len; i++) {
-            var byteOff = offset + i * elemSize;
-            elems[i] = readFromData(data, byteOff, elemSize);
-        }
-        return WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
     }
 
     public static Object arrayNewElem(
             int offset, int len, int typeIdx, int elemIdx, Instance instance) {
-        var element = instance.element(elemIdx);
-        if (element == null || offset + len > element.elementCount()) {
-            throw new TrapException("out of bounds table access");
-        }
-        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
-        boolean isRef = at.fieldType().storageType().isObjectRef();
-        var elems = new long[len];
-        var elemRefs = new Object[len];
-        for (int i = 0; i < len; i++) {
-            var init = element.initializers().get(offset + i);
-            var result = ConstantEvaluators.computeConstant(instance, init);
-            if (isRef) {
-                elemRefs[i] = result.ref();
-            } else {
-                elems[i] = result.longValue();
+        try {
+            var element = instance.element(elemIdx);
+            if (element == null || offset + len > element.elementCount()) {
+                throw new TrapException("out of bounds table access");
             }
+            var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+            boolean isRef = at.fieldType().storageType().isObjectRef();
+            var elems = new long[len];
+            var elemRefs = new Object[len];
+            for (int i = 0; i < len; i++) {
+                var init = element.initializers().get(offset + i);
+                var result = ConstantEvaluators.computeConstant(instance, init);
+                if (isRef) {
+                    elemRefs[i] = result.ref();
+                } else {
+                    elems[i] = result.longValue();
+                }
+            }
+            return WasmArray.builder()
+                    .typeIdx(typeIdx)
+                    .elements(elems)
+                    .elementRefs(elemRefs)
+                    .build();
+        } catch (OutOfMemoryError e) {
+            throw throwOutOfMemory(e);
         }
-        return WasmArray.builder().typeIdx(typeIdx).elements(elems).elementRefs(elemRefs).build();
     }
 
     public static long arrayGet(Object ref, int idx, int typeIdx, Instance instance) {

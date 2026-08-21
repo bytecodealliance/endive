@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.MalformedException;
+import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.Instruction;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
@@ -149,146 +150,166 @@ public final class ConstantEvaluators {
                     }
                 case STRUCT_NEW:
                     {
-                        var typeIdx = (int) instruction.operand(0);
-                        var structType =
-                                instance.module()
-                                        .typeSection()
-                                        .getSubType(typeIdx)
-                                        .compType()
-                                        .structType();
-                        var fieldCount = structType.fieldTypes().length;
-                        var fields = new long[fieldCount];
-                        var fieldRefs = new Object[fieldCount];
-                        for (int i = fieldCount - 1; i >= 0; i--) {
-                            var entry = stack.pop();
-                            var ft = structType.fieldTypes()[i];
-                            if (ft.storageType().isObjectRef()) {
-                                fieldRefs[i] = entry.ref();
-                            } else {
-                                fields[i] = entry.longValue();
+                        try {
+                            var typeIdx = (int) instruction.operand(0);
+                            var structType =
+                                    instance.module()
+                                            .typeSection()
+                                            .getSubType(typeIdx)
+                                            .compType()
+                                            .structType();
+                            var fieldCount = structType.fieldTypes().length;
+                            var fields = new long[fieldCount];
+                            var fieldRefs = new Object[fieldCount];
+                            for (int i = fieldCount - 1; i >= 0; i--) {
+                                var entry = stack.pop();
+                                var ft = structType.fieldTypes()[i];
+                                if (ft.storageType().isObjectRef()) {
+                                    fieldRefs[i] = entry.ref();
+                                } else {
+                                    fields[i] = entry.longValue();
+                                }
                             }
+                            var struct =
+                                    WasmStruct.builder()
+                                            .typeIdx(typeIdx)
+                                            .fields(fields)
+                                            .fieldRefs(fieldRefs)
+                                            .build();
+                            stack.push(new ConstantResult(new long[] {0}, struct));
+                        } catch (OutOfMemoryError e) {
+                            throw new WasmEngineException("out of memory", e);
                         }
-                        var struct =
-                                WasmStruct.builder()
-                                        .typeIdx(typeIdx)
-                                        .fields(fields)
-                                        .fieldRefs(fieldRefs)
-                                        .build();
-                        stack.push(new ConstantResult(new long[] {0}, struct));
                         break;
                     }
                 case STRUCT_NEW_DEFAULT:
                     {
-                        var typeIdx = (int) instruction.operand(0);
-                        var structType =
-                                instance.module()
-                                        .typeSection()
-                                        .getSubType(typeIdx)
-                                        .compType()
-                                        .structType();
-                        var fieldCount = structType.fieldTypes().length;
-                        var fields = new long[fieldCount];
-                        var fieldRefs = new Object[fieldCount];
-                        // Non-GC reference fields default to REF_NULL_VALUE
-                        for (int i = 0; i < fieldCount; i++) {
-                            var ft = structType.fieldTypes()[i];
-                            if (ft.storageType().valType() != null
-                                    && ft.storageType().valType().isReference()
-                                    && !ft.storageType().isObjectRef()) {
-                                fields[i] = Value.REF_NULL_VALUE;
+                        try {
+                            var typeIdx = (int) instruction.operand(0);
+                            var structType =
+                                    instance.module()
+                                            .typeSection()
+                                            .getSubType(typeIdx)
+                                            .compType()
+                                            .structType();
+                            var fieldCount = structType.fieldTypes().length;
+                            var fields = new long[fieldCount];
+                            var fieldRefs = new Object[fieldCount];
+                            // Non-GC reference fields default to REF_NULL_VALUE
+                            for (int i = 0; i < fieldCount; i++) {
+                                var ft = structType.fieldTypes()[i];
+                                if (ft.storageType().valType() != null
+                                        && ft.storageType().valType().isReference()
+                                        && !ft.storageType().isObjectRef()) {
+                                    fields[i] = Value.REF_NULL_VALUE;
+                                }
                             }
+                            var struct =
+                                    WasmStruct.builder()
+                                            .typeIdx(typeIdx)
+                                            .fields(fields)
+                                            .fieldRefs(fieldRefs)
+                                            .build();
+                            stack.push(new ConstantResult(new long[] {0}, struct));
+                        } catch (OutOfMemoryError e) {
+                            throw new WasmEngineException("out of memory", e);
                         }
-                        var struct =
-                                WasmStruct.builder()
-                                        .typeIdx(typeIdx)
-                                        .fields(fields)
-                                        .fieldRefs(fieldRefs)
-                                        .build();
-                        stack.push(new ConstantResult(new long[] {0}, struct));
                         break;
                     }
                 case ARRAY_NEW:
                     {
-                        var typeIdx = (int) instruction.operand(0);
-                        var len = (int) stack.pop().longValue();
-                        var fillEntry = stack.pop();
-                        var at =
-                                instance.module()
-                                        .typeSection()
-                                        .getSubType(typeIdx)
-                                        .compType()
-                                        .arrayType();
-                        var elements = new long[len];
-                        var elementRefs = new Object[len];
-                        if (at.fieldType().storageType().isObjectRef()) {
-                            Arrays.fill(elementRefs, fillEntry.ref());
-                        } else {
-                            Arrays.fill(elements, fillEntry.longValue());
+                        try {
+                            var typeIdx = (int) instruction.operand(0);
+                            var len = (int) stack.pop().longValue();
+                            var fillEntry = stack.pop();
+                            var at =
+                                    instance.module()
+                                            .typeSection()
+                                            .getSubType(typeIdx)
+                                            .compType()
+                                            .arrayType();
+                            var elements = new long[len];
+                            var elementRefs = new Object[len];
+                            if (at.fieldType().storageType().isObjectRef()) {
+                                Arrays.fill(elementRefs, fillEntry.ref());
+                            } else {
+                                Arrays.fill(elements, fillEntry.longValue());
+                            }
+                            var array =
+                                    WasmArray.builder()
+                                            .typeIdx(typeIdx)
+                                            .elements(elements)
+                                            .elementRefs(elementRefs)
+                                            .build();
+                            stack.push(new ConstantResult(new long[] {0}, array));
+                        } catch (OutOfMemoryError e) {
+                            throw new WasmEngineException("out of memory", e);
                         }
-                        var array =
-                                WasmArray.builder()
-                                        .typeIdx(typeIdx)
-                                        .elements(elements)
-                                        .elementRefs(elementRefs)
-                                        .build();
-                        stack.push(new ConstantResult(new long[] {0}, array));
                         break;
                     }
                 case ARRAY_NEW_DEFAULT:
                     {
-                        var typeIdx = (int) instruction.operand(0);
-                        var len = (int) stack.pop().longValue();
-                        var elements = new long[len];
-                        var elementRefs = new Object[len];
-                        var at =
-                                instance.module()
-                                        .typeSection()
-                                        .getSubType(typeIdx)
-                                        .compType()
-                                        .arrayType();
-                        var ft = at.fieldType();
-                        if (ft.storageType().valType() != null
-                                && ft.storageType().valType().isReference()
-                                && !ft.storageType().isObjectRef()) {
-                            Arrays.fill(elements, Value.REF_NULL_VALUE);
+                        try {
+                            var typeIdx = (int) instruction.operand(0);
+                            var len = (int) stack.pop().longValue();
+                            var elements = new long[len];
+                            var elementRefs = new Object[len];
+                            var at =
+                                    instance.module()
+                                            .typeSection()
+                                            .getSubType(typeIdx)
+                                            .compType()
+                                            .arrayType();
+                            var ft = at.fieldType();
+                            if (ft.storageType().valType() != null
+                                    && ft.storageType().valType().isReference()
+                                    && !ft.storageType().isObjectRef()) {
+                                Arrays.fill(elements, Value.REF_NULL_VALUE);
+                            }
+                            var array =
+                                    WasmArray.builder()
+                                            .typeIdx(typeIdx)
+                                            .elements(elements)
+                                            .elementRefs(elementRefs)
+                                            .build();
+                            stack.push(new ConstantResult(new long[] {0}, array));
+                        } catch (OutOfMemoryError e) {
+                            throw new WasmEngineException("out of memory", e);
                         }
-                        var array =
-                                WasmArray.builder()
-                                        .typeIdx(typeIdx)
-                                        .elements(elements)
-                                        .elementRefs(elementRefs)
-                                        .build();
-                        stack.push(new ConstantResult(new long[] {0}, array));
                         break;
                     }
                 case ARRAY_NEW_FIXED:
                     {
-                        var typeIdx = (int) instruction.operand(0);
-                        var len = (int) instruction.operand(1);
-                        var at =
-                                instance.module()
-                                        .typeSection()
-                                        .getSubType(typeIdx)
-                                        .compType()
-                                        .arrayType();
-                        var elements = new long[len];
-                        var elementRefs = new Object[len];
-                        boolean isGcRef = at.fieldType().storageType().isObjectRef();
-                        for (int i = len - 1; i >= 0; i--) {
-                            var entry = stack.pop();
-                            if (isGcRef) {
-                                elementRefs[i] = entry.ref();
-                            } else {
-                                elements[i] = entry.longValue();
+                        try {
+                            var typeIdx = (int) instruction.operand(0);
+                            var len = (int) instruction.operand(1);
+                            var at =
+                                    instance.module()
+                                            .typeSection()
+                                            .getSubType(typeIdx)
+                                            .compType()
+                                            .arrayType();
+                            var elements = new long[len];
+                            var elementRefs = new Object[len];
+                            boolean isGcRef = at.fieldType().storageType().isObjectRef();
+                            for (int i = len - 1; i >= 0; i--) {
+                                var entry = stack.pop();
+                                if (isGcRef) {
+                                    elementRefs[i] = entry.ref();
+                                } else {
+                                    elements[i] = entry.longValue();
+                                }
                             }
+                            var array =
+                                    WasmArray.builder()
+                                            .typeIdx(typeIdx)
+                                            .elements(elements)
+                                            .elementRefs(elementRefs)
+                                            .build();
+                            stack.push(new ConstantResult(new long[] {0}, array));
+                        } catch (OutOfMemoryError e) {
+                            throw new WasmEngineException("out of memory", e);
                         }
-                        var array =
-                                WasmArray.builder()
-                                        .typeIdx(typeIdx)
-                                        .elements(elements)
-                                        .elementRefs(elementRefs)
-                                        .build();
-                        stack.push(new ConstantResult(new long[] {0}, array));
                         break;
                     }
                 case ANY_CONVERT_EXTERN:

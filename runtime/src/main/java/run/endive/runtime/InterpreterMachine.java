@@ -3463,48 +3463,60 @@ public class InterpreterMachine implements Machine {
     }
 
     private static void STRUCT_NEW(MStack stack, Instance instance, Operands operands) {
-        var typeIdx = (int) operands.get(0);
-        var st = instance.module().typeSection().getSubType(typeIdx).compType().structType();
-        var fields = new long[st.fieldTypes().length];
-        var fieldRefs = new Object[st.fieldTypes().length];
-        // Pop fields in reverse order (last field on top)
-        for (int i = fields.length - 1; i >= 0; i--) {
-            var ft = st.fieldTypes()[i];
-            if (ft.storageType().isObjectRef()) {
-                fieldRefs[i] = stack.popRef();
-            } else {
-                fields[i] = stack.pop();
+        try {
+            var typeIdx = (int) operands.get(0);
+            var st = instance.module().typeSection().getSubType(typeIdx).compType().structType();
+            var fields = new long[st.fieldTypes().length];
+            var fieldRefs = new Object[st.fieldTypes().length];
+            // Pop fields in reverse order (last field on top)
+            for (int i = fields.length - 1; i >= 0; i--) {
+                var ft = st.fieldTypes()[i];
+                if (ft.storageType().isObjectRef()) {
+                    fieldRefs[i] = stack.popRef();
+                } else {
+                    fields[i] = stack.pop();
+                }
             }
+            var struct =
+                    WasmStruct.builder()
+                            .typeIdx(typeIdx)
+                            .fields(fields)
+                            .fieldRefs(fieldRefs)
+                            .build();
+            stack.pushRef(struct);
+        } catch (OutOfMemoryError e) {
+            throw new WasmEngineException("out of memory", e);
         }
-        var struct =
-                WasmStruct.builder().typeIdx(typeIdx).fields(fields).fieldRefs(fieldRefs).build();
-        stack.pushRef(struct);
     }
 
     private static void STRUCT_NEW_DEFAULT(MStack stack, Instance instance, Operands operands) {
-        var typeIdx = (int) operands.get(0);
-        var st = instance.module().typeSection().getSubType(typeIdx).compType().structType();
-        var fields = new long[st.fieldTypes().length];
-        boolean hasObjRefFields = false;
-        for (int i = 0; i < fields.length; i++) {
-            var ft = st.fieldTypes()[i];
-            if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
-                hasObjRefFields = true;
-            } else if (ft.storageType().valType() != null
-                    && ft.storageType().valType().isReference()
-                    && !ft.storageType().isObjectRef()) {
-                fields[i] = REF_NULL_VALUE;
+        try {
+            var typeIdx = (int) operands.get(0);
+            var st = instance.module().typeSection().getSubType(typeIdx).compType().structType();
+            var fields = new long[st.fieldTypes().length];
+            boolean hasObjRefFields = false;
+            for (int i = 0; i < fields.length; i++) {
+                var ft = st.fieldTypes()[i];
+                if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
+                    hasObjRefFields = true;
+                } else if (ft.storageType().valType() != null
+                        && ft.storageType().valType().isReference()
+                        && !ft.storageType().isObjectRef()) {
+                    fields[i] = REF_NULL_VALUE;
+                }
             }
+            var struct =
+                    hasObjRefFields
+                            ? WasmStruct.builder()
+                                    .typeIdx(typeIdx)
+                                    .fields(fields)
+                                    .fieldRefs(new Object[fields.length])
+                                    .build()
+                            : WasmStruct.builder().typeIdx(typeIdx).fields(fields).build();
+            stack.pushRef(struct);
+        } catch (OutOfMemoryError e) {
+            throw new WasmEngineException("out of memory", e);
         }
-        var struct =
-                hasObjRefFields
-                        ? WasmStruct.builder()
-                                .typeIdx(typeIdx)
-                                .fields(fields)
-                                .fieldRefs(new Object[fields.length])
-                                .build()
-                        : WasmStruct.builder().typeIdx(typeIdx).fields(fields).build();
-        stack.pushRef(struct);
     }
 
     private static void STRUCT_GET(
@@ -3562,71 +3574,146 @@ public class InterpreterMachine implements Machine {
     }
 
     private static void ARRAY_NEW(MStack stack, Instance instance, Operands operands) {
-        var typeIdx = (int) operands.get(0);
-        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
-        boolean isRef =
-                at.fieldType().storageType().valType() != null
-                        && at.fieldType().storageType().isObjectRef();
-        var len = (int) stack.pop();
-        if (isRef) {
-            var initRef = stack.popRef();
-            var elems = new long[len];
-            var elemRefs = new Object[len];
-            java.util.Arrays.fill(elemRefs, initRef);
-            var arr =
-                    WasmArray.builder()
-                            .typeIdx(typeIdx)
-                            .elements(elems)
-                            .elementRefs(elemRefs)
-                            .build();
-            stack.pushRef(arr);
-        } else {
-            var initVal = stack.pop();
-            var elems = new long[len];
-            java.util.Arrays.fill(elems, initVal);
-            var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
-            stack.pushRef(arr);
+        try {
+            var typeIdx = (int) operands.get(0);
+            var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+            boolean isRef =
+                    at.fieldType().storageType().valType() != null
+                            && at.fieldType().storageType().isObjectRef();
+            var len = (int) stack.pop();
+            if (isRef) {
+                var initRef = stack.popRef();
+                var elems = new long[len];
+                var elemRefs = new Object[len];
+                java.util.Arrays.fill(elemRefs, initRef);
+                var arr =
+                        WasmArray.builder()
+                                .typeIdx(typeIdx)
+                                .elements(elems)
+                                .elementRefs(elemRefs)
+                                .build();
+                stack.pushRef(arr);
+            } else {
+                var initVal = stack.pop();
+                var elems = new long[len];
+                java.util.Arrays.fill(elems, initVal);
+                var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
+                stack.pushRef(arr);
+            }
+        } catch (OutOfMemoryError e) {
+            throw new WasmEngineException("out of memory", e);
         }
     }
 
     private static void ARRAY_NEW_DEFAULT(MStack stack, Instance instance, Operands operands) {
-        var typeIdx = (int) operands.get(0);
-        var len = (int) stack.pop();
-        var elems = new long[len];
-        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
-        var ft = at.fieldType();
-        if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
-            var arr =
-                    WasmArray.builder()
-                            .typeIdx(typeIdx)
-                            .elements(elems)
-                            .elementRefs(new Object[len])
-                            .build();
-            stack.pushRef(arr);
-        } else if (ft.storageType().valType() != null
-                && ft.storageType().valType().isReference()
-                && !ft.storageType().isObjectRef()) {
-            java.util.Arrays.fill(elems, Value.REF_NULL_VALUE);
-            var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
-            stack.pushRef(arr);
-        } else {
-            var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
-            stack.pushRef(arr);
+        try {
+            var typeIdx = (int) operands.get(0);
+            var len = (int) stack.pop();
+            var elems = new long[len];
+            var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+            var ft = at.fieldType();
+            if (ft.storageType().valType() != null && ft.storageType().isObjectRef()) {
+                var arr =
+                        WasmArray.builder()
+                                .typeIdx(typeIdx)
+                                .elements(elems)
+                                .elementRefs(new Object[len])
+                                .build();
+                stack.pushRef(arr);
+            } else if (ft.storageType().valType() != null
+                    && ft.storageType().valType().isReference()
+                    && !ft.storageType().isObjectRef()) {
+                java.util.Arrays.fill(elems, Value.REF_NULL_VALUE);
+                var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
+                stack.pushRef(arr);
+            } else {
+                var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
+                stack.pushRef(arr);
+            }
+        } catch (OutOfMemoryError e) {
+            throw new WasmEngineException("out of memory", e);
         }
     }
 
     private static void ARRAY_NEW_FIXED(MStack stack, Instance instance, Operands operands) {
-        var typeIdx = (int) operands.get(0);
-        var len = (int) operands.get(1);
-        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
-        boolean isRef =
-                at.fieldType().storageType().valType() != null
-                        && at.fieldType().storageType().isObjectRef();
-        var elems = new long[len];
-        if (isRef) {
+        try {
+            var typeIdx = (int) operands.get(0);
+            var len = (int) operands.get(1);
+            var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+            boolean isRef =
+                    at.fieldType().storageType().valType() != null
+                            && at.fieldType().storageType().isObjectRef();
+            var elems = new long[len];
+            if (isRef) {
+                var elemRefs = new Object[len];
+                for (int i = len - 1; i >= 0; i--) {
+                    elemRefs[i] = stack.popRef();
+                }
+                var arr =
+                        WasmArray.builder()
+                                .typeIdx(typeIdx)
+                                .elements(elems)
+                                .elementRefs(elemRefs)
+                                .build();
+                stack.pushRef(arr);
+            } else {
+                for (int i = len - 1; i >= 0; i--) {
+                    elems[i] = stack.pop();
+                }
+                var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
+                stack.pushRef(arr);
+            }
+        } catch (OutOfMemoryError e) {
+            throw new WasmEngineException("out of memory", e);
+        }
+    }
+
+    private static void ARRAY_NEW_DATA(MStack stack, Instance instance, Operands operands) {
+        try {
+            var typeIdx = (int) operands.get(0);
+            var dataIdx = (int) operands.get(1);
+            var len = (int) stack.pop();
+            var offset = (int) stack.pop();
+            var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+            var elemSize = at.fieldType().storageType().byteSize();
+            var data = instance.dataSegmentData(dataIdx);
+            if ((long) offset + (long) len * elemSize > data.length) {
+                throw new TrapException("out of bounds memory access");
+            }
+            var elems = new long[len];
+            for (int i = 0; i < len; i++) {
+                var byteOff = offset + i * elemSize;
+                elems[i] = readFromData(data, byteOff, elemSize);
+            }
+            var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
+            stack.pushRef(arr);
+        } catch (OutOfMemoryError e) {
+            throw new WasmEngineException("out of memory", e);
+        }
+    }
+
+    private static void ARRAY_NEW_ELEM(MStack stack, Instance instance, Operands operands) {
+        try {
+            var typeIdx = (int) operands.get(0);
+            var elemIdx = (int) operands.get(1);
+            var len = (int) stack.pop();
+            var offset = (int) stack.pop();
+            var element = instance.element(elemIdx);
+            if (element == null || offset + len > element.elementCount()) {
+                throw new TrapException("out of bounds table access");
+            }
+            var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
+            boolean isRef = at.fieldType().storageType().isObjectRef();
+            var elems = new long[len];
             var elemRefs = new Object[len];
-            for (int i = len - 1; i >= 0; i--) {
-                elemRefs[i] = stack.popRef();
+            for (int i = 0; i < len; i++) {
+                var init = element.initializers().get(offset + i);
+                var result = ConstantEvaluators.computeConstant(instance, init);
+                if (isRef) {
+                    elemRefs[i] = result.ref();
+                } else {
+                    elems[i] = result.longValue();
+                }
             }
             var arr =
                     WasmArray.builder()
@@ -3635,60 +3722,9 @@ public class InterpreterMachine implements Machine {
                             .elementRefs(elemRefs)
                             .build();
             stack.pushRef(arr);
-        } else {
-            for (int i = len - 1; i >= 0; i--) {
-                elems[i] = stack.pop();
-            }
-            var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
-            stack.pushRef(arr);
+        } catch (OutOfMemoryError e) {
+            throw new WasmEngineException("out of memory", e);
         }
-    }
-
-    private static void ARRAY_NEW_DATA(MStack stack, Instance instance, Operands operands) {
-        var typeIdx = (int) operands.get(0);
-        var dataIdx = (int) operands.get(1);
-        var len = (int) stack.pop();
-        var offset = (int) stack.pop();
-        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
-        var elemSize = at.fieldType().storageType().byteSize();
-        var data = instance.dataSegmentData(dataIdx);
-        if ((long) offset + (long) len * elemSize > data.length) {
-            throw new TrapException("out of bounds memory access");
-        }
-        var elems = new long[len];
-        for (int i = 0; i < len; i++) {
-            var byteOff = offset + i * elemSize;
-            elems[i] = readFromData(data, byteOff, elemSize);
-        }
-        var arr = WasmArray.builder().typeIdx(typeIdx).elements(elems).build();
-        stack.pushRef(arr);
-    }
-
-    private static void ARRAY_NEW_ELEM(MStack stack, Instance instance, Operands operands) {
-        var typeIdx = (int) operands.get(0);
-        var elemIdx = (int) operands.get(1);
-        var len = (int) stack.pop();
-        var offset = (int) stack.pop();
-        var element = instance.element(elemIdx);
-        if (element == null || offset + len > element.elementCount()) {
-            throw new TrapException("out of bounds table access");
-        }
-        var at = instance.module().typeSection().getSubType(typeIdx).compType().arrayType();
-        boolean isRef = at.fieldType().storageType().isObjectRef();
-        var elems = new long[len];
-        var elemRefs = new Object[len];
-        for (int i = 0; i < len; i++) {
-            var init = element.initializers().get(offset + i);
-            var result = ConstantEvaluators.computeConstant(instance, init);
-            if (isRef) {
-                elemRefs[i] = result.ref();
-            } else {
-                elems[i] = result.longValue();
-            }
-        }
-        var arr =
-                WasmArray.builder().typeIdx(typeIdx).elements(elems).elementRefs(elemRefs).build();
-        stack.pushRef(arr);
     }
 
     private static void ARRAY_GET(

@@ -14,7 +14,8 @@
   <description>wasm tools compiled to pure Java with Endive</description>
 
   <properties>
-    <wasm-tools.version>1.254.0</wasm-tools.version>
+    <wasm-tools.version>1.256.0</wasm-tools.version>
+    <inlay.version>0.0.3</inlay.version>
   </properties>
 
   <dependencies>
@@ -48,42 +49,22 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
+        <groupId>io.roastedroot</groupId>
+        <artifactId>inlay-maven-plugin</artifactId>
+        <version>${inlay.version}</version>
         <executions>
           <execution>
+            <id>fetch-wasm-tools</id>
             <goals>
-              <goal>run</goal>
+              <goal>fetch</goal>
             </goals>
-            <phase>initialize</phase>
             <configuration>
-              <target>
-                <untar compression="gzip" dest="${project.basedir}/target" src="${project.basedir}/wasm-tools-${wasm-tools.version}-wasm32-wasip1.tar.gz">
-                  <flattenmapper/>
-                  <patternset>
-                    <include name="**/*.wasm"/>
-                  </patternset>
-                </untar>
-              </target>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>wagon-maven-plugin</artifactId>
-        <version>${wagon-maven-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>download-wasm-tools</id>
-            <goals>
-              <goal>download-single</goal>
-            </goals>
-            <phase>validate</phase>
-            <configuration>
-              <url>https://github.com/bytecodealliance/wasm-tools/releases/download/v${wasm-tools.version}/wasm-tools-${wasm-tools.version}-wasm32-wasip1.tar.gz</url>
-              <toDir>${project.basedir}</toDir>
-              <skipIfExists>true</skipIfExists>
+              <modules>
+                <module>
+                  <imageRef>ghcr.io/bytecodealliance/wasm-tools-wasm32-wasip1:${wasm-tools.version}</imageRef>
+                  <outputFile>${project.build.directory}/wasm-tools.wasm</outputFile>
+                </module>
+              </modules>
             </configuration>
           </execution>
         </executions>
@@ -99,12 +80,12 @@
             </goals>
             <configuration>
               <name>run.endive.tools.wasm.WasmToolsModule</name>
-              <wasmFile>${project.basedir}/target/wasm-tools.wasm</wasmFile>
+              <wasmFile>${project.build.directory}/wasm-tools.wasm</wasmFile>
               <!-- <interpreterFallback>WARN</interpreterFallback> -->
               <interpretedFunctions>
-                <function>5282</function>
-                <function>5501</function>
-                <function>6095</function>
+                <function>5197</function>
+                <function>5521</function>
+                <function>6096</function>
               </interpretedFunctions>
             </configuration>
           </execution>

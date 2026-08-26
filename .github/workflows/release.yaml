@@ -52,7 +52,7 @@ jobs:
           git config user.email "endive@bytecodealliance.org"
 
       - name: Install ORAS
-        uses: oras-project/setup-oras@v1
+        uses: oras-project/setup-oras@v2
 
       # Jars must be built against an immutable wasm tag: the development
       # snapshot is mutable, so a release built against it stops being

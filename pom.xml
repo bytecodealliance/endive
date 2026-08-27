@@ -1002,6 +1002,7 @@
                   <include>**/src/test/java/**/*.java</include>
                 </includes>
                 <googleJavaFormat>
+                  <version>1.35.0</version>
                   <style>AOSP</style>
                   <reflowLongStrings>true</reflowLongStrings>
                   <formatJavadoc>false</formatJavadoc>

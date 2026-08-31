@@ -152,13 +152,6 @@ final class EmitContext {
         return valId;
     }
 
-    int narrowFromI64(int valId, ValType type) {
-        if (type.equals(ValType.I32)) {
-            return bridge.exports().emitIreduceI32(valId);
-        }
-        return valId;
-    }
-
     int widenToI64ForType(int valId, ValType type) {
         if (type.equals(ValType.I32)) {
             return bridge.exports().emitUextendI64(valId);

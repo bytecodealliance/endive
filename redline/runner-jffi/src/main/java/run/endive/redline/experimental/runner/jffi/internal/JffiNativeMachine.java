@@ -594,26 +594,7 @@ public final class JffiNativeMachine implements Machine {
             if (argCount < 0) {
                 return handleTableOperation(argCount);
             }
-
-            // Normal call_indirect path
-            int typeId = MEM.getInt(ctxAddr + CtxBuffer.TYPE_ID);
-            int tableIdx = MEM.getInt(ctxAddr + CtxBuffer.TABLE_IDX);
-            int elemIdx = MEM.getInt(ctxAddr + CtxBuffer.ELEM_IDX);
-
-            int funcId = nativeTables[tableIdx].requiredRef(elemIdx);
-
-            int actualTypeIdx = instance.functionType(funcId);
-            if (actualTypeIdx != typeId) {
-                throw new TrapException("indirect call type mismatch");
-            }
-
-            long[] args = new long[argCount];
-            for (int i = 0; i < argCount; i++) {
-                args[i] = MEM.getLong(argsBufferAddr + CtxBuffer.argOffset(i));
-            }
-
-            long[] result = this.call(funcId, args);
-            return result.length > 0 ? result[0] : 0L;
+            throw new WasmEngineException("Unexpected trampoline call: argCount " + argCount);
         } catch (Throwable t) {
             recordHostException(t);
             return 0L;

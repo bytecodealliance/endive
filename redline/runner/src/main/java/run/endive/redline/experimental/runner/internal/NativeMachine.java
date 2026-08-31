@@ -625,37 +625,21 @@ public final class NativeMachine implements Machine {
         }
     }
 
+    /**
+     * Compiled code only reaches this with a table operation sentinel: it emits
+     * call_indirect inline and never writes TYPE_ID, TABLE_IDX or ELEM_IDX, so the
+     * call_indirect path this used to carry could only ever have dispatched on
+     * whatever those fields happened to hold.
+     */
     @SuppressWarnings("unused")
     private long callIndirectTrampoline(long ctxAddr) {
         try {
             var ctx = MemorySegment.ofAddress(ctxAddr).reinterpret(CTX_SIZE);
             int argCount = ctx.get(ValueLayout.JAVA_INT, CtxBuffer.ARG_COUNT);
-
-            // Negative argCount = table operation sentinel
             if (argCount < 0) {
                 return handleTableOperation(argCount);
             }
-
-            // Normal call_indirect path (fallback, rarely used now)
-            int typeId = ctx.get(ValueLayout.JAVA_INT, CtxBuffer.TYPE_ID);
-            int tableIdx = ctx.get(ValueLayout.JAVA_INT, CtxBuffer.TABLE_IDX);
-            int elemIdx = ctx.get(ValueLayout.JAVA_INT, CtxBuffer.ELEM_IDX);
-
-            int funcId = nativeTables[tableIdx].requiredRef(elemIdx);
-
-            // Type check
-            int actualTypeIdx = instance.functionType(funcId);
-            if (actualTypeIdx != typeId) {
-                throw new TrapException("indirect call type mismatch");
-            }
-
-            long[] args = new long[argCount];
-            for (int i = 0; i < argCount; i++) {
-                args[i] = argsBuffer.get(ValueLayout.JAVA_LONG, CtxBuffer.argOffset(i));
-            }
-
-            long[] result = this.call(funcId, args);
-            return result.length > 0 ? result[0] : 0L;
+            throw new WasmEngineException("Unexpected trampoline call: argCount " + argCount);
         } catch (Throwable t) {
             recordHostException(t);
             return 0L;

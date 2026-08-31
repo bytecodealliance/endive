@@ -101,6 +101,8 @@ public final class NativeMachine implements Machine {
     private boolean memBaseInitialized;
     private NativeMemory nativeMemory;
     private volatile Throwable pendingException;
+    private boolean ownsMemory;
+    private boolean closed;
 
     public NativeMachine(
             Instance instance,
@@ -353,11 +355,20 @@ public final class NativeMachine implements Machine {
         }
 
         this.nativeMemory = instance.memory() instanceof NativeMemory nm ? nm : null;
+        // An imported memory outlives this instance and may back others, so only
+        // a memory this module defines is ours to close.
+        this.ownsMemory = instance.imports().memoryCount() == 0;
     }
 
     @Override
     public void close() {
-        if (nativeMemory != null) {
+        if (closed) {
+            // munmap below is a native free, so a second close would unmap a
+            // region that may already have been handed back out.
+            return;
+        }
+        closed = true;
+        if (nativeMemory != null && ownsMemory) {
             nativeMemory.close();
         }
         try {

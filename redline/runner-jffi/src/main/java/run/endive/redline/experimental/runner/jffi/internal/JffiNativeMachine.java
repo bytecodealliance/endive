@@ -103,6 +103,7 @@ public final class JffiNativeMachine implements Machine {
     private JffiNativeTable[] nativeTables;
     private boolean[] ownsTable;
     private boolean tablesInitialized;
+    private boolean ownsMemory;
     private boolean closed;
     private final int numImports;
     private final int globalCount;
@@ -388,6 +389,9 @@ public final class JffiNativeMachine implements Machine {
                 instance.memory() instanceof JffiNativeMemory
                         ? (JffiNativeMemory) instance.memory()
                         : null;
+        // An imported memory outlives this instance and may back others, so only
+        // a memory this module defines is ours to close.
+        this.ownsMemory = instance.imports().memoryCount() == 0;
     }
 
     @Override
@@ -405,7 +409,7 @@ public final class JffiNativeMachine implements Machine {
                 }
             }
         }
-        if (nativeMemory != null) {
+        if (nativeMemory != null && ownsMemory) {
             nativeMemory.close();
         }
         if (tablePtrsArrayAddr != 0) {

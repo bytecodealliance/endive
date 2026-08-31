@@ -35,6 +35,7 @@ final class PanamaExecutor {
     private static final int PROT_WRITE = 0x2;
     private static final int PROT_EXEC = 0x4;
     private static final int MAP_PRIVATE = 0x02;
+    private static final long MAP_FAILED = -1L;
     private static final int MAP_ANONYMOUS;
 
     // --- Windows handles (null on POSIX) ---
@@ -152,7 +153,19 @@ final class PanamaExecutor {
                                 MAP_PRIVATE | MAP_ANONYMOUS,
                                 -1,
                                 0L);
+        checkMapped(addr);
         return addr.reinterpret(size);
+    }
+
+    /**
+     * mmap reports failure by returning MAP_FAILED, not null, so an unchecked
+     * result would be reinterpreted as a segment at 0xFFFF...FFFF and crash on
+     * first use rather than throw.
+     */
+    private static void checkMapped(MemorySegment addr) {
+        if (addr.address() == MAP_FAILED) {
+            throw new OutOfMemoryError("mmap failed");
+        }
     }
 
     /** Make a previously mmapped region executable (and remove write). */
@@ -200,6 +213,7 @@ final class PanamaExecutor {
                                 MAP_PRIVATE | MAP_ANONYMOUS,
                                 -1,
                                 0L);
+        checkMapped(addr);
         return addr.reinterpret(size);
     }
 

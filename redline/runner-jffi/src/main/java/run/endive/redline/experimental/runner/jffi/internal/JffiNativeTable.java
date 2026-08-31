@@ -140,6 +140,11 @@ public final class JffiNativeTable extends TableInstance {
         return isExternRef;
     }
 
+    /** Whether the off-heap buffer has been released. */
+    boolean isFreed() {
+        return freed;
+    }
+
     /** Free the off-heap buffer. Idempotent — safe to call multiple times. */
     public void free() {
         if (!freed && bufferAddress != 0) {

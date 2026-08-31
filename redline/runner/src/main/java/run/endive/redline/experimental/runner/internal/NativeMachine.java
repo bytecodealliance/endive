@@ -101,6 +101,7 @@ public final class NativeMachine implements Machine {
     private boolean memBaseInitialized;
     private NativeMemory nativeMemory;
     private volatile Throwable pendingException;
+    private int callDepth;
     private boolean ownsMemory;
     private boolean closed;
 
@@ -1025,13 +1026,19 @@ public final class NativeMachine implements Machine {
         var handle = downcalls[funcId];
 
         try {
+            boolean outermostCall = callDepth++ == 0;
             var funcType = (FunctionType) instance.type(instance.functionType(funcId));
 
             initializeImportGlobals();
             initializeNativeTables();
 
-            // Reset stack limit so native code re-initializes from calling thread's RSP
-            ctxBuffer.set(ValueLayout.JAVA_LONG, CtxBuffer.STACK_LIMIT, 0L);
+            // Re-anchor the stack guard only for a call that starts on this
+            // stack. A host function calling back in has to keep measuring
+            // against where the outer call began, or every level moves the
+            // limit deeper and the guard stops firing.
+            if (outermostCall) {
+                ctxBuffer.set(ValueLayout.JAVA_LONG, CtxBuffer.STACK_LIMIT, 0L);
+            }
 
             if (!memBaseInitialized) {
                 var mem = instance.memory();
@@ -1066,10 +1073,12 @@ public final class NativeMachine implements Machine {
             Thread watchdog =
                     new Thread(
                             () -> {
+                                // Keeps raising rather than returning after the
+                                // first: a nested call clears the flag when it
+                                // finishes, and the outer call still needs it.
                                 while (!Thread.currentThread().isInterrupted()) {
                                     if (caller.isInterrupted()) {
                                         requestInterrupt();
-                                        return;
                                     }
                                     try {
                                         Thread.sleep(1);
@@ -1085,6 +1094,9 @@ public final class NativeMachine implements Machine {
                 result = (long) handle.invokeExact(cachedMemBase, ctxBuffer, args);
             } finally {
                 watchdog.interrupt();
+                // The flag only ever means "stop this call". Left set it would
+                // trap the next one on a thread nobody interrupted.
+                clearInterrupt();
             }
 
             // Check for exceptions from upcall stubs first — a host function
@@ -1130,6 +1142,7 @@ public final class NativeMachine implements Machine {
             sneakyThrow(e);
             throw new AssertionError("unreachable");
         } finally {
+            callDepth--;
             // Prevent the JIT from considering this machine unreachable during
             // the native call, which would let GC collect and close() free
             // native memory while code is executing.

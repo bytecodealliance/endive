@@ -112,6 +112,7 @@ public final class JffiNativeMachine implements Machine {
     private boolean memBaseInitialized;
     private JffiNativeMemory nativeMemory;
     private volatile Throwable pendingException;
+    private int callDepth;
 
     // Keep closure handles alive to prevent GC
     private final Closure.Handle trampolineHandle;
@@ -830,6 +831,9 @@ public final class JffiNativeMachine implements Machine {
                 var nt = (JffiNativeTable) table;
                 nt.resolvePendingRefs(instance);
                 nativeTables[i] = nt;
+                // A table this module defines came from our factory and dies with
+                // the instance. An imported one belongs to whoever created it.
+                owned[i] = i >= importedTableCount;
             } else {
                 // Imported table not created by our factory — wrap it
                 var tableDef = new run.endive.wasm.types.Table(table.elementType(), table.limits());
@@ -1021,11 +1025,17 @@ public final class JffiNativeMachine implements Machine {
         var trampolineCallCtx = entryTrampolineCallCtxs[funcId];
 
         try {
+            boolean outermostCall = callDepth++ == 0;
             initializeImportGlobals();
             initializeNativeTables();
 
-            // Reset stack limit so native code re-initializes from calling thread's RSP
-            MEM.putLong(ctxBufferAddr + CtxBuffer.STACK_LIMIT, 0L);
+            // Re-anchor the stack guard only for a call that starts on this
+            // stack. A host function calling back in has to keep measuring
+            // against where the outer call began, or every level moves the
+            // limit deeper and the guard stops firing.
+            if (outermostCall) {
+                MEM.putLong(ctxBufferAddr + CtxBuffer.STACK_LIMIT, 0L);
+            }
 
             if (!memBaseInitialized) {
                 var mem = instance.memory();
@@ -1057,10 +1067,12 @@ public final class JffiNativeMachine implements Machine {
             Thread watchdog =
                     new Thread(
                             () -> {
+                                // Keeps raising rather than returning after the
+                                // first: a nested call clears the flag when it
+                                // finishes, and the outer call still needs it.
                                 while (!Thread.currentThread().isInterrupted()) {
                                     if (caller.isInterrupted()) {
                                         requestInterrupt();
-                                        return;
                                     }
                                     try {
                                         Thread.sleep(1);
@@ -1084,6 +1096,9 @@ public final class JffiNativeMachine implements Machine {
                                 args);
             } finally {
                 watchdog.interrupt();
+                // The flag only ever means "stop this call". Left set it would
+                // trap the next one on a thread nobody interrupted.
+                clearInterrupt();
             }
 
             // Check for exceptions from upcall stubs first — a host function
@@ -1129,6 +1144,7 @@ public final class JffiNativeMachine implements Machine {
             sneakyThrow(e);
             throw new AssertionError("unreachable");
         } finally {
+            callDepth--;
             // Prevent the JIT from considering this machine unreachable during
             // the native call, which would let GC collect and close() free
             // native memory while code is executing.

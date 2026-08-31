@@ -83,7 +83,7 @@ public class InterruptionTest {
                 var className = element.getClassName();
                 var methodName = element.getMethodName();
                 if (className.startsWith(Compiler.DEFAULT_CLASS_NAME + "FuncGroup_")
-                        && methodName.equals(methodNameForFunc(funcIdx))) {
+                        && methodName.equals(methodNameForFunc(funcIdx, null))) {
                     return;
                 }
             }

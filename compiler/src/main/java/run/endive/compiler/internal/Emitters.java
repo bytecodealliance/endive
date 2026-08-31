@@ -399,7 +399,8 @@ final class Emitters {
                 asm,
                 ctx.classNameForFuncGroup(ctx.internalClassName(), funcId),
                 funcId,
-                functionType);
+                functionType,
+                ctx.nameSection());
 
         if (ctx.needsTailCallCheck(funcId)) {
             emitTailCallCheck(ctx, asm, functionType);

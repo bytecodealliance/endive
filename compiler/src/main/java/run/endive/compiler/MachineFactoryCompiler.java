@@ -112,6 +112,11 @@ public final class MachineFactoryCompiler {
             return this;
         }
 
+        public Builder withUseDebugNames(boolean useDebugNames) {
+            compilerBuilder.withUseDebugNames(useDebugNames);
+            return this;
+        }
+
         public Builder withCache(Cache cache) {
             this.cache = cache;
             return this;

@@ -24,6 +24,7 @@ import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionBody;
 import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.NameCustomSection;
 import run.endive.wasm.types.TagImport;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
@@ -282,11 +283,15 @@ final class CompilerUtil {
     }
 
     public static void emitInvokeFunction(
-            MethodVisitor asm, String internalClassName, int funcId, FunctionType functionType) {
+            MethodVisitor asm,
+            String internalClassName,
+            int funcId,
+            FunctionType functionType,
+            NameCustomSection nameSection) {
         asm.visitMethodInsn(
                 Opcodes.INVOKESTATIC,
                 internalClassName,
-                methodNameForFunc(funcId),
+                methodNameForFunc(funcId, nameSection),
                 methodTypeFor(functionType).toMethodDescriptorString(),
                 false);
     }
@@ -298,8 +303,43 @@ final class CompilerUtil {
                         .collect(joining("_"));
     }
 
-    public static String methodNameForFunc(int funcId) {
+    public static String methodNameForFunc(int funcId, NameCustomSection nameSection) {
+        if (nameSection != null) {
+            String name = nameSection.nameOfFunction(funcId);
+            if (name != null && !name.isEmpty()) {
+                String sanitized = sanitizeWasmName(name);
+                if (!sanitized.isEmpty()) {
+                    return sanitized + "_" + funcId;
+                }
+            }
+        }
         return "func_" + funcId;
+    }
+
+    static String sanitizeWasmName(String name) {
+        StringBuilder sb = new StringBuilder(name.length());
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            // see https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.2.2 for reference
+            if (c == '.' || c == ';' || c == '[' || c == '/' || c == '<' || c == '>') {
+                sb.append('_');
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    static int extractFuncId(String methodName) {
+        int lastUnderscore = methodName.lastIndexOf('_');
+        if (lastUnderscore < 0) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(methodName.substring(lastUnderscore + 1));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     static String callMethodName(int funcId) {

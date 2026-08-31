@@ -30,6 +30,7 @@ import static run.endive.compiler.internal.CompilerUtil.emitInvokeStatic;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeVirtual;
 import static run.endive.compiler.internal.CompilerUtil.emitJvmToLong;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
+import static run.endive.compiler.internal.CompilerUtil.extractFuncId;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.internalClassName;
 import static run.endive.compiler.internal.CompilerUtil.jvmReturnType;
@@ -90,6 +91,7 @@ import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionBody;
 import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.NameCustomSection;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.ValType;
 
@@ -161,6 +163,7 @@ public final class Compiler {
     private final boolean[] tailCallTypes;
     private final boolean moduleHasTailCalls;
     private final boolean moduleHasObjectRefs;
+    private final NameCustomSection debugNameSection;
     private boolean useBridgeClasses;
     private IntFunction<String> callIndirectClassResolver;
 
@@ -170,7 +173,8 @@ public final class Compiler {
             int maxFunctionsPerClass,
             InterpreterFallback interpreterFallback,
             Set<Integer> interpretedFunctions,
-            Supplier<ClassCollector> classCollectorFactory) {
+            Supplier<ClassCollector> classCollectorFactory,
+            boolean useDebugNames) {
         this.className = requireNonNull(className, "className");
         this.module = requireNonNull(module, "module");
         this.analyzer = new WasmAnalyzer(module);
@@ -202,6 +206,7 @@ public final class Compiler {
                 this.functionTypes.stream()
                         .anyMatch(ft -> ft.hasObjectRefParams() || ft.hasObjectRefReturns());
         this.maxFunctionsPerClass = maxFunctionsPerClass;
+        this.debugNameSection = useDebugNames ? module.nameSection() : null;
     }
 
     private Set<Integer> collectCallRefTypeIds() {
@@ -229,6 +234,7 @@ public final class Compiler {
         private InterpreterFallback interpreterFallback;
         private Set<Integer> interpretedFunctions;
         private Supplier<ClassCollector> classCollectorFactory;
+        private boolean useDebugNames;
 
         private Builder(WasmModule module) {
             this.module = module;
@@ -259,6 +265,11 @@ public final class Compiler {
             return this;
         }
 
+        public Builder withUseDebugNames(boolean useDebugNames) {
+            this.useDebugNames = useDebugNames;
+            return this;
+        }
+
         public Compiler build() {
             var className = this.className;
             if (className == null) {
@@ -280,7 +291,8 @@ public final class Compiler {
                     maxFunctionsPerClass,
                     interpreterFallback,
                     interpretedFunctions,
-                    classCollectorFactory);
+                    classCollectorFactory,
+                    useDebugNames);
         }
     }
 
@@ -351,10 +363,8 @@ public final class Compiler {
                 break;
             } catch (MethodTooLargeException e) {
                 String methodName = e.getMethodName();
-                if (methodName.startsWith("func_")) {
-                    // Add the method to interpreted function list... and try again.
-                    var funcId = Integer.parseInt(methodName.substring("func_".length()));
-
+                int funcId = extractFuncId(methodName);
+                if (funcId >= 0) {
                     String functionDescription = "WASM function index: " + funcId;
                     if (module.nameSection() != null) {
                         String name = module.nameSection().nameOfFunction(funcId);
@@ -496,7 +506,7 @@ public final class Compiler {
                     if (i < functionImports) {
                         emitFunction(
                                 classWriter,
-                                methodNameForFunc(funcId),
+                                methodNameForFunc(funcId, debugNameSection),
                                 methodTypeFor(type),
                                 true,
                                 asm -> compileHostFunction(funcId, type, asm));
@@ -507,7 +517,7 @@ public final class Compiler {
 
                         emitFunction(
                                 classWriter,
-                                methodNameForFunc(funcId),
+                                methodNameForFunc(funcId, debugNameSection),
                                 methodTypeFor(type),
                                 true,
                                 asm ->
@@ -689,8 +699,8 @@ public final class Compiler {
     private static RuntimeException handleMethodTooLarge(
             MethodTooLargeException e, WasmModule module) {
         String name = e.getMethodName();
-        if (name.startsWith("func_") && module.nameSection() != null) {
-            int funcId = Integer.parseInt(name.split("_", -1)[1]);
+        int funcId = extractFuncId(name);
+        if (funcId >= 0 && module.nameSection() != null) {
             String function = module.nameSection().nameOfFunction(funcId);
             if (function != null) {
                 name += " (" + function + ")";
@@ -1392,7 +1402,11 @@ public final class Compiler {
         asm.load(0, OBJECT_TYPE);
 
         emitInvokeFunction(
-                asm, internalClassName(classNameForFuncGroup(className, funcId)), funcId, type);
+                asm,
+                internalClassName(classNameForFuncGroup(className, funcId)),
+                funcId,
+                type,
+                debugNameSection);
 
         // box the result into long[]
         Class<?> returnType = jvmReturnType(type);
@@ -1482,7 +1496,11 @@ public final class Compiler {
         asm.load(0, OBJECT_TYPE);
 
         emitInvokeFunction(
-                asm, internalClassName(classNameForFuncGroup(className, funcId)), funcId, type);
+                asm,
+                internalClassName(classNameForFuncGroup(className, funcId)),
+                funcId,
+                type,
+                debugNameSection);
 
         // Build CallResult from the function's JVM return value
         Class<?> returnType = jvmReturnType(type);
@@ -1681,7 +1699,11 @@ public final class Compiler {
                 //    return func_0(a, b, memory, callerInstance);
                 asm.mark(labels[i]);
                 emitInvokeFunction(
-                        asm, classNameForFuncGroup(internalClassName, keys[i]), keys[i], type);
+                        asm,
+                        classNameForFuncGroup(internalClassName, keys[i]),
+                        keys[i],
+                        type,
+                        debugNameSection);
                 asm.areturn(getType(jvmReturnType(type)));
             }
 
@@ -1829,7 +1851,11 @@ public final class Compiler {
             //    return func_0(a, b, memory, callerInstance);
             asm.mark(labels[i]);
             emitInvokeFunction(
-                    asm, classNameForFuncGroup(internalClassName, keys[i]), keys[i], type);
+                    asm,
+                    classNameForFuncGroup(internalClassName, keys[i]),
+                    keys[i],
+                    type,
+                    debugNameSection);
             asm.areturn(getType(jvmReturnType(type)));
             asm.areturn(OBJECT_TYPE);
         }
@@ -2105,7 +2131,8 @@ public final class Compiler {
                         tailCallFunctions,
                         tailCallTypes,
                         useBridgeClasses ? callIndirectClassResolver : typeId -> internalClassName,
-                        analysis.maxTempSlots());
+                        analysis.maxTempSlots(),
+                        debugNameSection != null);
 
         int localsCount = type.params().size();
         if (hasTooManyParameters(type)) {

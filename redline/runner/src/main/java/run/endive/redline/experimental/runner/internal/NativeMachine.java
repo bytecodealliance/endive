@@ -488,8 +488,14 @@ public final class NativeMachine implements Machine {
                 layouts.add(valTypeToLayout(param));
             }
 
+            // Multi-return follows the compiled convention: results go through
+            // argsBuffer and the call itself returns a dummy i64.
+            boolean multiReturn = funcType.returns().size() > 1;
+
             ValueLayout returnLayout = null;
-            if (!funcType.returns().isEmpty()) {
+            if (multiReturn) {
+                returnLayout = ValueLayout.JAVA_LONG;
+            } else if (!funcType.returns().isEmpty()) {
                 returnLayout = valTypeToLayout(funcType.returns().get(0));
             }
 
@@ -529,9 +535,17 @@ public final class NativeMachine implements Machine {
                 var voidType =
                         MethodType.methodType(void.class, targetParamTypes.toArray(new Class[0]));
                 dropper = dropper.asType(voidType);
-            } else if (!funcType.returns().isEmpty()) {
+            } else if (!multiReturn && !funcType.returns().isEmpty()) {
                 var retClass = valTypeToJavaClass(funcType.returns().get(0));
-                if (!retClass.equals(long.class)) {
+                if (retClass.equals(float.class)) {
+                    // The long carries the f32 bit pattern, so it has to be
+                    // reinterpreted. A cast would convert numerically and turn the
+                    // bits of 1.5f into 1.06954752E9f.
+                    dropper = MethodHandles.filterReturnValue(dropper, LONG_TO_FLOAT);
+                } else if (retClass.equals(double.class)) {
+                    dropper = MethodHandles.filterReturnValue(dropper, LONG_TO_DOUBLE);
+                } else if (!retClass.equals(long.class)) {
+                    // i32: the value is the low 32 bits, so truncation is correct.
                     dropper =
                             MethodHandles.explicitCastArguments(
                                     dropper,
@@ -561,7 +575,18 @@ public final class NativeMachine implements Machine {
             if (funcId < numImports) {
                 var importFunc = instance.imports().function(funcId);
                 long[] result = importFunc.handle().apply(instance, args);
-                return (result != null && result.length > 0) ? result[0] : 0L;
+                if (result == null || result.length == 0) {
+                    return 0L;
+                }
+                if (importFunc.functionType().returns().size() > 1) {
+                    // Multi-return convention: the caller reads the results back out
+                    // of argsBuffer and ignores the returned value.
+                    for (int i = 0; i < result.length; i++) {
+                        argsBuffer.set(ValueLayout.JAVA_LONG, CtxBuffer.argOffset(i), result[i]);
+                    }
+                    return 0L;
+                }
+                return result[0];
             }
             throw new WasmEngineException("Function " + funcId + " not compiled");
         } catch (Throwable t) {
@@ -871,11 +896,14 @@ public final class NativeMachine implements Machine {
         for (int i = 0; i < tableCount; i++) {
             var table = instance.table(i);
             if (table instanceof NativeTable nt) {
+                nt.resolvePendingRefs(instance);
                 nativeTables[i] = nt;
             } else {
                 // Imported table not created by our factory — wrap it
                 var tableDef = new run.endive.wasm.types.Table(table.elementType(), table.limits());
-                var nt = new NativeTable(tableDef, arena);
+                var nt =
+                        new NativeTable(
+                                tableDef, run.endive.wasm.types.Value.REF_NULL_VALUE, arena);
                 for (int j = 0; j < table.size(); j++) {
                     nt.setRef(j, table.ref(j), instance);
                 }

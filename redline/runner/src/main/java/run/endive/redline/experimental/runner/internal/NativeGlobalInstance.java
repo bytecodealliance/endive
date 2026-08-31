@@ -46,6 +46,7 @@ public final class NativeGlobalInstance extends GlobalInstance {
 
     @Override
     public void setValue(Value value) {
+        checkType(value);
         buffer.set(ValueLayout.JAVA_LONG, offset, value.raw());
     }
 

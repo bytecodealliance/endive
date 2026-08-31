@@ -47,6 +47,7 @@ public final class JffiNativeGlobalInstance extends GlobalInstance {
 
     @Override
     public void setValue(Value value) {
+        checkType(value);
         MEM.putLong(bufferAddress + offset, value.raw());
     }
 

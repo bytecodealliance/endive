@@ -62,13 +62,13 @@ public final class JffiNativeMachineFactory {
     }
 
     public TableInstance createTable(Table table, int initValue) {
-        var nativeTable = new JffiNativeTable(table);
+        var nativeTable = new JffiNativeTable(table, initValue);
         nativeTables.add(nativeTable);
         return nativeTable;
     }
 
     public static TableInstance createImportTable(Table table, int initValue) {
-        return new JffiNativeTable(table);
+        return new JffiNativeTable(table, initValue);
     }
 
     public GlobalInstance createGlobal(

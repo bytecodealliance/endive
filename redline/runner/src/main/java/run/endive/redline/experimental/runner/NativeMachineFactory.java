@@ -62,13 +62,13 @@ public final class NativeMachineFactory {
     }
 
     public TableInstance createTable(Table table, int initValue) {
-        var nativeTable = new NativeTable(table, arena);
+        var nativeTable = new NativeTable(table, initValue, arena);
         nativeTables.add(nativeTable);
         return nativeTable;
     }
 
     public static TableInstance createImportTable(Table table, int initValue) {
-        return new NativeTable(table, Arena.ofAuto());
+        return new NativeTable(table, initValue, Arena.ofAuto());
     }
 
     public GlobalInstance createGlobal(

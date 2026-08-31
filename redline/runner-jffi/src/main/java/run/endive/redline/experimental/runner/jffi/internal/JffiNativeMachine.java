@@ -99,7 +99,9 @@ public final class JffiNativeMachine implements Machine {
     private final long funcTypesArraySize; // byte size
     private long tablePtrsArrayAddr;
     private JffiNativeTable[] nativeTables;
+    private boolean[] ownsTable;
     private boolean tablesInitialized;
+    private boolean closed;
     private final int numImports;
     private final int globalCount;
     private boolean importGlobalsInitialized;
@@ -388,6 +390,19 @@ public final class JffiNativeMachine implements Machine {
 
     @Override
     public void close() {
+        if (closed) {
+            // Every free below is a native one, so a second close would be a
+            // double free rather than a no-op.
+            return;
+        }
+        closed = true;
+        if (ownsTable != null) {
+            for (int i = 0; i < ownsTable.length; i++) {
+                if (ownsTable[i]) {
+                    nativeTables[i].free();
+                }
+            }
+        }
         if (nativeMemory != null) {
             nativeMemory.close();
         }
@@ -474,6 +489,10 @@ public final class JffiNativeMachine implements Machine {
         Type returnType;
         if (funcType.returns().isEmpty()) {
             returnType = Type.VOID;
+        } else if (funcType.returns().size() > 1) {
+            // Multi-return follows the compiled convention: results go through
+            // argsBuffer and the call itself returns a dummy i64.
+            returnType = Type.SINT64;
         } else {
             returnType = valTypeToJffiType(funcType.returns().get(0));
         }
@@ -500,6 +519,10 @@ public final class JffiNativeMachine implements Machine {
         if (funcType.returns().isEmpty()) {
             return;
         }
+        if (funcType.returns().size() > 1) {
+            buf.setLongReturn(result);
+            return;
+        }
         ValType retType = funcType.returns().get(0);
         if (retType.equals(ValType.I32)) {
             buf.setIntReturn((int) result);
@@ -522,7 +545,18 @@ public final class JffiNativeMachine implements Machine {
             if (funcId < numImports) {
                 var importFunc = instance.imports().function(funcId);
                 long[] result = importFunc.handle().apply(instance, args);
-                return (result != null && result.length > 0) ? result[0] : 0L;
+                if (result == null || result.length == 0) {
+                    return 0L;
+                }
+                if (importFunc.functionType().returns().size() > 1) {
+                    // Multi-return convention: the caller reads the results back
+                    // out of argsBuffer and ignores the returned value.
+                    for (int i = 0; i < result.length; i++) {
+                        MEM.putLong(argsBufferAddr + CtxBuffer.argOffset(i), result[i]);
+                    }
+                    return 0L;
+                }
+                return result[0];
             }
             throw new WasmEngineException("Function " + funcId + " not compiled");
         } catch (Throwable t) {
@@ -800,16 +834,19 @@ public final class JffiNativeMachine implements Machine {
 
         this.nativeTables = new JffiNativeTable[tableCount];
         boolean[] owned = new boolean[tableCount];
+        this.ownsTable = owned;
         this.tablePtrsArrayAddr = MEM.allocateMemory((long) tableCount * 8, true);
 
         for (int i = 0; i < tableCount; i++) {
             var table = instance.table(i);
             if (table instanceof JffiNativeTable) {
-                nativeTables[i] = (JffiNativeTable) table;
+                var nt = (JffiNativeTable) table;
+                nt.resolvePendingRefs(instance);
+                nativeTables[i] = nt;
             } else {
                 // Imported table not created by our factory — wrap it
                 var tableDef = new run.endive.wasm.types.Table(table.elementType(), table.limits());
-                var nt = new JffiNativeTable(tableDef);
+                var nt = new JffiNativeTable(tableDef, run.endive.wasm.types.Value.REF_NULL_VALUE);
                 for (int j = 0; j < table.size(); j++) {
                     nt.setRef(j, table.ref(j), instance);
                 }

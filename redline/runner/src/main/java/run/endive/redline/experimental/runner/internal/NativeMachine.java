@@ -19,6 +19,8 @@ import run.endive.redline.experimental.api.internal.TypeMapUtils;
 import run.endive.redline.experimental.bridge.internal.CraneliftBridge;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
+import run.endive.runtime.TrapException;
+import run.endive.runtime.WasmRuntimeException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.ValType;
@@ -590,7 +592,7 @@ public final class NativeMachine implements Machine {
             }
             throw new WasmEngineException("Function " + funcId + " not compiled");
         } catch (Throwable t) {
-            pendingException = t;
+            recordHostException(t);
             return 0L;
         }
     }
@@ -633,7 +635,7 @@ public final class NativeMachine implements Machine {
             // Type check
             int actualTypeIdx = instance.functionType(funcId);
             if (actualTypeIdx != typeId) {
-                throw new WasmEngineException("indirect call type mismatch");
+                throw new TrapException("indirect call type mismatch");
             }
 
             long[] args = new long[argCount];
@@ -644,7 +646,7 @@ public final class NativeMachine implements Machine {
             long[] result = this.call(funcId, args);
             return result.length > 0 ? result[0] : 0L;
         } catch (Throwable t) {
-            pendingException = t;
+            recordHostException(t);
             return 0L;
         }
     }
@@ -834,7 +836,7 @@ public final class NativeMachine implements Machine {
             }
             return oldPages;
         } catch (Throwable t) {
-            pendingException = t;
+            recordHostException(t);
             return -1L;
         }
     }
@@ -927,25 +929,36 @@ public final class NativeMachine implements Machine {
         return funcTypesArray;
     }
 
+    /**
+     * Marks the context so compiled code unwinds at its next trap check rather
+     * than running on. The first throwable wins: it is the one that stopped
+     * execution, so a later one would be a symptom of it.
+     */
+    private void recordHostException(Throwable t) {
+        if (pendingException == null) {
+            pendingException = t;
+        }
+        ctxBuffer.set(ValueLayout.JAVA_INT, CtxBuffer.TRAP_CODE, CtxBuffer.TRAP_HOST_EXCEPTION);
+    }
+
     private static WasmEngineException trapException(int trapCode) {
+        // TrapException, not the WasmEngineException parent: Instance catches
+        // TrapException to report a trapping start function as uninstantiable.
         return switch (trapCode) {
-            case CtxBuffer.TRAP_DIV_BY_ZERO -> new WasmEngineException("integer divide by zero");
-            case CtxBuffer.TRAP_INT_OVERFLOW -> new WasmEngineException("integer overflow");
-            case CtxBuffer.TRAP_UNREACHABLE -> new WasmEngineException("unreachable");
-            case CtxBuffer.TRAP_TRUNC_OVERFLOW -> new WasmEngineException("integer overflow");
-            case CtxBuffer.TRAP_TRUNC_NAN ->
-                    new WasmEngineException("invalid conversion to integer");
-            case CtxBuffer.TRAP_OOB -> new WasmEngineException("out of bounds memory access");
-            case CtxBuffer.TRAP_CALL_STACK_EXHAUSTED ->
-                    new WasmEngineException("call stack exhausted");
-            case CtxBuffer.TRAP_TABLE_OOB -> new WasmEngineException("out of bounds table access");
-            case CtxBuffer.TRAP_UNDEFINED_ELEMENT -> new WasmEngineException("undefined element");
-            case CtxBuffer.TRAP_UNINITIALIZED_ELEMENT ->
-                    new WasmEngineException("uninitialized element");
+            case CtxBuffer.TRAP_DIV_BY_ZERO -> new TrapException("integer divide by zero");
+            case CtxBuffer.TRAP_INT_OVERFLOW -> new TrapException("integer overflow");
+            case CtxBuffer.TRAP_UNREACHABLE -> new TrapException("unreachable");
+            case CtxBuffer.TRAP_TRUNC_OVERFLOW -> new TrapException("integer overflow");
+            case CtxBuffer.TRAP_TRUNC_NAN -> new TrapException("invalid conversion to integer");
+            case CtxBuffer.TRAP_OOB -> new WasmRuntimeException("out of bounds memory access");
+            case CtxBuffer.TRAP_CALL_STACK_EXHAUSTED -> new TrapException("call stack exhausted");
+            case CtxBuffer.TRAP_TABLE_OOB -> new TrapException("out of bounds table access");
+            case CtxBuffer.TRAP_UNDEFINED_ELEMENT -> new TrapException("undefined element");
+            case CtxBuffer.TRAP_UNINITIALIZED_ELEMENT -> new TrapException("uninitialized element");
             case CtxBuffer.TRAP_INDIRECT_CALL_TYPE_MISMATCH ->
-                    new WasmEngineException("indirect call type mismatch");
-            case CtxBuffer.TRAP_UNALIGNED_ATOMIC -> new WasmEngineException("unaligned atomic");
-            case CtxBuffer.TRAP_INTERRUPTED -> new WasmEngineException("interrupted");
+                    new TrapException("indirect call type mismatch");
+            case CtxBuffer.TRAP_UNALIGNED_ATOMIC -> new TrapException("unaligned atomic");
+            case CtxBuffer.TRAP_INTERRUPTED -> new TrapException("interrupted");
             default -> new WasmEngineException("trap: unknown code " + trapCode);
         };
     }
@@ -1051,7 +1064,7 @@ public final class NativeMachine implements Machine {
             }
 
             if (Thread.interrupted()) {
-                throw new WasmEngineException("interrupted");
+                throw new TrapException("interrupted");
             }
 
             Thread caller = Thread.currentThread();

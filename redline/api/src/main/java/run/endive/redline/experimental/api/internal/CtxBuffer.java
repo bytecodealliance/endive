@@ -73,6 +73,12 @@ public final class CtxBuffer {
     public static final int TRAP_UNALIGNED_ATOMIC = 12;
     public static final int TRAP_INTERRUPTED = 13;
 
+    /**
+     * A host function threw. The throwable itself is held by the runner; this only
+     * marks the context so compiled code unwinds instead of running on.
+     */
+    public static final int TRAP_HOST_EXCEPTION = 14;
+
     public static final int TABLE_SIZE_OFFSET = 0;
     public static final int TABLE_MAX_OFFSET = 4;
     public static final int TABLE_ENTRIES_OFFSET = 8;

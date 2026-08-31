@@ -22,6 +22,8 @@ import run.endive.redline.experimental.api.internal.TypeMapUtils;
 import run.endive.redline.experimental.bridge.internal.CraneliftBridge;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
+import run.endive.runtime.TrapException;
+import run.endive.runtime.WasmRuntimeException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.ValType;
@@ -560,7 +562,7 @@ public final class JffiNativeMachine implements Machine {
             }
             throw new WasmEngineException("Function " + funcId + " not compiled");
         } catch (Throwable t) {
-            pendingException = t;
+            recordHostException(t);
             return 0L;
         }
     }
@@ -598,7 +600,7 @@ public final class JffiNativeMachine implements Machine {
 
             int actualTypeIdx = instance.functionType(funcId);
             if (actualTypeIdx != typeId) {
-                throw new WasmEngineException("indirect call type mismatch");
+                throw new TrapException("indirect call type mismatch");
             }
 
             long[] args = new long[argCount];
@@ -609,7 +611,7 @@ public final class JffiNativeMachine implements Machine {
             long[] result = this.call(funcId, args);
             return result.length > 0 ? result[0] : 0L;
         } catch (Throwable t) {
-            pendingException = t;
+            recordHostException(t);
             return 0L;
         }
     }
@@ -788,7 +790,7 @@ public final class JffiNativeMachine implements Machine {
             }
             return oldPages;
         } catch (Throwable t) {
-            pendingException = t;
+            recordHostException(t);
             return -1L;
         }
     }
@@ -869,45 +871,57 @@ public final class JffiNativeMachine implements Machine {
         return funcTypesArrayAddr;
     }
 
+    /**
+     * Marks the context so compiled code unwinds at its next trap check rather
+     * than running on. The first throwable wins: it is the one that stopped
+     * execution, so a later one would be a symptom of it.
+     */
+    private void recordHostException(Throwable t) {
+        if (pendingException == null) {
+            pendingException = t;
+        }
+        MEM.putInt(ctxBufferAddr + CtxBuffer.TRAP_CODE, CtxBuffer.TRAP_HOST_EXCEPTION);
+    }
+
     private static WasmEngineException trapException(int trapCode) {
         if (trapCode == CtxBuffer.TRAP_DIV_BY_ZERO) {
-            return new WasmEngineException("integer divide by zero");
+            return new TrapException("integer divide by zero");
         }
         if (trapCode == CtxBuffer.TRAP_INT_OVERFLOW) {
-            return new WasmEngineException("integer overflow");
+            return new TrapException("integer overflow");
         }
         if (trapCode == CtxBuffer.TRAP_UNREACHABLE) {
-            return new WasmEngineException("unreachable");
+            return new TrapException("unreachable");
         }
         if (trapCode == CtxBuffer.TRAP_TRUNC_OVERFLOW) {
-            return new WasmEngineException("integer overflow");
+            return new TrapException("integer overflow");
         }
         if (trapCode == CtxBuffer.TRAP_TRUNC_NAN) {
-            return new WasmEngineException("invalid conversion to integer");
+            return new TrapException("invalid conversion to integer");
         }
         if (trapCode == CtxBuffer.TRAP_OOB) {
-            return new WasmEngineException("out of bounds memory access");
+            return new WasmRuntimeException("out of bounds memory access");
         }
         if (trapCode == CtxBuffer.TRAP_CALL_STACK_EXHAUSTED) {
-            return new WasmEngineException("call stack exhausted");
+            return new TrapException("call stack exhausted");
         }
         if (trapCode == CtxBuffer.TRAP_TABLE_OOB) {
-            return new WasmEngineException("out of bounds table access");
+            return new TrapException("out of bounds table access");
         }
         if (trapCode == CtxBuffer.TRAP_UNDEFINED_ELEMENT) {
-            return new WasmEngineException("undefined element");
+            return new TrapException("undefined element");
         }
         if (trapCode == CtxBuffer.TRAP_UNINITIALIZED_ELEMENT) {
-            return new WasmEngineException("uninitialized element");
+            return new TrapException("uninitialized element");
         }
         if (trapCode == CtxBuffer.TRAP_INDIRECT_CALL_TYPE_MISMATCH) {
-            return new WasmEngineException("indirect call type mismatch");
+            return new TrapException("indirect call type mismatch");
         }
         if (trapCode == CtxBuffer.TRAP_UNALIGNED_ATOMIC) {
-            return new WasmEngineException("unaligned atomic");
+            return new TrapException("unaligned atomic");
         }
         if (trapCode == CtxBuffer.TRAP_INTERRUPTED) {
-            return new WasmEngineException("interrupted");
+            return new TrapException("interrupted");
         }
         return new WasmEngineException("trap: unknown code " + trapCode);
     }
@@ -1051,7 +1065,7 @@ public final class JffiNativeMachine implements Machine {
             }
 
             if (Thread.interrupted()) {
-                throw new WasmEngineException("interrupted");
+                throw new TrapException("interrupted");
             }
 
             Thread caller = Thread.currentThread();

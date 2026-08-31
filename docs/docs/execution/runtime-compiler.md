@@ -118,6 +118,22 @@ var instance = Instance.builder(module).
 
 Typically, you can obtain the list of the functions by running the compiler once with `InterpreterFallback.WARN`
 
+### Debug Names
+
+By default, the compiler names compiled methods `func_0`, `func_1`, etc. If the WASM module includes a name section, you can opt in to using the original function names in compiled method names. This improves readability of stack traces, profiler output, and error messages.
+
+```java
+var instance = Instance.builder(module).
+        withMachineFactory(
+                MachineFactoryCompiler.builder(module)
+                .withUseDebugNames(true)
+                .compile()
+        ).
+        build();
+```
+
+Characters not allowed in JVM method names are replaced with underscores. The numeric function index is always preserved as a suffix (e.g. `my_func_42`), so tools can recover the original function by index.
+
 ### Caveats 
 
 Please note that compiling and executing Wasm modules at runtime requires:

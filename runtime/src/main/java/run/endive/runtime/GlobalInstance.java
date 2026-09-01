@@ -93,16 +93,16 @@ public class GlobalInstance {
         this.valueLow = value.raw();
     }
 
+    public void setValue(long value) {
+        this.valueLow = value;
+    }
+
     /** For subclasses that store the value elsewhere but still owe the same check. */
     protected final void checkType(Value value) {
         if (value.type() != valType) {
             throw new IllegalArgumentException(
                     "Value has wrong type; expected " + valType + " got " + value.type());
         }
-    }
-
-    public void setValue(long value) {
-        this.valueLow = value;
     }
 
     public void setValueLow(long value) {

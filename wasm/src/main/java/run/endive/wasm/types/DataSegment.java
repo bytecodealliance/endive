@@ -14,6 +14,18 @@ public abstract class DataSegment {
         return data.clone();
     }
 
+    /**
+     * The segment's bytes, without copying. The returned array is the segment's own storage,
+     * shared with every other reader, and must never be modified.
+     *
+     * <p>Use {@link #data()} unless the copy it makes is unaffordable. This method exists for
+     * read-only consumers that access a segment repeatedly, where copying it every time would
+     * cost more than the read itself.
+     */
+    public byte[] bytes() {
+        return data;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

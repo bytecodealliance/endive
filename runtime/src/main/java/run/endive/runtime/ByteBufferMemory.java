@@ -282,7 +282,7 @@ public final class ByteBufferMemory implements Memory {
                     continue;
                 }
                 var offsetExpr = segment.offsetInstructions();
-                var data = segment.data();
+                var data = segment.bytes();
                 var offset = (int) computeConstantValue(instance, offsetExpr)[0];
                 checkBounds(offset, data.length, sizeInBytes(), UninstantiableException::new);
                 write(offset, data, 0, data.length);
@@ -335,7 +335,7 @@ public final class ByteBufferMemory implements Memory {
     @Override
     public void initPassiveSegment(int segmentId, int dest, int offset, int size) {
         var segment = dataSegments[segmentId];
-        write(dest, segment.data(), offset, size);
+        write(dest, segment.bytes(), offset, size);
     }
 
     private int sizeInBytes() {

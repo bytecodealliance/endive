@@ -383,7 +383,7 @@ public class Instance implements AutoCloseable {
     }
 
     public byte[] dataSegmentData(int idx) {
-        return dataSegments[idx].data();
+        return dataSegments[idx].bytes();
     }
 
     public void dropDataSegment(int idx) {

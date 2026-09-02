@@ -342,16 +342,6 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
         return PAGE_SIZE * nPages;
     }
 
-    /**
-     * jffi dereferences the address without checking it, so an out of bounds
-     * host read would take the JVM down with a SIGSEGV rather than trap.
-     */
-    private void checkBounds(int addr, int size) {
-        if (Integer.toUnsignedLong(addr) + Integer.toUnsignedLong(size) > sizeInBytes()) {
-            throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
-        }
-    }
-
     @Override
     public void write(int addr, byte[] data, int offset, int size) {
         long limit = sizeInBytes();
@@ -364,13 +354,11 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
 
     @Override
     public byte read(int addr) {
-        checkBounds(addr, 1);
         return MEM.getByte(reservedAddress + addr);
     }
 
     @Override
     public byte[] readBytes(int addr, int len) {
-        checkBounds(addr, len);
         byte[] result = new byte[len];
         MEM.getByteArray(reservedAddress + addr, result, 0, len);
         return result;
@@ -378,37 +366,31 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
 
     @Override
     public void writeI32(int addr, int data) {
-        checkBounds(addr, 4);
         MEM.putInt(reservedAddress + addr, data);
     }
 
     @Override
     public int readInt(int addr) {
-        checkBounds(addr, 4);
         return MEM.getInt(reservedAddress + addr);
     }
 
     @Override
     public void writeLong(int addr, long data) {
-        checkBounds(addr, 8);
         MEM.putLong(reservedAddress + addr, data);
     }
 
     @Override
     public long readLong(int addr) {
-        checkBounds(addr, 8);
         return MEM.getLong(reservedAddress + addr);
     }
 
     @Override
     public void writeShort(int addr, short data) {
-        checkBounds(addr, 2);
         MEM.putShort(reservedAddress + addr, data);
     }
 
     @Override
     public short readShort(int addr) {
-        checkBounds(addr, 2);
         return MEM.getShort(reservedAddress + addr);
     }
 
@@ -419,7 +401,6 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
 
     @Override
     public void writeByte(int addr, byte data) {
-        checkBounds(addr, 1);
         MEM.putByte(reservedAddress + addr, data);
     }
 

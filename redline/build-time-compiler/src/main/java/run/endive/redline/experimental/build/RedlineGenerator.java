@@ -5,7 +5,6 @@ import static com.github.javaparser.StaticJavaParser.parseType;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.Modifier;
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.Parameter;
@@ -104,7 +103,7 @@ public final class RedlineGenerator {
         generateLoadNativeCodeMethod(type);
         generateNativeProviderMethod(type);
         generateBuilderMethod(type, baseName);
-        generateImportFactoryMethods(type);
+        generateSafeBuilderMethod(type, baseName);
 
         Files.writeString(sourceFile, cu.toString());
     }
@@ -311,88 +310,6 @@ public final class RedlineGenerator {
                                 new NameExpr("NativeMachineFactoryProvider"), "discover")));
     }
 
-    /**
-     * Replaces the plain import factories with ones that go through the native
-     * provider when there is one. Compiled code reaches into a memory or table
-     * through a raw base address, so an imported one has to come from the same
-     * backend that will run the module. Falling back leaves the plain types,
-     * which is what the bytecode path expects.
-     *
-     * <p>Generates:
-     * <code>
-     *     public static Memory createMemory(MemoryLimits limits) {
-     *         var provider = nativeProvider();
-     *         if (provider.isPresent()) {
-     *             return provider.get().createMemory(limits);
-     *         }
-     *         return new ByteBufferMemory(limits);
-     *     }
-     * </code>
-     * and the same shape for createTable.
-     */
-    private static void generateImportFactoryMethods(ClassOrInterfaceDeclaration type) {
-        // addMethod appends, so the base generator's versions have to go first.
-        type.getMethodsByName("createMemory").forEach(Node::remove);
-        type.getMethodsByName("createTable").forEach(Node::remove);
-
-        var memory =
-                type.addMethod("createMemory", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC)
-                        .addParameter(parseType("MemoryLimits"), "limits")
-                        .setType(parseType("Memory"));
-        memory.createBody()
-                .addStatement(providerVar())
-                .addStatement(
-                        ifProviderPresent(
-                                new MethodCallExpr(
-                                        new MethodCallExpr(new NameExpr("provider"), "get"),
-                                        "createMemory",
-                                        new NodeList<>(new NameExpr("limits")))))
-                .addStatement(
-                        new ReturnStmt(
-                                new com.github.javaparser.ast.expr.ObjectCreationExpr(
-                                        null,
-                                        parseClassOrInterfaceType("ByteBufferMemory"),
-                                        new NodeList<>(new NameExpr("limits")))));
-
-        var table =
-                type.addMethod("createTable", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC)
-                        .addParameter(parseType("Table"), "table")
-                        .addParameter(parseType("int"), "initValue")
-                        .setType(parseType("TableInstance"));
-        table.createBody()
-                .addStatement(providerVar())
-                .addStatement(
-                        ifProviderPresent(
-                                new MethodCallExpr(
-                                        new MethodCallExpr(new NameExpr("provider"), "get"),
-                                        "createImportTable",
-                                        new NodeList<>(
-                                                new NameExpr("table"), new NameExpr("initValue")))))
-                .addStatement(
-                        new ReturnStmt(
-                                new com.github.javaparser.ast.expr.ObjectCreationExpr(
-                                        null,
-                                        parseClassOrInterfaceType("TableInstance"),
-                                        new NodeList<>(
-                                                new NameExpr("table"),
-                                                new NameExpr("initValue")))));
-    }
-
-    /** {@code var provider = nativeProvider();} */
-    private static ExpressionStmt providerVar() {
-        return new ExpressionStmt(
-                new VariableDeclarationExpr(
-                        new VariableDeclarator(
-                                new VarType(), "provider", new MethodCallExpr("nativeProvider"))));
-    }
-
-    /** {@code if (provider.isPresent()) { return <call>; }} */
-    private static IfStmt ifProviderPresent(MethodCallExpr call) {
-        return new IfStmt()
-                .setCondition(new MethodCallExpr(new NameExpr("provider"), "isPresent"))
-                .setThenStmt(new BlockStmt(new NodeList<>(new ReturnStmt(call))));
-    }
-
     private static void generateBuilderMethod(ClassOrInterfaceDeclaration type, String moduleName) {
         // Generates:
         // <code>
@@ -409,9 +326,6 @@ public final class RedlineGenerator {
         // The native path is selected through nativeProvider() so that callers
         // checking it see exactly the decision this method makes. Falling back means
         // the build-time compiled bytecode, not the interpreter.
-        // The base generator already emitted a builder(); addMethod appends rather
-        // than replaces, so it has to go before this one is added.
-        type.getMethodsByName("builder").forEach(Node::remove);
         var method =
                 type.addMethod("builder", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC)
                         .setType(parseClassOrInterfaceType("Instance.Builder"));
@@ -452,6 +366,23 @@ public final class RedlineGenerator {
         body.addStatement(providerVar);
         body.addStatement(ifProviderPresent);
         body.addStatement(new ReturnStmt(compiledBuilder(new NameExpr("module"), moduleName)));
+    }
+
+    private static void generateSafeBuilderMethod(
+            ClassOrInterfaceDeclaration type, String moduleName) {
+        // Generates:
+        // <code>
+        //     public static Instance.Builder safeBuilder() {
+        //         return Instance.builder(load()).withMachineFactory(<moduleName>::create);
+        //     }
+        // </code>
+        var method =
+                type.addMethod("safeBuilder", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC)
+                        .setType(parseClassOrInterfaceType("Instance.Builder"));
+
+        method.createBody()
+                .addStatement(
+                        new ReturnStmt(compiledBuilder(new MethodCallExpr("load"), moduleName)));
     }
 
     /**

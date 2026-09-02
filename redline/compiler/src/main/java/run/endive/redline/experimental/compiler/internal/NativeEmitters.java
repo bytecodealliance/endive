@@ -361,24 +361,6 @@ final class NativeEmitters {
         ctx.emitReturnForFuncType();
     }
 
-    /**
-     * A callee that traps records its code and returns like any other call, so the
-     * caller has to look for it. Without this check the caller runs on to
-     * completion after the trap: its stores land and its host imports fire.
-     */
-    static void emitTrapCheck(EmitContext ctx) {
-        var b = ctx.bridge.exports();
-        int zero = b.emitIconst32(0);
-        int trapCode = b.emitLoadI32(b.useVar(ctx.ctxPtrVar), zero, CtxBuffer.TRAP_CODE);
-        int trapped = b.emitIcmp(1, trapCode, b.emitIconst32(0));
-        int propagateBlock = b.createBlock();
-        int continueBlock = b.createBlock();
-        b.emitBrif(trapped, propagateBlock, continueBlock);
-        b.switchToBlock(propagateBlock);
-        ctx.emitReturnForFuncType();
-        b.switchToBlock(continueBlock);
-    }
-
     // --- Extensions ---
 
     static void emitI32Extend8S(EmitContext ctx) {
@@ -786,7 +768,6 @@ final class NativeEmitters {
         }
 
         int rawResult = ctx.bridge.exports().emitCallIndirect(sigRef, funcPtr);
-        emitTrapCheck(ctx);
 
         if (calleeMultiReturn) {
             // Read return values from argsBuffer
@@ -906,7 +887,6 @@ final class NativeEmitters {
         }
 
         int rawResult = b.emitCallIndirect(sigRef, funcPtr);
-        emitTrapCheck(ctx);
 
         // 9. Handle results
         if (calleeMultiReturn) {

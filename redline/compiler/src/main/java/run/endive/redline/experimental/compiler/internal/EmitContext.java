@@ -140,14 +140,16 @@ final class EmitContext {
         return module.globalSection().getGlobal(moduleGlobalIdx).valueType();
     }
 
-    /**
-     * Widens a value for the argument buffer a host import reads. i32 is
-     * sign-extended so a host handed -1 sees -1, matching the interpreter, rather
-     * than 4294967295.
-     */
     int widenToI64(int valId, ValType type) {
         if (type.equals(ValType.I32)) {
-            return bridge.exports().emitSextendI64(valId);
+            return bridge.exports().emitUextendI64(valId);
+        }
+        return valId;
+    }
+
+    int narrowFromI64(int valId, ValType type) {
+        if (type.equals(ValType.I32)) {
+            return bridge.exports().emitIreduceI32(valId);
         }
         return valId;
     }

@@ -250,94 +250,47 @@ public final class NativeMemory implements Memory, AutoCloseable {
         MemorySegment.copy(MemorySegment.ofArray(data), offset, segment, addr, size);
     }
 
-    /**
-     * A MemorySegment reports an out of bounds access its own way, but a host
-     * reading past the end of a Wasm memory has to see the same trap it would
-     * from any other backend.
-     */
-    private static run.endive.runtime.WasmRuntimeException outOfBounds(int addr) {
-        return new run.endive.runtime.WasmRuntimeException(
-                "out of bounds memory access: attempted to access address: " + addr);
-    }
-
     @Override
     public byte read(int addr) {
-        try {
-            return segment.get(ValueLayout.JAVA_BYTE, addr);
-        } catch (IndexOutOfBoundsException e) {
-            throw outOfBounds(addr);
-        }
+        return segment.get(ValueLayout.JAVA_BYTE, addr);
     }
 
     @Override
     public byte[] readBytes(int addr, int len) {
-        try {
-            return segment.asSlice(addr, len).toArray(ValueLayout.JAVA_BYTE);
-        } catch (IndexOutOfBoundsException e) {
-            throw outOfBounds(addr);
-        }
+        return segment.asSlice(addr, len).toArray(ValueLayout.JAVA_BYTE);
     }
 
     @Override
     public void writeI32(int addr, int data) {
-        try {
-            segment.set(
-                    ValueLayout.JAVA_INT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr, data);
-        } catch (IndexOutOfBoundsException e) {
-            throw outOfBounds(addr);
-        }
+        segment.set(ValueLayout.JAVA_INT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr, data);
     }
 
     @Override
     public int readInt(int addr) {
-        try {
-            return segment.get(
-                    ValueLayout.JAVA_INT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr);
-        } catch (IndexOutOfBoundsException e) {
-            throw outOfBounds(addr);
-        }
+        return segment.get(ValueLayout.JAVA_INT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr);
     }
 
     @Override
     public void writeLong(int addr, long data) {
-        try {
-            segment.set(
-                    ValueLayout.JAVA_LONG_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr, data);
-        } catch (IndexOutOfBoundsException e) {
-            throw outOfBounds(addr);
-        }
+        segment.set(ValueLayout.JAVA_LONG_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr, data);
     }
 
     @Override
     public long readLong(int addr) {
-        try {
-            return segment.get(
-                    ValueLayout.JAVA_LONG_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr);
-        } catch (IndexOutOfBoundsException e) {
-            throw outOfBounds(addr);
-        }
+        return segment.get(
+                ValueLayout.JAVA_LONG_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr);
     }
 
     @Override
     public void writeShort(int addr, short data) {
-        try {
-            segment.set(
-                    ValueLayout.JAVA_SHORT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN),
-                    addr,
-                    data);
-        } catch (IndexOutOfBoundsException e) {
-            throw outOfBounds(addr);
-        }
+        segment.set(
+                ValueLayout.JAVA_SHORT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr, data);
     }
 
     @Override
     public short readShort(int addr) {
-        try {
-            return segment.get(
-                    ValueLayout.JAVA_SHORT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr);
-        } catch (IndexOutOfBoundsException e) {
-            throw outOfBounds(addr);
-        }
+        return segment.get(
+                ValueLayout.JAVA_SHORT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN), addr);
     }
 
     @Override
@@ -347,11 +300,7 @@ public final class NativeMemory implements Memory, AutoCloseable {
 
     @Override
     public void writeByte(int addr, byte data) {
-        try {
-            segment.set(ValueLayout.JAVA_BYTE, addr, data);
-        } catch (IndexOutOfBoundsException e) {
-            throw outOfBounds(addr);
-        }
+        segment.set(ValueLayout.JAVA_BYTE, addr, data);
     }
 
     @Override

@@ -45,8 +45,8 @@ public final class NativeTable extends TableInstance {
     private final int capacity;
     private final boolean isExternRef;
 
-    public NativeTable(Table table, int initValue, Arena arena) {
-        super(table, initValue);
+    public NativeTable(Table table, Arena arena) {
+        super(table, REF_NULL_VALUE);
         this.isExternRef = table.elementType().equals(ValType.ExternRef);
         int initial = (int) table.limits().min();
         int max = (int) table.limits().max();
@@ -60,19 +60,9 @@ public final class NativeTable extends TableInstance {
         buffer.set(ValueLayout.JAVA_INT, CtxBuffer.TABLE_SIZE_OFFSET, initial);
         buffer.set(ValueLayout.JAVA_INT, CtxBuffer.TABLE_MAX_OFFSET, max > 0 ? max : capacity);
 
-        // Only the entries below size are reachable: every access bounds-checks
-        // against the size field, and grow fills the slots it exposes. Filling
-        // the whole capacity here would make the entire pre-allocation resident.
-        for (int i = 0; i < initial; i++) {
+        // Fill all entries with null (funcId=-1, funcPtr=0, typeIdx=0)
+        for (int i = 0; i < capacity; i++) {
             writeNullEntry(i);
-        }
-
-        if (initValue != REF_NULL_VALUE) {
-            // The instance has no machine yet, so funcPtr cannot be resolved
-            // here. resolvePendingRefs fills it in once there is one.
-            for (int i = 0; i < initial; i++) {
-                writeUnresolvedEntry(i, initValue);
-            }
         }
     }
 
@@ -85,34 +75,6 @@ public final class NativeTable extends TableInstance {
         buffer.set(ValueLayout.JAVA_INT, base + CtxBuffer.ENTRY_TYPE_IDX_OFFSET, 0);
         buffer.set(ValueLayout.JAVA_INT, base + CtxBuffer.ENTRY_FUNC_ID_OFFSET, REF_NULL_VALUE);
         buffer.set(ValueLayout.JAVA_LONG, base + CtxBuffer.ENTRY_FUNC_PTR_OFFSET, 0L);
-    }
-
-    /** A funcref whose native address is not known yet. */
-    private void writeUnresolvedEntry(int index, int value) {
-        long base = entryBase(index);
-        buffer.set(ValueLayout.JAVA_INT, base + CtxBuffer.ENTRY_TYPE_IDX_OFFSET, 0);
-        buffer.set(ValueLayout.JAVA_INT, base + CtxBuffer.ENTRY_FUNC_ID_OFFSET, value);
-        buffer.set(ValueLayout.JAVA_LONG, base + CtxBuffer.ENTRY_FUNC_PTR_OFFSET, 0L);
-    }
-
-    /**
-     * Fills in the native address of entries written before the instance had a
-     * machine, which is the case for a table initialiser.
-     */
-    void resolvePendingRefs(Instance instance) {
-        if (isExternRef) {
-            return;
-        }
-        int sz = size();
-        for (int i = 0; i < sz; i++) {
-            long base = entryBase(i);
-            int funcId = buffer.get(ValueLayout.JAVA_INT, base + CtxBuffer.ENTRY_FUNC_ID_OFFSET);
-            long funcPtr =
-                    buffer.get(ValueLayout.JAVA_LONG, base + CtxBuffer.ENTRY_FUNC_PTR_OFFSET);
-            if (funcId != REF_NULL_VALUE && funcPtr == 0L) {
-                resolveFromInstance(i, funcId, instance);
-            }
-        }
     }
 
     private void writeOpaqueEntry(int index, int value) {
@@ -197,8 +159,14 @@ public final class NativeTable extends TableInstance {
         }
         if (value == REF_NULL_VALUE) {
             writeNullEntry(index);
-        } else if (!resolveFromInstance(index, value, instance)) {
-            writeUnresolvedEntry(index, value);
+        } else if (resolveFromInstance(index, value, instance)) {
+            // Resolved using the calling module's NativeMachine
+        } else {
+            // No NativeMachine available — store funcId only (externref or non-native)
+            long base = entryBase(index);
+            buffer.set(ValueLayout.JAVA_INT, base + CtxBuffer.ENTRY_TYPE_IDX_OFFSET, 0);
+            buffer.set(ValueLayout.JAVA_INT, base + CtxBuffer.ENTRY_FUNC_ID_OFFSET, value);
+            buffer.set(ValueLayout.JAVA_LONG, base + CtxBuffer.ENTRY_FUNC_PTR_OFFSET, 0L);
         }
     }
 
@@ -215,7 +183,10 @@ public final class NativeTable extends TableInstance {
             if (value == REF_NULL_VALUE) {
                 writeNullEntry(i);
             } else if (!resolveFromInstance(i, value, instance)) {
-                writeUnresolvedEntry(i, value);
+                long base = entryBase(i);
+                buffer.set(ValueLayout.JAVA_INT, base + CtxBuffer.ENTRY_TYPE_IDX_OFFSET, 0);
+                buffer.set(ValueLayout.JAVA_INT, base + CtxBuffer.ENTRY_FUNC_ID_OFFSET, value);
+                buffer.set(ValueLayout.JAVA_LONG, base + CtxBuffer.ENTRY_FUNC_PTR_OFFSET, 0L);
             }
         }
         // Update size

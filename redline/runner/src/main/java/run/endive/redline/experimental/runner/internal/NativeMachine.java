@@ -19,8 +19,6 @@ import run.endive.redline.experimental.api.internal.TypeMapUtils;
 import run.endive.redline.experimental.bridge.internal.CraneliftBridge;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
-import run.endive.runtime.TrapException;
-import run.endive.runtime.WasmRuntimeException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.ValType;
@@ -101,9 +99,6 @@ public final class NativeMachine implements Machine {
     private boolean memBaseInitialized;
     private NativeMemory nativeMemory;
     private volatile Throwable pendingException;
-    private int callDepth;
-    private boolean ownsMemory;
-    private boolean closed;
 
     public NativeMachine(
             Instance instance,
@@ -356,20 +351,11 @@ public final class NativeMachine implements Machine {
         }
 
         this.nativeMemory = instance.memory() instanceof NativeMemory nm ? nm : null;
-        // An imported memory outlives this instance and may back others, so only
-        // a memory this module defines is ours to close.
-        this.ownsMemory = instance.imports().memoryCount() == 0;
     }
 
     @Override
     public void close() {
-        if (closed) {
-            // munmap below is a native free, so a second close would unmap a
-            // region that may already have been handed back out.
-            return;
-        }
-        closed = true;
-        if (nativeMemory != null && ownsMemory) {
+        if (nativeMemory != null) {
             nativeMemory.close();
         }
         try {
@@ -502,14 +488,8 @@ public final class NativeMachine implements Machine {
                 layouts.add(valTypeToLayout(param));
             }
 
-            // Multi-return follows the compiled convention: results go through
-            // argsBuffer and the call itself returns a dummy i64.
-            boolean multiReturn = funcType.returns().size() > 1;
-
             ValueLayout returnLayout = null;
-            if (multiReturn) {
-                returnLayout = ValueLayout.JAVA_LONG;
-            } else if (!funcType.returns().isEmpty()) {
+            if (!funcType.returns().isEmpty()) {
                 returnLayout = valTypeToLayout(funcType.returns().get(0));
             }
 
@@ -549,17 +529,9 @@ public final class NativeMachine implements Machine {
                 var voidType =
                         MethodType.methodType(void.class, targetParamTypes.toArray(new Class[0]));
                 dropper = dropper.asType(voidType);
-            } else if (!multiReturn && !funcType.returns().isEmpty()) {
+            } else if (!funcType.returns().isEmpty()) {
                 var retClass = valTypeToJavaClass(funcType.returns().get(0));
-                if (retClass.equals(float.class)) {
-                    // The long carries the f32 bit pattern, so it has to be
-                    // reinterpreted. A cast would convert numerically and turn the
-                    // bits of 1.5f into 1.06954752E9f.
-                    dropper = MethodHandles.filterReturnValue(dropper, LONG_TO_FLOAT);
-                } else if (retClass.equals(double.class)) {
-                    dropper = MethodHandles.filterReturnValue(dropper, LONG_TO_DOUBLE);
-                } else if (!retClass.equals(long.class)) {
-                    // i32: the value is the low 32 bits, so truncation is correct.
+                if (!retClass.equals(long.class)) {
                     dropper =
                             MethodHandles.explicitCastArguments(
                                     dropper,
@@ -589,22 +561,11 @@ public final class NativeMachine implements Machine {
             if (funcId < numImports) {
                 var importFunc = instance.imports().function(funcId);
                 long[] result = importFunc.handle().apply(instance, args);
-                if (result == null || result.length == 0) {
-                    return 0L;
-                }
-                if (importFunc.functionType().returns().size() > 1) {
-                    // Multi-return convention: the caller reads the results back out
-                    // of argsBuffer and ignores the returned value.
-                    for (int i = 0; i < result.length; i++) {
-                        argsBuffer.set(ValueLayout.JAVA_LONG, CtxBuffer.argOffset(i), result[i]);
-                    }
-                    return 0L;
-                }
-                return result[0];
+                return (result != null && result.length > 0) ? result[0] : 0L;
             }
             throw new WasmEngineException("Function " + funcId + " not compiled");
         } catch (Throwable t) {
-            recordHostException(t);
+            pendingException = t;
             return 0L;
         }
     }
@@ -626,23 +587,39 @@ public final class NativeMachine implements Machine {
         }
     }
 
-    /**
-     * Compiled code only reaches this with a table operation sentinel: it emits
-     * call_indirect inline and never writes TYPE_ID, TABLE_IDX or ELEM_IDX, so the
-     * call_indirect path this used to carry could only ever have dispatched on
-     * whatever those fields happened to hold.
-     */
     @SuppressWarnings("unused")
     private long callIndirectTrampoline(long ctxAddr) {
         try {
             var ctx = MemorySegment.ofAddress(ctxAddr).reinterpret(CTX_SIZE);
             int argCount = ctx.get(ValueLayout.JAVA_INT, CtxBuffer.ARG_COUNT);
+
+            // Negative argCount = table operation sentinel
             if (argCount < 0) {
                 return handleTableOperation(argCount);
             }
-            throw new WasmEngineException("Unexpected trampoline call: argCount " + argCount);
+
+            // Normal call_indirect path (fallback, rarely used now)
+            int typeId = ctx.get(ValueLayout.JAVA_INT, CtxBuffer.TYPE_ID);
+            int tableIdx = ctx.get(ValueLayout.JAVA_INT, CtxBuffer.TABLE_IDX);
+            int elemIdx = ctx.get(ValueLayout.JAVA_INT, CtxBuffer.ELEM_IDX);
+
+            int funcId = nativeTables[tableIdx].requiredRef(elemIdx);
+
+            // Type check
+            int actualTypeIdx = instance.functionType(funcId);
+            if (actualTypeIdx != typeId) {
+                throw new WasmEngineException("indirect call type mismatch");
+            }
+
+            long[] args = new long[argCount];
+            for (int i = 0; i < argCount; i++) {
+                args[i] = argsBuffer.get(ValueLayout.JAVA_LONG, CtxBuffer.argOffset(i));
+            }
+
+            long[] result = this.call(funcId, args);
+            return result.length > 0 ? result[0] : 0L;
         } catch (Throwable t) {
-            recordHostException(t);
+            pendingException = t;
             return 0L;
         }
     }
@@ -832,7 +809,7 @@ public final class NativeMachine implements Machine {
             }
             return oldPages;
         } catch (Throwable t) {
-            recordHostException(t);
+            pendingException = t;
             return -1L;
         }
     }
@@ -894,14 +871,11 @@ public final class NativeMachine implements Machine {
         for (int i = 0; i < tableCount; i++) {
             var table = instance.table(i);
             if (table instanceof NativeTable nt) {
-                nt.resolvePendingRefs(instance);
                 nativeTables[i] = nt;
             } else {
                 // Imported table not created by our factory — wrap it
                 var tableDef = new run.endive.wasm.types.Table(table.elementType(), table.limits());
-                var nt =
-                        new NativeTable(
-                                tableDef, run.endive.wasm.types.Value.REF_NULL_VALUE, arena);
+                var nt = new NativeTable(tableDef, arena);
                 for (int j = 0; j < table.size(); j++) {
                     nt.setRef(j, table.ref(j), instance);
                 }
@@ -925,36 +899,25 @@ public final class NativeMachine implements Machine {
         return funcTypesArray;
     }
 
-    /**
-     * Marks the context so compiled code unwinds at its next trap check rather
-     * than running on. The first throwable wins: it is the one that stopped
-     * execution, so a later one would be a symptom of it.
-     */
-    private void recordHostException(Throwable t) {
-        if (pendingException == null) {
-            pendingException = t;
-        }
-        ctxBuffer.set(ValueLayout.JAVA_INT, CtxBuffer.TRAP_CODE, CtxBuffer.TRAP_HOST_EXCEPTION);
-    }
-
     private static WasmEngineException trapException(int trapCode) {
-        // TrapException, not the WasmEngineException parent: Instance catches
-        // TrapException to report a trapping start function as uninstantiable.
         return switch (trapCode) {
-            case CtxBuffer.TRAP_DIV_BY_ZERO -> new TrapException("integer divide by zero");
-            case CtxBuffer.TRAP_INT_OVERFLOW -> new TrapException("integer overflow");
-            case CtxBuffer.TRAP_UNREACHABLE -> new TrapException("unreachable");
-            case CtxBuffer.TRAP_TRUNC_OVERFLOW -> new TrapException("integer overflow");
-            case CtxBuffer.TRAP_TRUNC_NAN -> new TrapException("invalid conversion to integer");
-            case CtxBuffer.TRAP_OOB -> new WasmRuntimeException("out of bounds memory access");
-            case CtxBuffer.TRAP_CALL_STACK_EXHAUSTED -> new TrapException("call stack exhausted");
-            case CtxBuffer.TRAP_TABLE_OOB -> new TrapException("out of bounds table access");
-            case CtxBuffer.TRAP_UNDEFINED_ELEMENT -> new TrapException("undefined element");
-            case CtxBuffer.TRAP_UNINITIALIZED_ELEMENT -> new TrapException("uninitialized element");
+            case CtxBuffer.TRAP_DIV_BY_ZERO -> new WasmEngineException("integer divide by zero");
+            case CtxBuffer.TRAP_INT_OVERFLOW -> new WasmEngineException("integer overflow");
+            case CtxBuffer.TRAP_UNREACHABLE -> new WasmEngineException("unreachable");
+            case CtxBuffer.TRAP_TRUNC_OVERFLOW -> new WasmEngineException("integer overflow");
+            case CtxBuffer.TRAP_TRUNC_NAN ->
+                    new WasmEngineException("invalid conversion to integer");
+            case CtxBuffer.TRAP_OOB -> new WasmEngineException("out of bounds memory access");
+            case CtxBuffer.TRAP_CALL_STACK_EXHAUSTED ->
+                    new WasmEngineException("call stack exhausted");
+            case CtxBuffer.TRAP_TABLE_OOB -> new WasmEngineException("out of bounds table access");
+            case CtxBuffer.TRAP_UNDEFINED_ELEMENT -> new WasmEngineException("undefined element");
+            case CtxBuffer.TRAP_UNINITIALIZED_ELEMENT ->
+                    new WasmEngineException("uninitialized element");
             case CtxBuffer.TRAP_INDIRECT_CALL_TYPE_MISMATCH ->
-                    new TrapException("indirect call type mismatch");
-            case CtxBuffer.TRAP_UNALIGNED_ATOMIC -> new TrapException("unaligned atomic");
-            case CtxBuffer.TRAP_INTERRUPTED -> new TrapException("interrupted");
+                    new WasmEngineException("indirect call type mismatch");
+            case CtxBuffer.TRAP_UNALIGNED_ATOMIC -> new WasmEngineException("unaligned atomic");
+            case CtxBuffer.TRAP_INTERRUPTED -> new WasmEngineException("interrupted");
             default -> new WasmEngineException("trap: unknown code " + trapCode);
         };
     }
@@ -1026,19 +989,13 @@ public final class NativeMachine implements Machine {
         var handle = downcalls[funcId];
 
         try {
-            boolean outermostCall = callDepth++ == 0;
             var funcType = (FunctionType) instance.type(instance.functionType(funcId));
 
             initializeImportGlobals();
             initializeNativeTables();
 
-            // Re-anchor the stack guard only for a call that starts on this
-            // stack. A host function calling back in has to keep measuring
-            // against where the outer call began, or every level moves the
-            // limit deeper and the guard stops firing.
-            if (outermostCall) {
-                ctxBuffer.set(ValueLayout.JAVA_LONG, CtxBuffer.STACK_LIMIT, 0L);
-            }
+            // Reset stack limit so native code re-initializes from calling thread's RSP
+            ctxBuffer.set(ValueLayout.JAVA_LONG, CtxBuffer.STACK_LIMIT, 0L);
 
             if (!memBaseInitialized) {
                 var mem = instance.memory();
@@ -1066,19 +1023,17 @@ public final class NativeMachine implements Machine {
             }
 
             if (Thread.interrupted()) {
-                throw new TrapException("interrupted");
+                throw new WasmEngineException("interrupted");
             }
 
             Thread caller = Thread.currentThread();
             Thread watchdog =
                     new Thread(
                             () -> {
-                                // Keeps raising rather than returning after the
-                                // first: a nested call clears the flag when it
-                                // finishes, and the outer call still needs it.
                                 while (!Thread.currentThread().isInterrupted()) {
                                     if (caller.isInterrupted()) {
                                         requestInterrupt();
+                                        return;
                                     }
                                     try {
                                         Thread.sleep(1);
@@ -1094,9 +1049,6 @@ public final class NativeMachine implements Machine {
                 result = (long) handle.invokeExact(cachedMemBase, ctxBuffer, args);
             } finally {
                 watchdog.interrupt();
-                // The flag only ever means "stop this call". Left set it would
-                // trap the next one on a thread nobody interrupted.
-                clearInterrupt();
             }
 
             // Check for exceptions from upcall stubs first — a host function
@@ -1142,7 +1094,6 @@ public final class NativeMachine implements Machine {
             sneakyThrow(e);
             throw new AssertionError("unreachable");
         } finally {
-            callDepth--;
             // Prevent the JIT from considering this machine unreachable during
             // the native call, which would let GC collect and close() free
             // native memory while code is executing.

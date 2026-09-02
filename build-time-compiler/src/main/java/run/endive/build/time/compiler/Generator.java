@@ -37,22 +37,17 @@ import run.endive.codegen.CodegenUtils;
 import run.endive.codegen.ModuleInterfaceCodegen;
 import run.endive.compiler.internal.ByteClassCollector;
 import run.endive.compiler.internal.Compiler;
-import run.endive.runtime.ByteBufferMemory;
 import run.endive.runtime.CompiledModule;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
-import run.endive.runtime.Memory;
-import run.endive.runtime.TableInstance;
 import run.endive.wasm.MalformedException;
 import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.WasmWriter;
 import run.endive.wasm.types.ExternalType;
-import run.endive.wasm.types.MemoryLimits;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.RawSection;
 import run.endive.wasm.types.SectionId;
-import run.endive.wasm.types.Table;
 
 public class Generator {
 
@@ -115,9 +110,6 @@ public class Generator {
         generateLoadMethod(cu, type);
         generateMachineFactoryMethod(cu, type, moduleName);
         generateWasmModuleMethod(cu, type, moduleName);
-        generateBuilderMethod(cu, type, moduleName);
-        generateSafeBuilderMethod(cu, type, moduleName);
-        generateImportFactoryMethods(cu, type);
 
         dest.add(packageName, moduleName + ".java", cu);
         dest.saveAll();
@@ -239,105 +231,6 @@ public class Generator {
                         parseClassOrInterfaceType(machineName),
                         NodeList.nodeList(new NameExpr("instance")));
         method.addStatement(new ReturnStmt(constructorInvocation));
-    }
-
-    /**
-     * Generates:
-     * <code>
-     *     public static Instance.Builder builder() {
-     *         return Instance.builder(load()).withMachineFactory(&lt;moduleName&gt;::create);
-     *     }
-     * </code>
-     *
-     * <p>Every generated module has this, so the same user code compiles whether or
-     * not a backend that replaces it is in play. Redline overwrites the body to pick
-     * native code when it can, and leaves this one as the fallback.
-     */
-    private static void generateBuilderMethod(
-            CompilationUnit cu, ClassOrInterfaceDeclaration type, String moduleName) {
-        cu.addImport(Instance.class);
-        type.addMethod("builder", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC)
-                .setType(parseClassOrInterfaceType("Instance.Builder"))
-                .createBody()
-                .addStatement(
-                        new ReturnStmt(compiledBuilder(new MethodCallExpr("load"), moduleName)));
-    }
-
-    /**
-     * Generates the same builder under a name no backend replaces, so there is always
-     * a way to ask for the bytecode specifically.
-     */
-    private static void generateSafeBuilderMethod(
-            CompilationUnit cu, ClassOrInterfaceDeclaration type, String moduleName) {
-        cu.addImport(Instance.class);
-        type.addMethod("safeBuilder", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC)
-                .setType(parseClassOrInterfaceType("Instance.Builder"))
-                .createBody()
-                .addStatement(
-                        new ReturnStmt(compiledBuilder(new MethodCallExpr("load"), moduleName)));
-    }
-
-    /** {@code Instance.builder(<module>).withMachineFactory(<moduleName>::create)} */
-    private static MethodCallExpr compiledBuilder(
-            com.github.javaparser.ast.expr.Expression module, String moduleName) {
-        return new MethodCallExpr(
-                new MethodCallExpr(new NameExpr("Instance"), "builder", new NodeList<>(module)),
-                "withMachineFactory",
-                new NodeList<>(
-                        new MethodReferenceExpr()
-                                .setScope(new NameExpr(moduleName))
-                                .setIdentifier("create")));
-    }
-
-    /**
-     * Generates:
-     * <code>
-     *     public static Memory createMemory(MemoryLimits limits) {
-     *         return new ByteBufferMemory(limits);
-     *     }
-     *
-     *     public static TableInstance createTable(Table table, int initValue) {
-     *         return new TableInstance(table, initValue);
-     *     }
-     * </code>
-     *
-     * <p>A backend whose compiled code reaches into a memory or table directly
-     * cannot accept one built any other way, so it replaces these. Going through
-     * the module rather than naming a type keeps the calling code the same either
-     * way.
-     */
-    private static void generateImportFactoryMethods(
-            CompilationUnit cu, ClassOrInterfaceDeclaration type) {
-        cu.addImport(Memory.class);
-        cu.addImport(ByteBufferMemory.class);
-        cu.addImport(TableInstance.class);
-        cu.addImport(MemoryLimits.class);
-        cu.addImport(Table.class);
-
-        type.addMethod("createMemory", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC)
-                .addParameter(parseType("MemoryLimits"), "limits")
-                .setType(Memory.class)
-                .createBody()
-                .addStatement(
-                        new ReturnStmt(
-                                new ObjectCreationExpr(
-                                        null,
-                                        parseClassOrInterfaceType("ByteBufferMemory"),
-                                        NodeList.nodeList(new NameExpr("limits")))));
-
-        type.addMethod("createTable", Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC)
-                .addParameter(parseType("Table"), "table")
-                .addParameter(parseType("int"), "initValue")
-                .setType(TableInstance.class)
-                .createBody()
-                .addStatement(
-                        new ReturnStmt(
-                                new ObjectCreationExpr(
-                                        null,
-                                        parseClassOrInterfaceType("TableInstance"),
-                                        NodeList.nodeList(
-                                                new NameExpr("table"),
-                                                new NameExpr("initValue")))));
     }
 
     private static void generateWasmModuleHolderInnerClass(

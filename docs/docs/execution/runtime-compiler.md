@@ -118,21 +118,33 @@ var instance = Instance.builder(module).
 
 Typically, you can obtain the list of the functions by running the compiler once with `InterpreterFallback.WARN`
 
-### Debug Names
+### Method Names
 
-By default, the compiler names compiled methods `func_0`, `func_1`, etc. If the WASM module includes a name section, you can opt in to using the original function names in compiled method names. This improves readability of stack traces, profiler output, and error messages.
+By default, the compiler names compiled methods `func_0`, `func_1`, etc. A `MethodPrefixer` lets you
+replace the `func` prefix with something more recognisable, which improves readability of thread
+dumps, profiler output and stack traces. `MethodPrefixer.fromNameSection()` uses the function names
+from the module's name section, where present:
 
 ```java
 var instance = Instance.builder(module).
         withMachineFactory(
                 MachineFactoryCompiler.builder(module)
-                .withUseDebugNames(true)
+                .withMethodPrefixer(MethodPrefixer.fromNameSection())
                 .compile()
         ).
         build();
 ```
 
-Characters not allowed in JVM method names are replaced with underscores. The numeric function index is always preserved as a suffix (e.g. `my_func_42`), so tools can recover the original function by index.
+A prefixer supplies only the prefix; the compiler always appends `_<funcId>` to produce the method
+name (e.g. `my_func_42`). That keeps method names unique whatever the prefixer returns, and keeps the
+WASM function index recoverable from any method name.
+
+Characters that are illegal in JVM method names (`. ; [ / < >`) are replaced with underscores. A
+prefixer that needs to preserve names exactly can avoid the substitution by encoding those
+characters itself, for example by percent-encoding them.
+
+The prefix is a hint for humans inspecting a compiled method name. Tools should not parse it, and
+should use the function index instead.
 
 ### Caveats 
 

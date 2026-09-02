@@ -12,27 +12,35 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.compiler.MethodPrefixer;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.Instance;
 import run.endive.wasm.Parser;
 
-public class DebugNamesTest {
+public class MethodPrefixerTest {
 
     @Test
-    public void defaultDoesNotUseDebugNames() {
+    public void defaultUsesFuncPrefix() {
         var module = Parser.parse(CorpusResources.getResource("compiled/branching.wat.wasm"));
         var result = Compiler.builder(module).build().compile();
         var methods = funcGroupMethods(result);
 
+        assertTrue(
+                methods.stream().anyMatch(n -> n.startsWith("func_")),
+                "Expected the default \"func\" prefix, got: " + methods);
         assertFalse(
                 methods.stream().anyMatch(n -> n.startsWith("foo_")),
                 "Default mode should not produce named methods, got: " + methods);
     }
 
     @Test
-    public void debugNamesProduceNamedMethods() {
+    public void nameSectionPrefixerProducesNamedMethods() {
         var module = Parser.parse(CorpusResources.getResource("compiled/branching.wat.wasm"));
-        var result = Compiler.builder(module).withUseDebugNames(true).build().compile();
+        var result =
+                Compiler.builder(module)
+                        .withMethodPrefixer(MethodPrefixer.fromNameSection())
+                        .build()
+                        .compile();
         var methods = funcGroupMethods(result);
 
         assertTrue(
@@ -41,13 +49,48 @@ public class DebugNamesTest {
     }
 
     @Test
-    public void debugNamesExecuteCorrectly() throws InterruptedException {
+    public void customPrefixerIsApplied() {
+        var module = Parser.parse(CorpusResources.getResource("compiled/branching.wat.wasm"));
+        var result =
+                Compiler.builder(module)
+                        .withMethodPrefixer((funcId, m) -> "wasm")
+                        .build()
+                        .compile();
+        var methods = funcGroupMethods(result);
+
+        assertTrue(
+                methods.stream().anyMatch(n -> n.startsWith("wasm_")),
+                "Expected a method starting with 'wasm_', got: " + methods);
+    }
+
+    @Test
+    public void everyMethodNameKeepsTheFuncIdSuffix() {
+        var module = Parser.parse(CorpusResources.getResource("compiled/branching.wat.wasm"));
+        var result =
+                Compiler.builder(module)
+                        // a deliberately hostile prefixer: illegal characters, digits, underscores
+                        .withMethodPrefixer((funcId, m) -> "a.b_1/c<9>")
+                        .build()
+                        .compile();
+
+        for (var name : funcGroupMethods(result)) {
+            if (!name.startsWith("a_b_1_c_9_")) {
+                continue;
+            }
+            assertTrue(
+                    CompilerUtil.extractFuncId(name) >= 0,
+                    "Could not recover the func id from: " + name);
+        }
+    }
+
+    @Test
+    public void namedMethodsExecuteCorrectly() {
         var module = Parser.parse(CorpusResources.getResource("compiled/branching.wat.wasm"));
         var instance =
                 Instance.builder(module)
                         .withMachineFactory(
                                 MachineFactoryCompiler.builder(module)
-                                        .withUseDebugNames(true)
+                                        .withMethodPrefixer(MethodPrefixer.fromNameSection())
                                         .compile())
                         .build();
 

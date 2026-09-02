@@ -9,7 +9,6 @@ import java.util.function.IntFunction;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.FunctionBody;
 import run.endive.wasm.types.FunctionType;
-import run.endive.wasm.types.NameCustomSection;
 import run.endive.wasm.types.TypeSection;
 import run.endive.wasm.types.ValType;
 
@@ -34,7 +33,7 @@ final class Context {
     private final int tempSlot;
     private final int trySaveBaseSlot;
     private final IntFunction<String> callIndirectClassResolver;
-    private final boolean useDebugNames;
+    private final IntFunction<String> methodNames;
 
     public Context(
             WasmModule module,
@@ -49,7 +48,7 @@ final class Context {
             boolean[] tailCallTypes,
             IntFunction<String> callIndirectClassResolver,
             int maxTempSlots,
-            boolean useDebugNames) {
+            IntFunction<String> methodNames) {
         this.module = module;
         this.internalClassName = internalClassName;
         this.maxFunctionsPerClass = maxFunctionsPerClass;
@@ -61,7 +60,7 @@ final class Context {
         this.tailCallFunctions = tailCallFunctions;
         this.tailCallTypes = tailCallTypes;
         this.callIndirectClassResolver = callIndirectClassResolver;
-        this.useDebugNames = useDebugNames;
+        this.methodNames = methodNames;
 
         // compute JVM slot indices for WASM locals
         List<Integer> slots = new ArrayList<>(type.params().size() + body.localTypes().size());
@@ -126,8 +125,8 @@ final class Context {
         return module.typeSection();
     }
 
-    public NameCustomSection nameSection() {
-        return useDebugNames ? module.nameSection() : null;
+    public String methodNameForFunc(int funcId) {
+        return methodNames.apply(funcId);
     }
 
     public int getId() {

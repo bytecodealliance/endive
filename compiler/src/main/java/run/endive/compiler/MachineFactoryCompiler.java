@@ -112,8 +112,12 @@ public final class MachineFactoryCompiler {
             return this;
         }
 
-        public Builder withUseDebugNames(boolean useDebugNames) {
-            compilerBuilder.withUseDebugNames(useDebugNames);
+        /**
+         * Sets the {@link MethodPrefixer} used to name the compiled methods. Defaults to
+         * {@link MethodPrefixer#defaultPrefixer()}.
+         */
+        public Builder withMethodPrefixer(MethodPrefixer methodPrefixer) {
+            compilerBuilder.withMethodPrefixer(methodPrefixer);
             return this;
         }
 

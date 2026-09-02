@@ -80,6 +80,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.InstructionAdapter;
 import run.endive.compiler.InterpreterFallback;
+import run.endive.compiler.MethodPrefixer;
 import run.endive.runtime.CallResult;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
@@ -91,7 +92,6 @@ import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionBody;
 import run.endive.wasm.types.FunctionType;
-import run.endive.wasm.types.NameCustomSection;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.ValType;
 
@@ -163,7 +163,7 @@ public final class Compiler {
     private final boolean[] tailCallTypes;
     private final boolean moduleHasTailCalls;
     private final boolean moduleHasObjectRefs;
-    private final NameCustomSection debugNameSection;
+    private final String[] methodNames;
     private boolean useBridgeClasses;
     private IntFunction<String> callIndirectClassResolver;
 
@@ -174,7 +174,7 @@ public final class Compiler {
             InterpreterFallback interpreterFallback,
             Set<Integer> interpretedFunctions,
             Supplier<ClassCollector> classCollectorFactory,
-            boolean useDebugNames) {
+            MethodPrefixer methodPrefixer) {
         this.className = requireNonNull(className, "className");
         this.module = requireNonNull(module, "module");
         this.analyzer = new WasmAnalyzer(module);
@@ -206,7 +206,17 @@ public final class Compiler {
                 this.functionTypes.stream()
                         .anyMatch(ft -> ft.hasObjectRefParams() || ft.hasObjectRefReturns());
         this.maxFunctionsPerClass = maxFunctionsPerClass;
-        this.debugNameSection = useDebugNames ? module.nameSection() : null;
+        // Resolve every method name up front, so that the prefixer is consulted exactly once per
+        // function and definitions and call sites cannot disagree.
+        var prefixer = requireNonNullElse(methodPrefixer, MethodPrefixer.defaultPrefixer());
+        this.methodNames = new String[this.functionTypes.size()];
+        for (int funcId = 0; funcId < this.methodNames.length; funcId++) {
+            this.methodNames[funcId] = methodNameForFunc(funcId, prefixer, module);
+        }
+    }
+
+    private String methodName(int funcId) {
+        return methodNames[funcId];
     }
 
     private Set<Integer> collectCallRefTypeIds() {
@@ -234,7 +244,7 @@ public final class Compiler {
         private InterpreterFallback interpreterFallback;
         private Set<Integer> interpretedFunctions;
         private Supplier<ClassCollector> classCollectorFactory;
-        private boolean useDebugNames;
+        private MethodPrefixer methodPrefixer;
 
         private Builder(WasmModule module) {
             this.module = module;
@@ -265,8 +275,8 @@ public final class Compiler {
             return this;
         }
 
-        public Builder withUseDebugNames(boolean useDebugNames) {
-            this.useDebugNames = useDebugNames;
+        public Builder withMethodPrefixer(MethodPrefixer methodPrefixer) {
+            this.methodPrefixer = methodPrefixer;
             return this;
         }
 
@@ -292,7 +302,7 @@ public final class Compiler {
                     interpreterFallback,
                     interpretedFunctions,
                     classCollectorFactory,
-                    useDebugNames);
+                    methodPrefixer);
         }
     }
 
@@ -506,7 +516,7 @@ public final class Compiler {
                     if (i < functionImports) {
                         emitFunction(
                                 classWriter,
-                                methodNameForFunc(funcId, debugNameSection),
+                                methodName(funcId),
                                 methodTypeFor(type),
                                 true,
                                 asm -> compileHostFunction(funcId, type, asm));
@@ -517,7 +527,7 @@ public final class Compiler {
 
                         emitFunction(
                                 classWriter,
-                                methodNameForFunc(funcId, debugNameSection),
+                                methodName(funcId),
                                 methodTypeFor(type),
                                 true,
                                 asm ->
@@ -1404,9 +1414,8 @@ public final class Compiler {
         emitInvokeFunction(
                 asm,
                 internalClassName(classNameForFuncGroup(className, funcId)),
-                funcId,
-                type,
-                debugNameSection);
+                methodName(funcId),
+                type);
 
         // box the result into long[]
         Class<?> returnType = jvmReturnType(type);
@@ -1498,9 +1507,8 @@ public final class Compiler {
         emitInvokeFunction(
                 asm,
                 internalClassName(classNameForFuncGroup(className, funcId)),
-                funcId,
-                type,
-                debugNameSection);
+                methodName(funcId),
+                type);
 
         // Build CallResult from the function's JVM return value
         Class<?> returnType = jvmReturnType(type);
@@ -1701,9 +1709,8 @@ public final class Compiler {
                 emitInvokeFunction(
                         asm,
                         classNameForFuncGroup(internalClassName, keys[i]),
-                        keys[i],
-                        type,
-                        debugNameSection);
+                        methodName(keys[i]),
+                        type);
                 asm.areturn(getType(jvmReturnType(type)));
             }
 
@@ -1853,9 +1860,8 @@ public final class Compiler {
             emitInvokeFunction(
                     asm,
                     classNameForFuncGroup(internalClassName, keys[i]),
-                    keys[i],
-                    type,
-                    debugNameSection);
+                    methodName(keys[i]),
+                    type);
             asm.areturn(getType(jvmReturnType(type)));
             asm.areturn(OBJECT_TYPE);
         }
@@ -2132,7 +2138,7 @@ public final class Compiler {
                         tailCallTypes,
                         useBridgeClasses ? callIndirectClassResolver : typeId -> internalClassName,
                         analysis.maxTempSlots(),
-                        debugNameSection != null);
+                        this::methodName);
 
         int localsCount = type.params().size();
         if (hasTooManyParameters(type)) {

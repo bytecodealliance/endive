@@ -18,13 +18,13 @@ import java.util.Locale;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import run.endive.compiler.MethodPrefixer;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Memory;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionBody;
 import run.endive.wasm.types.FunctionType;
-import run.endive.wasm.types.NameCustomSection;
 import run.endive.wasm.types.TagImport;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
@@ -285,13 +285,12 @@ final class CompilerUtil {
     public static void emitInvokeFunction(
             MethodVisitor asm,
             String internalClassName,
-            int funcId,
-            FunctionType functionType,
-            NameCustomSection nameSection) {
+            String methodName,
+            FunctionType functionType) {
         asm.visitMethodInsn(
                 Opcodes.INVOKESTATIC,
                 internalClassName,
-                methodNameForFunc(funcId, nameSection),
+                methodName,
                 methodTypeFor(functionType).toMethodDescriptorString(),
                 false);
     }
@@ -303,17 +302,20 @@ final class CompilerUtil {
                         .collect(joining("_"));
     }
 
-    public static String methodNameForFunc(int funcId, NameCustomSection nameSection) {
-        if (nameSection != null) {
-            String name = nameSection.nameOfFunction(funcId);
-            if (name != null && !name.isEmpty()) {
-                String sanitized = sanitizeWasmName(name);
-                if (!sanitized.isEmpty()) {
-                    return sanitized + "_" + funcId;
-                }
-            }
+    /**
+     * Builds the JVM method name for a WASM function as {@code <sanitized prefix>_<funcId>}. The
+     * prefixer only supplies the prefix, so the {@code _<funcId>} suffix always makes the name
+     * unique and keeps the function id recoverable via {@link #extractFuncId(String)}.
+     */
+    public static String methodNameForFunc(int funcId, MethodPrefixer prefixer, WasmModule module) {
+        String prefix = prefixer == null ? null : prefixer.getMethodPrefix(funcId, module);
+        if (prefix != null) {
+            prefix = sanitizeWasmName(prefix);
         }
-        return "func_" + funcId;
+        if (prefix == null || prefix.isEmpty()) {
+            prefix = MethodPrefixer.DEFAULT_PREFIX;
+        }
+        return prefix + "_" + funcId;
     }
 
     static String sanitizeWasmName(String name) {

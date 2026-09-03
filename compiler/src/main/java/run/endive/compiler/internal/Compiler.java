@@ -163,7 +163,6 @@ public final class Compiler {
     private final boolean moduleHasTailCalls;
     private final boolean moduleHasObjectRefs;
     private final String[] methodNames;
-    private final Map<String, Integer> funcIdsByMethodName;
     private boolean useBridgeClasses;
     private IntFunction<String> callIndirectClassResolver;
 
@@ -210,10 +209,8 @@ public final class Compiler {
         // function and definitions and call sites cannot disagree.
         var prefixer = requireNonNullElse(methodPrefixer, MethodPrefixer.defaultPrefixer());
         this.methodNames = new String[this.functionTypes.size()];
-        this.funcIdsByMethodName = new HashMap<>(this.methodNames.length);
         for (int funcId = 0; funcId < this.methodNames.length; funcId++) {
             this.methodNames[funcId] = methodNameForFunc(funcId, prefixer, module);
-            this.funcIdsByMethodName.put(this.methodNames[funcId], funcId);
         }
     }
 
@@ -226,7 +223,12 @@ public final class Compiler {
      * function was compiled under that name.
      */
     private int funcIdForMethodName(String methodName) {
-        return funcIdsByMethodName.getOrDefault(methodName, -1);
+        for (int funcId = 0; funcId < methodNames.length; funcId++) {
+            if (methodNames[funcId].equals(methodName)) {
+                return funcId;
+            }
+        }
+        return -1;
     }
 
     private Set<Integer> collectCallRefTypeIds() {

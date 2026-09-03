@@ -4,7 +4,7 @@
 
   <groupId>run.endive</groupId>
   <artifactId>endive</artifactId>
-  <version>1.1.0</version>
+  <version>999-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Endive</name>
   <description>Native JVM WebAssembly runtime</description>
@@ -62,7 +62,7 @@
       ${project.version}. Bump to an immutable released tag before cutting a
       release, so the published jars can be rebuilt from source.
     -->
-    <cranelift-bridge.version>1.1.0</cranelift-bridge.version>
+    <cranelift-bridge.version>999.0.0-SNAPSHOT</cranelift-bridge.version>
     <commons-io.version>2.22.0</commons-io.version>
     <commons-lang.version>3.20.0</commons-lang.version>
     <jackson-annotations.version>2.22</jackson-annotations.version>

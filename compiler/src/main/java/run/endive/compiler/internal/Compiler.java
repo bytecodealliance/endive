@@ -222,13 +222,8 @@ public final class Compiler {
     }
 
     /**
-     * Returns the id of the WASM function compiled into {@code methodName}, or {@code -1} when the
-     * name is not a compiled function body.
-     *
-     * <p>Names are matched exactly rather than parsed, so the bridges emitted next to the function
-     * bodies ({@code call_*}, {@code callWithRefs_*}) and the dispatch helpers ({@code
-     * call_indirect_*}, {@code call_dispatch_*}) never resolve to a function id, whatever a {@link
-     * MethodPrefixer} names the bodies themselves.
+     * Returns the id of the WASM function compiled into {@code methodName}, or {@code -1} when no
+     * function was compiled under that name.
      */
     private int funcIdForMethodName(String methodName) {
         return funcIdsByMethodName.getOrDefault(methodName, -1);

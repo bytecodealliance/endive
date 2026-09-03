@@ -334,13 +334,8 @@ final class CompilerUtil {
     }
 
     /**
-     * Recovers the WASM function id from a compiled method name by parsing the {@code _<funcId>}
-     * suffix, or returns {@code -1} when the name does not end in one.
-     *
-     * <p>This is the reference implementation of the contract external tooling relies on to map a
-     * method name in a thread dump or profile back to a WASM function. The compiler itself does not
-     * use it: it resolves ids by exact lookup, which also excludes the bridge methods that happen to
-     * end in a number.
+     * Returns the WASM function id parsed from the {@code _<funcId>} suffix of a compiled method
+     * name, or {@code -1} when the name does not end in one.
      */
     static int extractFuncId(String methodName) {
         int lastUnderscore = methodName.lastIndexOf('_');

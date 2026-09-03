@@ -74,9 +74,7 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
     /**
      * Fully qualified name of a MethodPrefixer implementation used to name the compiled methods.
      * Defaults to naming them func_0, func_1 and so on. Set it to
-     * run.endive.compiler.NameSectionMethodPrefixer to name them after the module's name section,
-     * which makes thread dumps and profiler output readable, or to your own implementation. A
-     * custom class must be a dependency of this plugin, not of the project.
+     * run.endive.compiler.NameSectionMethodPrefixer to name them after the module's name section.
      */
     @Parameter(required = false)
     String methodPrefixer;

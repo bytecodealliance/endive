@@ -73,7 +73,12 @@ public class MethodPrefixerTest {
                         .build()
                         .compile();
 
-        for (var name : funcGroupMethods(result)) {
+        var methods = funcGroupMethods(result);
+        assertTrue(
+                methods.stream().anyMatch(n -> n.startsWith("a_b_1_c_9_")),
+                "No method used the sanitized prefix, got: " + methods);
+
+        for (var name : methods) {
             if (!name.startsWith("a_b_1_c_9_")) {
                 continue;
             }

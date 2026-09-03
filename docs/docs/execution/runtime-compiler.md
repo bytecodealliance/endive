@@ -126,6 +126,14 @@ dumps, profiler output and stack traces. `MethodPrefixer.fromNameSection()` uses
 from the module's name section, where present:
 
 ```java
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.compiler.MethodPrefixer;
+import run.endive.runtime.Instance;
+import run.endive.wasm.Parser;
+import run.endive.wasm.WasmModule;
+import java.io.File;
+
+var module = Parser.parse(new File("your.wasm"));
 var instance = Instance.builder(module).
         withMachineFactory(
                 MachineFactoryCompiler.builder(module)

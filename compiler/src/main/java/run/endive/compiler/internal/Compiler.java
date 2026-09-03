@@ -30,7 +30,6 @@ import static run.endive.compiler.internal.CompilerUtil.emitInvokeStatic;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeVirtual;
 import static run.endive.compiler.internal.CompilerUtil.emitJvmToLong;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
-import static run.endive.compiler.internal.CompilerUtil.extractFuncId;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.internalClassName;
 import static run.endive.compiler.internal.CompilerUtil.jvmReturnType;
@@ -164,6 +163,7 @@ public final class Compiler {
     private final boolean moduleHasTailCalls;
     private final boolean moduleHasObjectRefs;
     private final String[] methodNames;
+    private final Map<String, Integer> funcIdsByMethodName;
     private boolean useBridgeClasses;
     private IntFunction<String> callIndirectClassResolver;
 
@@ -210,13 +210,28 @@ public final class Compiler {
         // function and definitions and call sites cannot disagree.
         var prefixer = requireNonNullElse(methodPrefixer, MethodPrefixer.defaultPrefixer());
         this.methodNames = new String[this.functionTypes.size()];
+        this.funcIdsByMethodName = new HashMap<>(this.methodNames.length);
         for (int funcId = 0; funcId < this.methodNames.length; funcId++) {
             this.methodNames[funcId] = methodNameForFunc(funcId, prefixer, module);
+            this.funcIdsByMethodName.put(this.methodNames[funcId], funcId);
         }
     }
 
     private String methodName(int funcId) {
         return methodNames[funcId];
+    }
+
+    /**
+     * Returns the id of the WASM function compiled into {@code methodName}, or {@code -1} when the
+     * name is not a compiled function body.
+     *
+     * <p>Names are matched exactly rather than parsed, so the bridges emitted next to the function
+     * bodies ({@code call_*}, {@code callWithRefs_*}) and the dispatch helpers ({@code
+     * call_indirect_*}, {@code call_dispatch_*}) never resolve to a function id, whatever a {@link
+     * MethodPrefixer} names the bodies themselves.
+     */
+    private int funcIdForMethodName(String methodName) {
+        return funcIdsByMethodName.getOrDefault(methodName, -1);
     }
 
     private Set<Integer> collectCallRefTypeIds() {
@@ -373,7 +388,7 @@ public final class Compiler {
                 break;
             } catch (MethodTooLargeException e) {
                 String methodName = e.getMethodName();
-                int funcId = extractFuncId(methodName);
+                int funcId = funcIdForMethodName(methodName);
                 if (funcId >= 0) {
                     String functionDescription = "WASM function index: " + funcId;
                     if (module.nameSection() != null) {
@@ -553,7 +568,7 @@ public final class Compiler {
                         }
                     }
                 } catch (MethodTooLargeException e) {
-                    throw handleMethodTooLarge(e, module);
+                    throw handleMethodTooLarge(e);
                 }
             }
         };
@@ -686,7 +701,7 @@ public final class Compiler {
         try {
             return binaryWriter.toByteArray();
         } catch (MethodTooLargeException e) {
-            throw handleMethodTooLarge(e, module);
+            throw handleMethodTooLarge(e);
         }
     }
 
@@ -706,10 +721,9 @@ public final class Compiler {
         return expectedType.equals(functionTypes.get(funcIdx));
     }
 
-    private static RuntimeException handleMethodTooLarge(
-            MethodTooLargeException e, WasmModule module) {
+    private RuntimeException handleMethodTooLarge(MethodTooLargeException e) {
         String name = e.getMethodName();
-        int funcId = extractFuncId(name);
+        int funcId = funcIdForMethodName(name);
         if (funcId >= 0 && module.nameSection() != null) {
             String function = module.nameSection().nameOfFunction(funcId);
             if (function != null) {

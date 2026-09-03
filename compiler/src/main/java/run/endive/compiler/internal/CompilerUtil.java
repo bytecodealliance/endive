@@ -322,7 +322,8 @@ final class CompilerUtil {
         StringBuilder sb = new StringBuilder(name.length());
         for (int i = 0; i < name.length(); i++) {
             char c = name.charAt(i);
-            // see https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.2.2 for reference
+            // see https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.2.2 for
+            // reference
             if (c == '.' || c == ';' || c == '[' || c == '/' || c == '<' || c == '>') {
                 sb.append('_');
             } else {
@@ -332,6 +333,15 @@ final class CompilerUtil {
         return sb.toString();
     }
 
+    /**
+     * Recovers the WASM function id from a compiled method name by parsing the {@code _<funcId>}
+     * suffix, or returns {@code -1} when the name does not end in one.
+     *
+     * <p>This is the reference implementation of the contract external tooling relies on to map a
+     * method name in a thread dump or profile back to a WASM function. The compiler itself does not
+     * use it: it resolves ids by exact lookup, which also excludes the bridge methods that happen to
+     * end in a number.
+     */
     static int extractFuncId(String methodName) {
         int lastUnderscore = methodName.lastIndexOf('_');
         if (lastUnderscore < 0) {

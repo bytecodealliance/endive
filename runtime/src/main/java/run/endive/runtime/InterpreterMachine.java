@@ -7,13 +7,13 @@ import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import run.endive.runtime.internal.V128Ops;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.AnnotatedInstruction;
 import run.endive.wasm.types.BlockType;
 import run.endive.wasm.types.CatchOpCode;
 import run.endive.wasm.types.FunctionType;
-import run.endive.wasm.types.Instruction;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.TypeSection;
 import run.endive.wasm.types.ValType;
@@ -48,17 +48,6 @@ public class InterpreterMachine implements Machine {
     @FunctionalInterface
     protected interface Operands {
         long get(int index);
-    }
-
-    @SuppressWarnings("DoNotCallSuggester")
-    protected void evalDefault(
-            MStack stack,
-            Instance instance,
-            Deque<StackFrame> callStack,
-            Instruction instruction,
-            Operands operands)
-            throws WasmEngineException {
-        throw new WasmEngineException("Machine doesn't recognize Instruction " + instruction);
     }
 
     @Override
@@ -1195,10 +1184,11 @@ public class InterpreterMachine implements Machine {
                     EXTERN_CONVERT_ANY(stack);
                     break;
                 default:
-                    {
-                        evalDefault(stack, instance, callStack, instruction, operands);
-                        break;
+                    if (!V128Ops.eval(stack, instance, instruction)) {
+                        throw new WasmEngineException(
+                                "Machine doesn't recognize Instruction " + instruction);
                     }
+                    break;
             }
         }
     }

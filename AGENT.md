@@ -37,7 +37,6 @@ wasm (parser, validator, types)
         ├── wasi (WASI preview1)
         │     └── wasm-tools (wat2wasm, wast2json via WASI)
         ├── compiler (JVM bytecode compiler)
-        ├── simd (SIMD opcodes, pluggable machine)
         └── log
 ```
 

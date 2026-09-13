@@ -305,11 +305,6 @@
       </dependency>
       <dependency>
         <groupId>run.endive</groupId>
-        <artifactId>simd</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>run.endive</groupId>
         <artifactId>test-gen-lib</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -678,7 +673,6 @@
           <failOnWarning>${maven.dependency.failOnWarning}</failOnWarning>
           <ignoreUnusedRuntime>true</ignoreUnusedRuntime>
           <ignoredUnusedDeclaredDependencies>
-            <dependency>run.endive:simd</dependency>
             <dependency>run.endive:wasm-corpus</dependency>
             <dependency>org.junit.jupiter:junit-jupiter-engine</dependency>
           </ignoredUnusedDeclaredDependencies>
@@ -972,9 +966,6 @@
       <activation>
         <jdk>[21,)</jdk>
       </activation>
-      <modules>
-        <module>simd</module>
-      </modules>
       <build>
         <plugins>
           <plugin>

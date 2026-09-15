@@ -37,6 +37,10 @@ public final class ValType {
     public static final ValType RefBot =
             new ValType(ValType.ID.Ref, ValType.TypeIdxCode.BOT.code());
 
+    /** The non-nullable {@code (ref exn)}. */
+    public static final ValType RefExn =
+            new ValType(ValType.ID.Ref, ValType.TypeIdxCode.EXN.code());
+
     private final long id;
 
     // defined function type. This is not representable in the binary or textual representation

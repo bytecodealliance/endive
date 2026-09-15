@@ -77,7 +77,7 @@
     <picocli.version>4.7.7</picocli.version>
     <velocity.version>1.7</velocity.version>
 
-    <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
+    <build-helper-maven-plugin.version>3.6.2</build-helper-maven-plugin.version>
     <checkstyle.version>14.1.0</checkstyle.version>
     <error-prone.version>2.50.0</error-prone.version>
     <flatten-maven-plugin.version>1.8.0</flatten-maven-plugin.version>
@@ -101,10 +101,10 @@
     <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
     <maven-invoker-plugin.version>3.10.1</maven-invoker-plugin.version>
     <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
-    <exec-maven-plugin.version>3.6.3</exec-maven-plugin.version>
+    <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
     <inlay-maven-plugin.version>0.0.3</inlay-maven-plugin.version>
     <spotless-maven-plugin.version>3.10.2</spotless-maven-plugin.version>
-    <templating-maven-plugin.version>3.1.0</templating-maven-plugin.version>
+    <templating-maven-plugin.version>3.1.1</templating-maven-plugin.version>
     <maven-file-management.version>3.2.0</maven-file-management.version>
     <google-compile-testing.version>0.23.0</google-compile-testing.version>
     <license-maven-plugin.version>2.7.1</license-maven-plugin.version>

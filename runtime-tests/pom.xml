@@ -267,6 +267,7 @@
             <wast>proposals/threads/exports.wast</wast>
             <wast>proposals/threads/imports.wast</wast>
             <wast>proposals/threads/memory.wast</wast>
+            <wast>proposals/wasm-3.0/try_table.wast</wast>
             <wast>ref_func.wast</wast>
             <wast>ref_is_null.wast</wast>
             <wast>ref_null.wast</wast>
@@ -737,6 +738,7 @@
                 <wast>proposals/threads/exports.wast</wast>
                 <wast>proposals/threads/imports.wast</wast>
                 <wast>proposals/threads/memory.wast</wast>
+                <wast>proposals/wasm-3.0/try_table.wast</wast>
                 <wast>ref_func.wast</wast>
                 <wast>ref_is_null.wast</wast>
                 <wast>ref_null.wast</wast>

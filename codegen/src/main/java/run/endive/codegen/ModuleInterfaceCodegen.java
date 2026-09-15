@@ -830,31 +830,42 @@ public final class ModuleInterfaceCodegen {
         return new MethodCallExpr(new NameExpr("List"), "of", NodeList.nodeList(values));
     }
 
+    /** The {@code ValType} shorthand constant for an abstract heap type, or null if there is none. */
+    private static String abstractRefShorthand(int typeIdx) {
+        if (typeIdx == ValType.TypeIdxCode.EXTERN.code()) {
+            return "ExternRef";
+        } else if (typeIdx == ValType.TypeIdxCode.ANY.code()) {
+            return "AnyRef";
+        } else if (typeIdx == ValType.TypeIdxCode.EQ.code()) {
+            return "EqRef";
+        } else if (typeIdx == ValType.TypeIdxCode.I31.code()) {
+            return "I31Ref";
+        } else if (typeIdx == ValType.TypeIdxCode.STRUCT.code()) {
+            return "StructRef";
+        } else if (typeIdx == ValType.TypeIdxCode.ARRAY.code()) {
+            return "ArrayRef";
+        } else if (typeIdx == ValType.TypeIdxCode.NONE.code()) {
+            return "NoneRef";
+        } else if (typeIdx == ValType.TypeIdxCode.FUNC.code()) {
+            return "FuncRef";
+        } else if (typeIdx == ValType.TypeIdxCode.EXN.code()) {
+            return "ExnRef";
+        } else if (typeIdx == ValType.TypeIdxCode.NOFUNC.code()) {
+            return "NoFuncRef";
+        } else if (typeIdx == ValType.TypeIdxCode.NOEXTERN.code()) {
+            return "NoExternRef";
+        } else {
+            return null;
+        }
+    }
+
     private static Expression valTypeRefExpr(ValType vt) {
         int ti = vt.typeIdx();
-        if (ti == ValType.TypeIdxCode.EXTERN.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "ExternRef");
-        } else if (ti == ValType.TypeIdxCode.ANY.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "AnyRef");
-        } else if (ti == ValType.TypeIdxCode.EQ.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "EqRef");
-        } else if (ti == ValType.TypeIdxCode.I31.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "I31Ref");
-        } else if (ti == ValType.TypeIdxCode.STRUCT.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "StructRef");
-        } else if (ti == ValType.TypeIdxCode.ARRAY.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "ArrayRef");
-        } else if (ti == ValType.TypeIdxCode.NONE.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "NoneRef");
-        } else if (ti == ValType.TypeIdxCode.FUNC.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "FuncRef");
-        } else if (ti == ValType.TypeIdxCode.EXN.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "ExnRef");
-        } else if (ti == ValType.TypeIdxCode.NOFUNC.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "NoFuncRef");
-        } else if (ti == ValType.TypeIdxCode.NOEXTERN.code()) {
-            return new FieldAccessExpr(new NameExpr("ValType"), "NoExternRef");
-        } else if (ti >= 0) {
+        String shorthand = abstractRefShorthand(ti);
+        // the shorthands are all nullable, a non-nullable ref has to be built explicitly
+        if (shorthand != null && vt.opcode() == ValType.ID.RefNull) {
+            return new FieldAccessExpr(new NameExpr("ValType"), shorthand);
+        } else if (shorthand != null || ti >= 0) {
             String opcName = vt.opcode() == ValType.ID.Ref ? "Ref" : "RefNull";
             return new MethodCallExpr(
                     new MethodCallExpr(

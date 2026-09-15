@@ -1009,13 +1009,13 @@ final class Validator {
                                                                 getTagType(currentCatch.tag())
                                                                         .typeIdx());
                                         pushVals(tagType.params());
-                                        pushVal(ValType.ExnRef);
+                                        pushVal(ValType.RefExn);
                                         break;
                                     }
                                 case CATCH_ALL:
                                     break;
                                 case CATCH_ALL_REF:
-                                    pushVal(ValType.ExnRef);
+                                    pushVal(ValType.RefExn);
                                     break;
                             }
                             popCtrl();

@@ -59,6 +59,22 @@ public class WasmModuleTest {
     }
 
     @Test
+    public void shouldWrapI32MulOverflow() {
+        var instance = Instance.builder(loadModule("compiled/i32_mul_overflow.wat.wasm")).build();
+        var mul = instance.export("mul");
+        var mulIf = instance.export("mul_if");
+
+        // 65536 * 65536 = 2^32, which wraps to 0 as an i32
+        assertEquals(0L, mul.apply(65536L, 65536L)[0]);
+        assertEquals(0L, mulIf.apply(65536L, 65536L)[0]);
+
+        assertEquals(6L, mul.apply(2L, 3L)[0]);
+        assertEquals(1L, mulIf.apply(2L, 3L)[0]);
+        assertEquals(-6L, mul.apply(-2L, 3L)[0]);
+        assertEquals(1L, mulIf.apply(-2L, 3L)[0]);
+    }
+
+    @Test
     public void shouldSupportBrTable() {
         var instance = Instance.builder(loadModule("compiled/br_table.wat.wasm")).build();
         var switchLike = instance.export("switch_like");

@@ -1307,7 +1307,8 @@ public class InterpreterMachine implements Machine {
     private static void I32_MUL(MStack stack) {
         var a = stack.pop();
         var b = stack.pop();
-        stack.push(a * b);
+        int result = (int) (a * b);
+        stack.push(result);
     }
 
     private static void I64_MUL(MStack stack) {
@@ -3242,7 +3243,7 @@ public class InterpreterMachine implements Machine {
 
     private static void IF(
             StackFrame frame, MStack stack, Instance instance, AnnotatedInstruction instruction) {
-        var predValue = stack.pop();
+        var predValue = (int) stack.pop();
         var paramsSize = numberOfParams(instance, instruction);
         var returnsSize = numberOfValuesToReturn(instance, instruction);
         frame.pushCtrl(instruction.opcode(), paramsSize, returnsSize, stack.size() - paramsSize);

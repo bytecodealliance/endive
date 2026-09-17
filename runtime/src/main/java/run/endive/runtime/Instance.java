@@ -294,7 +294,7 @@ public class Instance implements AutoCloseable {
                         throw new UnsupportedOperationException(
                                 "Function '"
                                         + name
-                                        + "' uses GC reference types."
+                                        + "' uses reference types carried as objects."
                                         + " Use applyWithRefs().");
                     }
                     return instance.machine.call(export.index(), args);

@@ -122,7 +122,6 @@ mvn surefire:test -pl runtime-tests -Dtest=SpecV1GcStructTest
 - `ImportFunction.java` — imported function representation with cross-module type validation
 - `ConstantEvaluators.java` — constant expression evaluation (globals, element/data segments)
 - `WasmStruct.java`, `WasmArray.java`, `WasmI31Ref.java` — GC object types
-- `internal/GcRefStore.java` — auto-keyed store for Wasm GC references with mark-sweep collection
 
 ### `compiler` module
 - `MachineFactoryCompiler.java` — entry point for the JVM bytecode compiler

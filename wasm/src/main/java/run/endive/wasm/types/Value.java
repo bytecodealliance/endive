@@ -312,7 +312,6 @@ public class Value {
             case ValType.ID.I64:
             case ValType.ID.F64:
                 return 0L;
-            case ValType.ID.ExnRef:
             case ValType.ID.Ref:
             case ValType.ID.RefNull:
                 return REF_NULL_VALUE;

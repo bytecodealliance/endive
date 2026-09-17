@@ -63,6 +63,8 @@ public enum WasmValueType {
             case REF_NULL:
             case EXTERN_REF:
             case NULL_EXTERN_REF:
+            case EXN_REF:
+            case NULL_EXN_REF:
                 return true;
             default:
                 return false;

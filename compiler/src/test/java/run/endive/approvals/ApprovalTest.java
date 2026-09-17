@@ -103,6 +103,13 @@ public class ApprovalTest {
         verifyGeneratedBytecode("exceptions.wat.wasm", (name) -> !name.contains("FuncGroup"));
     }
 
+    /** Pins the bytecode for catch_ref / catch_all_ref / throw_ref. */
+    @Test
+    public void verifyExceptionRefs() {
+        verifyGeneratedBytecode(
+                "catch_ref_non_null.wat.wasm", (name) -> !name.contains("FuncGroup"));
+    }
+
     @Test
     public void verifyTailCall() {
         verifyGeneratedBytecode("tail_call_return_call.wat.wasm");

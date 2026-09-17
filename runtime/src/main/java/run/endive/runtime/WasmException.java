@@ -35,6 +35,14 @@ public class WasmException extends RuntimeException {
                 (b.refArgs != null) ? b.refArgs.clone() : null);
     }
 
+    /** Narrows an exnref value, trapping on null as {@code throw_ref} requires. */
+    public static WasmException checked(Object exnref) {
+        if (exnref == null) {
+            throw new TrapException("Trapped on throw_ref on null reference");
+        }
+        return (WasmException) exnref;
+    }
+
     public Instance instance() {
         return instance;
     }

@@ -82,7 +82,7 @@ public final class ShadedRefs {
     // Exception handling methods
     static final Method CREATE_WASM_EXCEPTION;
     static final Method CREATE_WASM_EXCEPTION_GC;
-    static final Method INSTANCE_GET_EXCEPTION;
+    static final Method WASM_EXCEPTION_CHECKED;
     static final Method EXCEPTION_MATCHES;
 
     static final Method MEMORY_ATOMIC_INT_WRITE;
@@ -398,7 +398,7 @@ public final class ShadedRefs {
                             Object[].class,
                             int.class,
                             Instance.class);
-            INSTANCE_GET_EXCEPTION = Instance.class.getMethod("exn", int.class);
+            WASM_EXCEPTION_CHECKED = WasmException.class.getMethod("checked", Object.class);
             EXCEPTION_MATCHES =
                     Shaded.class.getMethod(
                             "exceptionMatches", WasmException.class, int.class, Instance.class);

@@ -156,10 +156,11 @@ public class WasmValue {
                 case NULL_REF:
                 case NULL_FUNC_REF:
                 case NULL_EXTERN_REF:
-                case NULL_EXN_REF:
-                case EXN_REF:
                     return new NameExpr(
                             "assertEquals(" + resultVar + ", " + "REF_NULL_VALUE" + ")");
+                case NULL_EXN_REF:
+                case EXN_REF:
+                    return new NameExpr("assertNull(" + resultVar + ")");
                 case STRUCT_REF:
                 case ANY_REF:
                 case I31_REF:
@@ -306,12 +307,15 @@ public class WasmValue {
                     return new NameExpr("assertNotNull(" + resultVar + ")");
                 case EXTERN_REF:
                     return new NameExpr("assertNotNull(" + resultVar + ")");
+                case EXN_REF:
+                    return new NameExpr("assertNotNull(" + resultVar + ")");
                 case REF_NULL:
                 case NULL_REF:
                     // These are GC null types -> Java null from popRef()
                     return new NameExpr("assertNull(" + resultVar + ")");
                 case NULL_FUNC_REF:
                 case NULL_EXTERN_REF:
+                case NULL_EXN_REF:
                     return new NameExpr("assertNull(" + resultVar + ")");
                 case STRUCT_REF:
                 case ANY_REF:

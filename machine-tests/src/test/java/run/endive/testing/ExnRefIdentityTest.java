@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -20,7 +19,6 @@ import run.endive.wasm.WasmModule;
  * Two live exceptions sharing a tag must stay distinct. Expected values cross-checked against
  * wasmtime 50.0.0-dev.
  */
-@Disabled("exnref is an int keyed by tag index; enabled once it becomes an Object")
 public class ExnRefIdentityTest {
 
     private static final WasmModule MODULE =

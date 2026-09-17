@@ -522,7 +522,6 @@ public final class Shaded {
         }
         WasmException e =
                 WasmException.builder().instance(instance).tagIdx(tagNumber).args(args).build();
-        instance.registerException(e);
         return e;
     }
 
@@ -538,7 +537,6 @@ public final class Shaded {
                         .args(args)
                         .refArgs(refArgs)
                         .build();
-        instance.registerException(e);
         return e;
     }
 

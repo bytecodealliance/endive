@@ -72,8 +72,6 @@ public class Instance implements AutoCloseable {
     private final ExecutionListener listener;
     private final Exports fluentExports;
 
-    private final Map<Integer, WasmException> exnRefs;
-
     private TailCallPending tailCallPending;
 
     static final class TailCallPending {
@@ -134,8 +132,6 @@ public class Instance implements AutoCloseable {
         this.listener = listener;
         this.globalFactory = globalFactory;
         this.fluentExports = new Exports(this);
-
-        this.exnRefs = new HashMap<>();
 
         for (int i = 0; i < tables.length; i++) {
             var result = computeConstant(this, tables[i].initialize());
@@ -457,19 +453,6 @@ public class Instance implements AutoCloseable {
 
     public int tagCount() {
         return tags.length;
-    }
-
-    public int registerException(WasmException ex) {
-        exnRefs.put(ex.tagIdx(), ex);
-        return ex.tagIdx();
-    }
-
-    public WasmException exn(int idx) {
-        var exn = exnRefs.get(idx);
-        if (exn == null) {
-            throw new TrapException("Trapped on throw_ref on null reference");
-        }
-        return exn;
     }
 
     @Deprecated

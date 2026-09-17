@@ -161,7 +161,7 @@ public class InterpreterMachine implements Machine {
                     }
                 }
             } catch (WasmException e) {
-                THROW_REF(instance, instance.registerException(e), stack, stackFrame, callStack);
+                THROW_REF(instance, e, stack, stackFrame, callStack);
             } catch (StackOverflowError e) {
                 throw new WasmEngineException("call stack exhausted", e);
             } finally {
@@ -350,14 +350,12 @@ public class InterpreterMachine implements Machine {
                                         .args(args)
                                         .refArgs(refArgs)
                                         .build();
-                        var exceptionIdx = instance.registerException(exception);
-                        frame = THROW_REF(instance, exceptionIdx, stack, frame, callStack);
+                        frame = THROW_REF(instance, exception, stack, frame, callStack);
                         break;
                     }
                 case THROW_REF:
                     {
-                        var exceptionIdx = (int) stack.pop();
-                        frame = THROW_REF(instance, exceptionIdx, stack, frame, callStack);
+                        frame = THROW_REF(instance, stack.popRef(), stack, frame, callStack);
                         break;
                     }
                 case CALL_INDIRECT:
@@ -1876,9 +1874,7 @@ public class InterpreterMachine implements Machine {
     private static void REF_NULL(MStack stack, Operands operands) {
         var heapType = (int) operands.get(0);
         if (heapType == ValType.TypeIdxCode.FUNC.code()
-                || heapType == ValType.TypeIdxCode.NOFUNC.code()
-                || heapType == ValType.TypeIdxCode.EXN.code()
-                || heapType == ValType.TypeIdxCode.NOEXN.code()) {
+                || heapType == ValType.TypeIdxCode.NOFUNC.code()) {
             stack.push(REF_NULL_VALUE);
         } else {
             // GC refs, externref, noexternref all use Object null
@@ -2908,7 +2904,7 @@ public class InterpreterMachine implements Machine {
                         }
                     }
                 } catch (WasmException e) {
-                    THROW_REF(instance, instance.registerException(e), stack, newFrame, callStack);
+                    THROW_REF(instance, e, stack, newFrame, callStack);
                 }
                 if (fromCallStack) {
                     callStack.push(newFrame);
@@ -3005,7 +3001,7 @@ public class InterpreterMachine implements Machine {
                         }
                     }
                 } catch (WasmException e) {
-                    THROW_REF(instance, instance.registerException(e), stack, newFrame, callStack);
+                    THROW_REF(instance, e, stack, newFrame, callStack);
                 }
                 if (fromCallStack) {
                     callStack.push(newFrame);
@@ -3137,11 +3133,11 @@ public class InterpreterMachine implements Machine {
 
     protected static StackFrame THROW_REF(
             Instance instance,
-            int exceptionIdx,
+            Object exnRef,
             MStack stack,
             StackFrame frame,
             Deque<StackFrame> callStack) {
-        var exception = instance.exn(exceptionIdx);
+        var exception = WasmException.checked(exnRef);
         boolean found = false;
         while (!found) {
             while (frame.ctrlStackSize() > 0) {
@@ -3186,7 +3182,7 @@ public class InterpreterMachine implements Machine {
                             if (currentCatch.tag() == exception.tagIdx() || compatibleImport) {
                                 found = true;
                                 pushExceptionArgs(exception, stack);
-                                stack.push(exceptionIdx);
+                                stack.pushRef(exception);
                             }
                             break;
                         case CATCH_ALL:
@@ -3194,7 +3190,7 @@ public class InterpreterMachine implements Machine {
                             break;
                         case CATCH_ALL_REF:
                             found = true;
-                            stack.push(exceptionIdx);
+                            stack.pushRef(exception);
                             break;
                     }
 
@@ -3991,9 +3987,7 @@ public class InterpreterMachine implements Machine {
         return sourceHeapType != ValType.TypeIdxCode.FUNC.code()
                 && sourceHeapType != ValType.TypeIdxCode.NOFUNC.code()
                 && sourceHeapType != ValType.TypeIdxCode.EXTERN.code()
-                && sourceHeapType != ValType.TypeIdxCode.NOEXTERN.code()
-                && sourceHeapType != ValType.TypeIdxCode.EXN.code()
-                && sourceHeapType != ValType.TypeIdxCode.NOEXN.code();
+                && sourceHeapType != ValType.TypeIdxCode.NOEXTERN.code();
     }
 
     private static void REF_TEST(

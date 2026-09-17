@@ -116,7 +116,7 @@ public final class ValType {
         // Pre-compute gcReference and objectRef for well-known types
         // (these don't need a TypeSection)
         this.gcReference = computeIsGcReference(null);
-        this.objectRef = this.gcReference || computeIsExternRef();
+        this.objectRef = this.gcReference || computeIsExternRef() || computeIsExnRef();
     }
 
     public ValType resolve(TypeSection typeSection) {
@@ -129,7 +129,7 @@ public final class ValType {
             }
         }
         this.gcReference = computeIsGcReference(typeSection);
-        this.objectRef = gcReference || computeIsExternRef();
+        this.objectRef = gcReference || computeIsExternRef() || computeIsExnRef();
         return this;
     }
 
@@ -293,8 +293,8 @@ public final class ValType {
     }
 
     /**
-     * Returns true if this type is an Object reference on the JVM: GC refs AND externref,
-     * but NOT funcref (which stays as int for call_indirect dispatch).
+     * Returns true if this type is an Object reference on the JVM: GC refs, externref and
+     * exnref, but NOT funcref (which stays as int for call_indirect dispatch).
      */
     public boolean isObjectRef() {
         return objectRef;
@@ -302,6 +302,15 @@ public final class ValType {
 
     public static boolean isObjectRef(long valTypeId, TypeSection typeSection) {
         return builder().fromId(valTypeId).isObjectRef(typeSection);
+    }
+
+    private boolean computeIsExnRef() {
+        int op = opcode();
+        if (op != ID.Ref && op != ID.RefNull) {
+            return false;
+        }
+        int ht = typeIdx();
+        return ht == TypeIdxCode.EXN.code() || ht == TypeIdxCode.NOEXN.code();
     }
 
     private boolean computeIsExternRef() {
@@ -805,7 +814,20 @@ public final class ValType {
         }
 
         public boolean isObjectRef(TypeSection ts) {
-            return isGcReference(ts) || isExternRef();
+            return isGcReference(ts) || isExternRef() || isExnRef();
+        }
+
+        private boolean isExnRef() {
+            if (!isReference()) {
+                return false;
+            }
+            if (opcode == ID.ExnRef || opcode == ID.NoExnRef) {
+                return true;
+            }
+            if (opcode == ID.Ref || opcode == ID.RefNull) {
+                return typeIdx == TypeIdxCode.EXN.code() || typeIdx == TypeIdxCode.NOEXN.code();
+            }
+            return false;
         }
 
         private boolean isExternRef() {

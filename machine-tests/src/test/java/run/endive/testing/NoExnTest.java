@@ -1,6 +1,8 @@
 package run.endive.testing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -14,7 +16,6 @@ import run.endive.runtime.Instance;
 import run.endive.runtime.InterpreterMachine;
 import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
-import run.endive.wasm.types.Value;
 
 /** Tests for the `noexn` bottom type of the exception hierarchy. */
 public class NoExnTest {
@@ -42,7 +43,18 @@ public class NoExnTest {
     @MethodSource("machineImplementations")
     public void nullToExnRef(Function<Instance.Builder, Instance.Builder> machineInject) {
         var instance = instance(machineInject);
-        assertEquals(Value.REF_NULL_VALUE, instance.export("null-to-exnref").apply()[0]);
+        var result = instance.export("null-to-exnref").applyWithRefs(new long[0], new Object[0]);
+        assertNull(result.refResult(0));
+    }
+
+    /** An exnref signature is an object-ref signature, so the flat path is rejected. */
+    @ParameterizedTest
+    @MethodSource("machineImplementations")
+    public void exnRefRejectsApply(Function<Instance.Builder, Instance.Builder> machineInject) {
+        var instance = instance(machineInject);
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> instance.export("null-to-exnref").apply());
     }
 
     @ParameterizedTest

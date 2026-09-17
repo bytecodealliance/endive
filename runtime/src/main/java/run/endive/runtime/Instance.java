@@ -542,6 +542,9 @@ public class Instance implements AutoCloseable {
                 || targetHeapType == ValType.TypeIdxCode.EXTERN.code()) {
             return true;
         }
+        if (targetHeapType == ValType.TypeIdxCode.EXN.code()) {
+            return ref instanceof WasmException;
+        }
         if (ref instanceof WasmGcRef) {
             return heapTypeSubOf(((WasmGcRef) ref).typeIdx(), targetHeapType);
         }

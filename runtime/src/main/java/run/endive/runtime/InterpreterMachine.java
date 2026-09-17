@@ -88,12 +88,14 @@ public class InterpreterMachine implements Machine {
         // When called via call(int, long[]) with no refArgs and the function
         // has externref params, populate refArgs from longs so the ref stack
         // is set up correctly. Uses WasmExternRef (the proper externref type).
+        // Only externref has a meaningful long encoding here; any other object
+        // ref stays null rather than being wrapped in the wrong type.
         if (refArgs == null && type.hasObjectRefParams()) {
             refArgs = new Object[args.length];
             int slot = 0;
             for (int pi = 0; pi < type.params().size(); pi++) {
                 var param = type.params().get(pi);
-                if (param.isObjectRef()) {
+                if (param.isObjectRef() && isExternHeapType(param.typeIdx())) {
                     long val = args[slot];
                     refArgs[slot] = (val == REF_NULL_VALUE) ? null : new WasmExternRef(val);
                 }
@@ -3978,6 +3980,11 @@ public class InterpreterMachine implements Machine {
                 slot++;
             }
         }
+    }
+
+    private static boolean isExternHeapType(int heapType) {
+        return heapType == ValType.TypeIdxCode.EXTERN.code()
+                || heapType == ValType.TypeIdxCode.NOEXTERN.code();
     }
 
     private static boolean isSourceGcRef(int sourceHeapType) {

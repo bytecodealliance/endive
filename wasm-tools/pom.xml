@@ -15,7 +15,6 @@
 
   <properties>
     <wasm-tools.version>1.256.0</wasm-tools.version>
-    <inlay.version>0.0.4</inlay.version>
   </properties>
 
   <dependencies>
@@ -51,7 +50,6 @@
       <plugin>
         <groupId>io.roastedroot</groupId>
         <artifactId>inlay-maven-plugin</artifactId>
-        <version>${inlay.version}</version>
         <executions>
           <execution>
             <id>fetch-wasm-tools</id>

@@ -15,7 +15,7 @@
 
   <properties>
     <wasm-tools.version>1.256.0</wasm-tools.version>
-    <inlay.version>0.0.3</inlay.version>
+    <inlay.version>0.0.4</inlay.version>
   </properties>
 
   <dependencies>

@@ -7,6 +7,7 @@ import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import run.endive.runtime.internal.V128Ops;
 import run.endive.wasm.InvalidException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.AnnotatedInstruction;
@@ -50,7 +51,6 @@ public class InterpreterMachine implements Machine {
         long get(int index);
     }
 
-    @SuppressWarnings("DoNotCallSuggester")
     protected void evalDefault(
             MStack stack,
             Instance instance,
@@ -58,7 +58,9 @@ public class InterpreterMachine implements Machine {
             Instruction instruction,
             Operands operands)
             throws WasmEngineException {
-        throw new WasmEngineException("Machine doesn't recognize Instruction " + instruction);
+        if (!V128Ops.eval(stack, instance, instruction)) {
+            throw new WasmEngineException("Machine doesn't recognize Instruction " + instruction);
+        }
     }
 
     @Override

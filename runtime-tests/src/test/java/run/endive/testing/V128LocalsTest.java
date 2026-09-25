@@ -1,37 +1,23 @@
-package run.endive.simd;
+package run.endive.testing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.Instance;
+import run.endive.runtime.InterpreterMachine;
 import run.endive.wasm.Parser;
 
-public class BasicSimdTest {
+class V128LocalsTest {
 
     @Test
-    public void shouldRunBasicExample() {
-        // from: https://blog.dkwr.de/development/wasm-simd-operations/
-        var instance =
-                Instance.builder(
-                                Parser.parse(
-                                        CorpusResources.getResource(
-                                                "compiled/simd-example.wat.wasm")))
-                        .withMachineFactory(SimdInterpreterMachine::new)
-                        .build();
-        var main = instance.export("main");
-        var result = main.apply()[0];
-        assertEquals(6L, result);
-    }
-
-    @Test
-    public void shouldRoundTripV128Locals() {
+    void shouldRoundTripV128Locals() {
         var instance =
                 Instance.builder(
                                 Parser.parse(
                                         CorpusResources.getResource(
                                                 "compiled/simd-locals.wat.wasm")))
-                        .withMachineFactory(SimdInterpreterMachine::new)
+                        .withMachineFactory(InterpreterMachine::new)
                         .build();
         assertEquals(10L, instance.export("local_roundtrip").apply()[0]);
         assertEquals(7L, instance.export("local_roundtrip_lane0").apply()[0]);

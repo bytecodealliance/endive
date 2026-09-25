@@ -30,9 +30,11 @@ public final class TestGen {
             String testSuiteRepo,
             String testSuiteRepoRef,
             File testsuiteFolder,
+            File projectDirectory,
             File sourceDestinationFolder,
             File compiledWastTargetFolder,
             List<String> includedWasts,
+            List<String> localWasts,
             List<String> excludedTests,
             List<String> excludedMalformedWasts,
             List<String> excludedInvalidWasts,
@@ -41,6 +43,7 @@ public final class TestGen {
             List<String> excludedWasts) {
         // Validate config
         validate(includedWasts, "includedWasts", true);
+        validate(localWasts, "localWasts", true);
         validate(excludedTests, "excludedTests", false);
         validate(excludedWasts, "excludedWasts", true);
         validate(excludedMalformedWasts, "excludedMalformedWasts", true);
@@ -94,9 +97,14 @@ public final class TestGen {
             final SourceRoot dest = new SourceRoot(sourceDestinationFolder.toPath());
 
             TestGenerator testGenerator =
-                    new TestGenerator(testGen, dest, testsuiteFolder, compiledWastTargetFolder);
-
+                    new TestGenerator(
+                            testGen,
+                            dest,
+                            testsuiteFolder,
+                            projectDirectory,
+                            compiledWastTargetFolder);
             includedWasts.parallelStream().forEach(testGenerator::generateTests);
+            localWasts.forEach(testGenerator::generateLocalTests);
 
             dest.saveAll();
         } catch (IOException e) {
@@ -125,27 +133,38 @@ public final class TestGen {
         private final SourceRoot dest;
         private final File testsuiteFolder;
         private final File compiledWastTargetFolder;
+        private final File projectDirectory;
 
         private TestGenerator(
                 JavaTestGen testGen,
                 SourceRoot dest,
                 File testsuiteFolder,
+                File projectDirectory,
                 File compiledWastTargetFolder) {
             this.testGen = testGen;
             this.dest = dest;
             this.testsuiteFolder = testsuiteFolder;
+            this.projectDirectory = projectDirectory;
             this.compiledWastTargetFolder = compiledWastTargetFolder;
         }
 
         private void generateTests(String spec) {
-            var wastFile = testsuiteFolder.toPath().resolve(spec).toFile();
+            generateTests(testsuiteFolder, spec, true);
+        }
+
+        private void generateTests(File root, String spec, boolean proposals) {
+            var wastFile = root.toPath().resolve(spec).toFile();
             if (!wastFile.exists()) {
                 throw new IllegalArgumentException(
                         "Wast file " + wastFile.getAbsolutePath() + " not found");
             }
 
             var plainName = wastFile.getName().replace(".wast", "");
-            if (wastFile.getParentFile().getParentFile().getName().equalsIgnoreCase("proposals")) {
+            if (proposals
+                    && wastFile.getParentFile()
+                            .getParentFile()
+                            .getName()
+                            .equalsIgnoreCase("proposals")) {
                 var proposal = escapedCamelCase(wastFile.getParentFile().getName());
                 plainName =
                         proposal
@@ -170,6 +189,10 @@ public final class TestGen {
                     cu.getPackageDeclaration().orElseThrow().getName().toString(),
                     cu.getType(0).getNameAsString() + ".java",
                     cu);
+        }
+
+        private void generateLocalTests(String spec) {
+            generateTests(projectDirectory, spec, false);
         }
 
         private Wast readWast(File file) {

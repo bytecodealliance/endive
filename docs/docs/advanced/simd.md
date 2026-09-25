@@ -4,52 +4,21 @@ sidebar_label: SIMD
 title: SIMD support
 ---
 
-:::info[Availability]
-SIMD support is available only for Java 21+ and interpreter mode.
-:::
+SIMD support is built into Endive.
 
-If you are using a version of Java that supports [JEP 448 - Vector API](https://openjdk.org/jeps/448) you can leverage [Vector instructions](https://webassembly.github.io/spec/core/syntax/instructions.html#vector-instructions).
-
-<!--
-```java
-//DEPS run.endive:docs-lib:999-SNAPSHOT
-//DEPS run.endive:simd:999-SNAPSHOT
-
-import run.endive.wasm.Parser;
-import run.endive.runtime.Instance;
-
-docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "your.wasm");
-```
--->
-
-<!--
-```java
-//DEPS run.endive:docs-lib:999-SNAPSHOT
-
-```
--->
-
-After adding the dependency:
-
-```xml
-<dependency>
-  <groupId>run.endive</groupId>
-  <artifactId>simd</artifactId>
-</dependency>
-```
-
-You can instantiate a module with SIMD support by explicitly providing a `MachineFactory`:
-
-```java
-import run.endive.simd.SimdInterpreterMachine;
-
-var module = Parser.parse(new File("your.wasm"));
-var instance = Instance.builder(module).withMachineFactory(SimdInterpreterMachine::new).build();
-```
+All WebAssembly `v128` instructions use the scalar interpreter implementation on every supported
+JDK. No extra dependency, JVM flag, or machine-factory configuration is required.
 
 :::warning
 SIMD support **REQUIRES** validation. Disabling validation (`WasmModule.builder().withValidation(false)`) is likely to produce incorrect results.
 :::
+
+### Migration
+
+The `run.endive:simd` module is gone. If your application declares it and uses
+`SimdInterpreterMachine`, remove that dependency and the explicit
+`withMachineFactory(SimdInterpreterMachine::new)` call; the default machine from
+`run.endive:runtime` now executes `v128` instructions.
 
 <!--
 ```java
@@ -58,4 +27,3 @@ SIMD support **REQUIRES** validation. Disabling validation (`WasmModule.builder(
 docs.FileOps.writeResult("docs/advanced", "simd.md.result", "empty");
 ```
 -->
-

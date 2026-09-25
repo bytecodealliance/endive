@@ -105,11 +105,6 @@
       </dependency>
       <dependency>
         <groupId>run.endive</groupId>
-        <artifactId>simd</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>run.endive</groupId>
         <artifactId>wabt</artifactId>
         <version>${project.version}</version>
       </dependency>

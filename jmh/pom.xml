@@ -26,6 +26,20 @@
       <groupId>run.endive</groupId>
       <artifactId>compiler</artifactId>
     </dependency>
+    <!-- Redline: the jffi runner runs on Java 11+, so these benchmarks build on the
+         JDK the perf workflow uses. The Panama runner needs 25 and is not covered here. -->
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>redline-api-experimental</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>redline-compiler-experimental</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>run.endive</groupId>
+      <artifactId>redline-runner-jffi-experimental</artifactId>
+    </dependency>
     <dependency>
       <groupId>run.endive</groupId>
       <artifactId>runtime</artifactId>

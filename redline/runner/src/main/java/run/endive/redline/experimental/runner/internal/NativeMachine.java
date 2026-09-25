@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import run.endive.redline.experimental.api.internal.CtxBuffer;
+import run.endive.redline.experimental.api.internal.InterruptWatchdog;
 import run.endive.redline.experimental.api.internal.RedlineTarget;
 import run.endive.redline.experimental.api.internal.TypeMapUtils;
 import run.endive.redline.experimental.bridge.internal.CraneliftBridge;
@@ -1083,34 +1084,28 @@ public final class NativeMachine implements Machine {
                 throw new TrapException("interrupted");
             }
 
-            Thread caller = Thread.currentThread();
-            Thread watchdog =
-                    new Thread(
-                            () -> {
-                                // Keeps raising rather than returning after the
-                                // first: a nested call clears the flag when it
-                                // finishes, and the outer call still needs it.
-                                while (!Thread.currentThread().isInterrupted()) {
-                                    if (caller.isInterrupted()) {
-                                        requestInterrupt();
-                                    }
-                                    try {
-                                        Thread.sleep(1);
-                                    } catch (InterruptedException e) {
-                                        return;
-                                    }
-                                }
-                            });
-            watchdog.setDaemon(true);
-            watchdog.start();
+            // Only the outermost call registers. A nested call runs on the same
+            // thread, inside the same watched window, so watching it again would
+            // buy nothing — and re-entry through a host function is common enough
+            // that doing so once dominated the cost of the call itself.
+            InterruptWatchdog.Registration watchdog =
+                    outermostCall
+                            ? InterruptWatchdog.enter(
+                                    Thread.currentThread(), this::requestInterrupt)
+                            : null;
             long result;
             try {
                 result = (long) handle.invokeExact(cachedMemBase, ctxBuffer, args);
             } finally {
-                watchdog.interrupt();
-                // The flag only ever means "stop this call". Left set it would
-                // trap the next one on a thread nobody interrupted.
-                clearInterrupt();
+                if (watchdog != null) {
+                    // Deregister before clearing: exit() guarantees the poller is
+                    // not part-way through raising the flag, so the clear below
+                    // cannot be undone behind our back.
+                    InterruptWatchdog.exit(watchdog);
+                    // The flag only ever means "stop this call". Left set it would
+                    // trap the next one on a thread nobody interrupted.
+                    clearInterrupt();
+                }
             }
 
             // Check for exceptions from upcall stubs first — a host function

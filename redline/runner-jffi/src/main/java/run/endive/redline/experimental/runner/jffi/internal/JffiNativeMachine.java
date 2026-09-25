@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import run.endive.redline.experimental.api.internal.CtxBuffer;
+import run.endive.redline.experimental.api.internal.InterruptWatchdog;
 import run.endive.redline.experimental.api.internal.RedlineTarget;
 import run.endive.redline.experimental.api.internal.TypeMapUtils;
 import run.endive.redline.experimental.bridge.internal.CraneliftBridge;
@@ -87,6 +88,11 @@ public final class JffiNativeMachine implements Machine {
     private final Instance instance;
     private final CallContext[] entryTrampolineCallCtxs; // entry trampoline CallContext per func
     private final long[] entryTrampolineAddrs; // entry trampoline native addr per func
+
+    // Only the >6-native-arg path needs a Function, and it is a pure value holder over
+    // (address, context) whose dispose() is a no-op, so it is built once per function
+    // rather than on every call.
+    private final Function[] entryTrampolineFunctions;
     private final FunctionType[] funcTypes; // wasm FunctionType per func
     private final long codeRegionAddr;
     private final int codeRegionOsPages;
@@ -139,6 +145,7 @@ public final class JffiNativeMachine implements Machine {
         int totalFuncs = numImports + module.codeSection().functionBodyCount();
         this.entryTrampolineCallCtxs = new CallContext[totalFuncs];
         this.entryTrampolineAddrs = new long[totalFuncs];
+        this.entryTrampolineFunctions = new Function[totalFuncs];
         this.funcTypes = new FunctionType[totalFuncs];
         this.importHandles = new Closure.Handle[numImports];
 
@@ -376,6 +383,10 @@ public final class JffiNativeMachine implements Machine {
                         entryTrampolineAddrs[funcId] = entryTrampolinePtrs.get(funcTypesByBody[i]);
                         entryTrampolineCallCtxs[funcId] =
                                 createEntryTrampolineCallContext(funcTypesByBody[i]);
+                        entryTrampolineFunctions[funcId] =
+                                new Function(
+                                        entryTrampolineAddrs[funcId],
+                                        entryTrampolineCallCtxs[funcId]);
                     }
                 }
             }
@@ -941,6 +952,7 @@ public final class JffiNativeMachine implements Machine {
     private long invokeViaEntryTrampoline(
             CallContext trampolineCallCtx,
             long trampolineAddr,
+            Function trampolineFunction,
             FunctionType funcType,
             long funcAddr,
             long memBase,
@@ -978,25 +990,17 @@ public final class JffiNativeMachine implements Machine {
             default:
                 // >6 args: use HeapInvocationBuffer
                 return invokeViaBufferWithTrampoline(
-                        trampolineCallCtx,
-                        trampolineAddr,
-                        funcType,
-                        funcAddr,
-                        memBase,
-                        ctxPtr,
-                        wasmArgs);
+                        trampolineFunction, funcType, funcAddr, memBase, ctxPtr, wasmArgs);
         }
     }
 
     private long invokeViaBufferWithTrampoline(
-            CallContext trampolineCallCtx,
-            long trampolineAddr,
+            Function func,
             FunctionType funcType,
             long funcAddr,
             long memBase,
             long ctxPtr,
             long[] wasmArgs) {
-        var func = new Function(trampolineAddr, trampolineCallCtx);
         var buffer = new HeapInvocationBuffer(func);
         buffer.putAddress(funcAddr); // funcPtr (first arg to entry trampoline)
         buffer.putAddress(memBase);
@@ -1080,42 +1084,37 @@ public final class JffiNativeMachine implements Machine {
                 throw new TrapException("interrupted");
             }
 
-            Thread caller = Thread.currentThread();
-            Thread watchdog =
-                    new Thread(
-                            () -> {
-                                // Keeps raising rather than returning after the
-                                // first: a nested call clears the flag when it
-                                // finishes, and the outer call still needs it.
-                                while (!Thread.currentThread().isInterrupted()) {
-                                    if (caller.isInterrupted()) {
-                                        requestInterrupt();
-                                    }
-                                    try {
-                                        Thread.sleep(1);
-                                    } catch (InterruptedException e) {
-                                        return;
-                                    }
-                                }
-                            });
-            watchdog.setDaemon(true);
-            watchdog.start();
+            // Only the outermost call registers. A nested call runs on the same
+            // thread, inside the same watched window, so watching it again would
+            // buy nothing — and re-entry through a host function is common enough
+            // that doing so once dominated the cost of the call itself.
+            InterruptWatchdog.Registration watchdog =
+                    outermostCall
+                            ? InterruptWatchdog.enter(
+                                    Thread.currentThread(), this::requestInterrupt)
+                            : null;
             long result;
             try {
                 result =
                         invokeViaEntryTrampoline(
                                 trampolineCallCtx,
                                 trampolineAddr,
+                                entryTrampolineFunctions[funcId],
                                 funcType,
                                 funcAddr,
                                 cachedMemBase,
                                 ctxBufferAddr,
                                 args);
             } finally {
-                watchdog.interrupt();
-                // The flag only ever means "stop this call". Left set it would
-                // trap the next one on a thread nobody interrupted.
-                clearInterrupt();
+                if (watchdog != null) {
+                    // Deregister before clearing: exit() guarantees the poller is
+                    // not part-way through raising the flag, so the clear below
+                    // cannot be undone behind our back.
+                    InterruptWatchdog.exit(watchdog);
+                    // The flag only ever means "stop this call". Left set it would
+                    // trap the next one on a thread nobody interrupted.
+                    clearInterrupt();
+                }
             }
 
             // Check for exceptions from upcall stubs first — a host function

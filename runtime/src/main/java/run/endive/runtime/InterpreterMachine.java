@@ -104,6 +104,7 @@ public class InterpreterMachine implements Machine {
         }
 
         var func = instance.function(funcId);
+        var callDepth = callStack.size();
         if (func != null) {
             var stackFrame =
                     new StackFrame(
@@ -122,9 +123,8 @@ public class InterpreterMachine implements Machine {
             } catch (StackOverflowError e) {
                 throw new WasmEngineException("call stack exhausted", e);
             } finally {
-                if (!callStack.isEmpty() && callStack.peek() == stackFrame) {
-                    callStack.pop();
-                }
+                // tail calls may have replaced stackFrame
+                popCallStackTo(callStack, callDepth);
             }
         } else {
             var stackFrame = new StackFrame(instance, funcId, args);
@@ -165,9 +165,7 @@ public class InterpreterMachine implements Machine {
             } catch (StackOverflowError e) {
                 throw new WasmEngineException("call stack exhausted", e);
             } finally {
-                if (!callStack.isEmpty() && callStack.peek() == stackFrame) {
-                    callStack.pop();
-                }
+                popCallStackTo(callStack, callDepth);
             }
         }
 
@@ -207,6 +205,12 @@ public class InterpreterMachine implements Machine {
             }
         }
         return results;
+    }
+
+    private static void popCallStackTo(Deque<StackFrame> callStack, int depth) {
+        while (callStack.size() > depth) {
+            callStack.pop();
+        }
     }
 
     @Override
@@ -324,7 +328,7 @@ public class InterpreterMachine implements Machine {
                     }
                 case RETURN_CALL:
                     // swap in place the current frame
-                    frame = RETURN_CALL(stack, instance, callStack, operands, frame);
+                    frame = RETURN_CALL(stack, instance, callStack, (int) operands.get(0), frame);
                     break;
                 case RETURN_CALL_INDIRECT:
                     // swap in place the current frame
@@ -2844,9 +2848,8 @@ public class InterpreterMachine implements Machine {
             MStack stack,
             Instance instance,
             Deque<StackFrame> callStack,
-            Operands operands,
+            int funcId,
             StackFrame currentStackFrame) {
-        var funcId = (int) operands.get(0);
         var typeId = instance.functionType(funcId);
         var type = instance.type(typeId);
         var func = instance.function(funcId);
@@ -2906,9 +2909,6 @@ public class InterpreterMachine implements Machine {
                 } catch (WasmException e) {
                     THROW_REF(instance, e, stack, newFrame, callStack);
                 }
-                if (fromCallStack) {
-                    callStack.push(newFrame);
-                }
                 return newFrame;
             }
         }
@@ -2928,87 +2928,17 @@ public class InterpreterMachine implements Machine {
 
         int funcId = table.requiredRef(funcTableIdx);
         var refInstance = requireNonNullElse(table.instance(funcTableIdx), instance);
-        var type = instance.type(typeId);
 
-        boolean sameInstance = refInstance == instance;
-        if (sameInstance) {
-            var actualTypeIdx = instance.functionType(funcId);
-            verifyIndirectCallByTypeIdx(actualTypeIdx, typeId, instance.module().typeSection());
-        } else {
+        if (refInstance != instance) {
             var actualType = refInstance.type(refInstance.functionType(funcId));
-            verifyIndirectCall(actualType, type, instance.module().typeSection());
-        }
-
-        var refMachine = refInstance.getMachine().getClass();
-        if (!sameInstance && !refMachine.equals(instance.getMachine().getClass())) {
+            verifyIndirectCall(actualType, instance.type(typeId), instance.module().typeSection());
             throw new WasmEngineException(
-                    "Indirect tail-call to a different Machine implementation is not supported: "
-                            + refMachine.getName());
+                    "Indirect tail-call to a function of another instance is not supported");
         }
+        var actualTypeIdx = instance.functionType(funcId);
+        verifyIndirectCallByTypeIdx(actualTypeIdx, typeId, instance.module().typeSection());
 
-        var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
-        var args = (long[]) extracted[0];
-        var refArgs = (Object[]) extracted[1];
-
-        // optimizing when the tail call happens in the same function
-        if (currentStackFrame.funcId() == funcId) {
-            var ctrlFrame = currentStackFrame.popCtrlTillCall();
-            StackFrame.doControlTransfer(ctrlFrame, stack);
-            currentStackFrame.reset(args, refArgs);
-            currentStackFrame.pushCtrl(ctrlFrame);
-            return currentStackFrame;
-        } else {
-            var func = instance.function(funcId);
-            var fromCallStack = !callStack.isEmpty();
-
-            if (func != null) {
-                var ctrlFrame =
-                        (fromCallStack)
-                                ? callStack.pop().popCtrlTillCall()
-                                : currentStackFrame.popCtrlTillCall();
-                StackFrame.doControlTransfer(ctrlFrame, stack);
-                var newFrame =
-                        new StackFrame(
-                                instance,
-                                funcId,
-                                args,
-                                refArgs,
-                                type.params(),
-                                func.localTypes(),
-                                func.instructions());
-                newFrame.pushCtrl(OpCode.CALL, 0, sizeOf(type.returns()), stack.size());
-                if (fromCallStack) {
-                    callStack.push(newFrame);
-                }
-                return newFrame;
-            } else {
-                var newFrame = new StackFrame(instance, funcId, args);
-                newFrame.pushCtrl(OpCode.CALL, 0, sizeOf(type.returns()), stack.size());
-                callStack.push(newFrame);
-
-                var imprt = instance.imports().function(funcId);
-
-                try {
-                    if (type.hasObjectRefParams() || type.hasObjectRefReturns()) {
-                        var cr = imprt.handle().applyWithRefs(instance, args, refArgs);
-                        pushCallResult(cr, type, stack);
-                    } else {
-                        var results = imprt.handle().apply(instance, args);
-                        if (results != null) {
-                            for (var result : results) {
-                                stack.push(result);
-                            }
-                        }
-                    }
-                } catch (WasmException e) {
-                    THROW_REF(instance, e, stack, newFrame, callStack);
-                }
-                if (fromCallStack) {
-                    callStack.push(newFrame);
-                }
-                return newFrame;
-            }
-        }
+        return RETURN_CALL(stack, instance, callStack, funcId, currentStackFrame);
     }
 
     private static StackFrame RETURN_CALL_REF(
@@ -3020,38 +2950,7 @@ public class InterpreterMachine implements Machine {
         if (funcId == REF_NULL_VALUE) {
             throw new TrapException("Trapped on call_ref on null function reference");
         }
-        var typeId = instance.functionType(funcId);
-        var type = instance.type(typeId);
-        var func = instance.function(funcId);
-        // given a list of param types, let's pop those params off the stack
-        // and pass as args to the function call
-        var extracted = extractArgsAndRefsForParams(stack, type.params(), instance);
-        var args = (long[]) extracted[0];
-        var refArgs = (Object[]) extracted[1];
-
-        // optimizing when the tail call happens in the same function
-        if (currentStackFrame.funcId() == funcId) {
-            var ctrlFrame = currentStackFrame.popCtrlTillCall();
-            StackFrame.doControlTransfer(ctrlFrame, stack);
-            currentStackFrame.reset(args, refArgs);
-            currentStackFrame.pushCtrl(ctrlFrame);
-            return currentStackFrame;
-        } else {
-            var ctrlFrame = callStack.pop();
-            StackFrame.doControlTransfer(ctrlFrame.popCtrlTillCall(), stack);
-            var newFrame =
-                    new StackFrame(
-                            instance,
-                            funcId,
-                            args,
-                            refArgs,
-                            type.params(),
-                            func.localTypes(),
-                            func.instructions());
-            newFrame.pushCtrl(OpCode.CALL, 0, sizeOf(type.returns()), stack.size());
-            callStack.push(newFrame);
-            return newFrame;
-        }
+        return RETURN_CALL(stack, instance, callStack, funcId, currentStackFrame);
     }
 
     private void CALL_INDIRECT(

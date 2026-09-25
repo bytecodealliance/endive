@@ -150,8 +150,13 @@ public final class Shaded {
     public static long[] resolveTailCall(Instance instance) {
         int funcId = instance.tailCallFuncId();
         long[] args = instance.tailCallArgs();
+        Object[] refArgs = instance.tailCallRefArgs();
         instance.clearTailCall();
-        return instance.getMachine().call(funcId, args);
+        if (refArgs == null) {
+            return instance.getMachine().call(funcId, args);
+        }
+        // no ref results, but the callee can still take ref arguments
+        return instance.getMachine().callWithRefs(funcId, args, refArgs).longs();
     }
 
     public static CallResult resolveTailCallWithRefs(Instance instance) {

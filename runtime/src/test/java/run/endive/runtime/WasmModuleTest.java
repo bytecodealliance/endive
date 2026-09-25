@@ -75,6 +75,25 @@ public class WasmModuleTest {
     }
 
     @Test
+    public void shouldTrapOnStoreEffectiveAddressOverflow() {
+        var instance = Instance.builder(loadModule("compiled/store_offset_wrap.wat.wasm")).build();
+        var memory = instance.memory();
+
+        for (var name : List.of("i32_store8", "i64_store8", "i64_store32")) {
+            var store = instance.export(name);
+            assertThrows(WasmRuntimeException.class, () -> store.apply(-1L), name);
+            assertThrows(WasmRuntimeException.class, () -> store.apply(0xFFFFFFFFL), name);
+            assertEquals(0, memory.read(0), name);
+        }
+        var maxOffset = instance.export("i32_store8_max_offset");
+        assertThrows(WasmRuntimeException.class, () -> maxOffset.apply(1L));
+        assertEquals(0, memory.read(0));
+
+        instance.export("i32_store8").apply(0L);
+        assertEquals(42, memory.read(1));
+    }
+
+    @Test
     public void shouldSupportBrTable() {
         var instance = Instance.builder(loadModule("compiled/br_table.wat.wasm")).build();
         var switchLike = instance.export("switch_like");

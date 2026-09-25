@@ -1198,10 +1198,7 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
     private static void V128_STORE(MStack stack, Instance instance, Operands operands) {
         var valHigh = stack.pop();
         var valLow = stack.pop();
-        var offset = operands.get(1);
-        var i = stack.pop();
-        // to let the bounds check kick in appropriately
-        var ptr = (i >= 0) ? (int) (offset + i) : (int) i;
+        var ptr = readMemPtr(stack, operands);
 
         instance.memory((int) operands.get(2)).writeLong(ptr, valLow);
         instance.memory((int) operands.get(2)).writeLong(ptr + 8, valHigh);
@@ -1303,11 +1300,7 @@ public final class SimdInterpreterMachine extends InterpreterMachine {
             MStack stack, Operands operands, BiConsumer<LongVector, Integer> store) {
         var valHigh = stack.pop();
         var valLow = stack.pop();
-
-        var offset = operands.get(1);
-        var i = stack.pop();
-        // to let the bounds check kick in appropriately
-        var ptr = (i >= 0) ? (int) (offset + i) : (int) i;
+        var ptr = readMemPtr(stack, operands);
 
         var result = LongVector.fromArray(LongVector.SPECIES_128, new long[] {valLow, valHigh}, 0);
 

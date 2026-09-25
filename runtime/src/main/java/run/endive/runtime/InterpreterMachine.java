@@ -1718,13 +1718,13 @@ public class InterpreterMachine implements Machine {
 
     private static void I64_STORE32(MStack stack, Instance instance, Operands operands) {
         var value = stack.pop();
-        var ptr = (int) (operands.get(1) + (int) stack.pop());
+        var ptr = readMemPtr(stack, operands);
         instance.memory((int) operands.get(2)).writeI32(ptr, (int) value);
     }
 
     private static void I64_STORE8(MStack stack, Instance instance, Operands operands) {
         var value = (byte) stack.pop();
-        var ptr = (int) (operands.get(1) + (int) stack.pop());
+        var ptr = readMemPtr(stack, operands);
         instance.memory((int) operands.get(2)).writeByte(ptr, value);
     }
 

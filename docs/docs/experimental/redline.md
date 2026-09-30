@@ -96,7 +96,28 @@ versions use `redline-runner-jffi-experimental`, which needs only Java 11:
 </dependency>
 ```
 
-If both are present, the Panama runner is used wherever the JDK supports it.
+The jffi runner does not bring in [jffi](https://github.com/jnr/jffi) itself, so its version can
+follow the rest of your application. Add it next to the runner, together with its native
+libraries:
+
+```xml
+<dependency>
+  <groupId>com.github.jnr</groupId>
+  <artifactId>jffi</artifactId>
+  <version>${jffi.version}</version>
+</dependency>
+<dependency>
+  <groupId>com.github.jnr</groupId>
+  <artifactId>jffi</artifactId>
+  <version>${jffi.version}</version>
+  <classifier>native</classifier>
+</dependency>
+```
+
+Without them, `builder()` fails with `NoClassDefFoundError: com/kenai/jffi/MemoryIO` instead of
+falling back.
+
+If both runners are present, the Panama runner is used wherever the JDK supports it.
 
 Your module is then used exactly as it would be without redline:
 
@@ -110,7 +131,8 @@ try (var instance = MyModule.builder().build()) {
 
 When native code cannot be used, `builder()` falls back to the bytecode produced by the
 [Build Time Compiler](../execution/build-time-compiler.md), which is always generated alongside it.
-This happens on platforms outside the table above, or when no runner is on the classpath.
+This happens on platforms outside the table above, or when no runner is on the classpath. A jffi
+runner without jffi is an error, not a fallback.
 
 Your module keeps working either way, so the fallback is silent. To check which one you got:
 

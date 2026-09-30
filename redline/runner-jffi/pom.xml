@@ -15,11 +15,6 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.github.jnr</groupId>
-      <artifactId>jffi</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>run.endive</groupId>
       <artifactId>redline-api-experimental</artifactId>
     </dependency>
@@ -38,8 +33,27 @@
     <dependency>
       <groupId>com.github.jnr</groupId>
       <artifactId>jffi</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.github.jnr</groupId>
+      <artifactId>jffi</artifactId>
       <classifier>native</classifier>
       <scope>provided</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <configuration>
+          <ignoredUnusedDeclaredDependencies combine.children="append">
+            <dependency>com.github.jnr:jffi</dependency>
+          </ignoredUnusedDeclaredDependencies>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>

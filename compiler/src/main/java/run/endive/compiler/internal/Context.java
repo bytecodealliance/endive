@@ -1,5 +1,6 @@
 package run.endive.compiler.internal;
 
+import static run.endive.compiler.internal.CompilerUtil.argumentSlots;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
 
@@ -71,7 +72,8 @@ final class Context {
 
         // WASM arguments
         if (longArrayParams) {
-            slot += 1; // long[]
+            // long[], plus Object[] for boxed object refs
+            slot += hasTooManyParameters(type) ? argumentSlots(type) : 1;
         } else {
             for (ValType param : type.params()) {
                 slots.add(slot);
@@ -85,7 +87,7 @@ final class Context {
         this.instanceSlot = slot;
         slot++;
 
-        // the long[] gets unboxed
+        // the long[] (and Object[]) gets unboxed
         if (longArrayParams) {
             for (ValType param : type.params()) {
                 slots.add(slot);

@@ -17,6 +17,7 @@
     <dependency>
       <groupId>com.github.jnr</groupId>
       <artifactId>jffi</artifactId>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>run.endive</groupId>
@@ -38,7 +39,7 @@
       <groupId>com.github.jnr</groupId>
       <artifactId>jffi</artifactId>
       <classifier>native</classifier>
-      <scope>runtime</scope>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 </project>

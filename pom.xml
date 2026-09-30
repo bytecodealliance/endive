@@ -64,7 +64,7 @@
     -->
     <cranelift-bridge.version>999.0.0-SNAPSHOT</cranelift-bridge.version>
     <commons-io.version>2.22.0</commons-io.version>
-    <commons-lang.version>3.20.0</commons-lang.version>
+    <commons-lang.version>3.21.0</commons-lang.version>
     <jackson-annotations.version>2.22</jackson-annotations.version>
     <jffi.version>1.4.3</jffi.version>
     <jackson-databind.version>2.22.3</jackson-databind.version>

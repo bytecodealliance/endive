@@ -17,9 +17,11 @@ import static run.endive.compiler.internal.CompilerUtil.emitInvokeVirtual;
 import static run.endive.compiler.internal.CompilerUtil.emitJvmToLong;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
 import static run.endive.compiler.internal.CompilerUtil.emitPop;
+import static run.endive.compiler.internal.CompilerUtil.hasBoxedRefArgs;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.jvmReturnType;
 import static run.endive.compiler.internal.CompilerUtil.localType;
+import static run.endive.compiler.internal.CompilerUtil.paramSlots;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
 import static run.endive.compiler.internal.CompilerUtil.valueMethodName;
 import static run.endive.compiler.internal.CompilerUtil.valueMethodType;
@@ -383,13 +385,25 @@ final class Emitters {
         }
     }
 
+    /**
+     * Boxes the arguments of a function with too many parameters from the JVM operand stack.
+     * After this method, the stack has: [..., long[]] or, with object refs, [..., long[], Object[]]
+     */
+    private static void emitBoxArguments(Context ctx, InstructionAdapter asm, FunctionType type) {
+        if (hasBoxedRefArgs(type)) {
+            emitBoxValuesOnStackWithRefs(ctx, asm, type.params());
+        } else {
+            emitBoxValuesOnStack(ctx, asm, type.params());
+        }
+    }
+
     public static void CALL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int funcId = (int) ins.operand(0);
         FunctionType functionType = ctx.functionTypes().get(funcId);
 
         emitInvokeStatic(asm, ShadedRefs.CHECK_INTERRUPTION);
         if (hasTooManyParameters(functionType)) {
-            emitBoxValuesOnStack(ctx, asm, functionType.params());
+            emitBoxArguments(ctx, asm, functionType);
         }
 
         asm.load(ctx.memorySlot(), OBJECT_TYPE);
@@ -415,7 +429,11 @@ final class Emitters {
         FunctionType functionType = ctx.types()[typeId];
 
         if (hasTooManyParameters(functionType)) {
-            emitBoxValuesOnStack(ctx, asm, functionType.params());
+            // the funcTableIdx is on top of the arguments
+            int funcTableIdxSlot = ctx.tempSlot() + paramSlots(functionType);
+            asm.store(funcTableIdxSlot, INT_TYPE);
+            emitBoxArguments(ctx, asm, functionType);
+            asm.load(funcTableIdxSlot, INT_TYPE);
         }
 
         // stack: arguments, funcTableIdx, tableIdx, memory, instance
@@ -1710,11 +1728,15 @@ final class Emitters {
         FunctionType functionType = ctx.types()[typeId];
 
         // stack: [args..., funcref]
-        // save funcref to temp
-        asm.store(ctx.tempSlot(), INT_TYPE);
+        // save funcref to temp, above the slots used for boxing the arguments
+        int funcRefSlot = ctx.tempSlot();
+        if (hasTooManyParameters(functionType)) {
+            funcRefSlot += paramSlots(functionType);
+        }
+        asm.store(funcRefSlot, INT_TYPE);
 
         // null check
-        asm.load(ctx.tempSlot(), INT_TYPE);
+        asm.load(funcRefSlot, INT_TYPE);
         asm.iconst(REF_NULL_VALUE);
         var notNull = new Label();
         asm.ificmpne(notNull);
@@ -1723,10 +1745,10 @@ final class Emitters {
         asm.mark(notNull);
 
         if (hasTooManyParameters(functionType)) {
-            emitBoxValuesOnStack(ctx, asm, functionType.params());
+            emitBoxArguments(ctx, asm, functionType);
         }
 
-        asm.load(ctx.tempSlot(), INT_TYPE); // funcref as tableIdx arg
+        asm.load(funcRefSlot, INT_TYPE); // funcref as tableIdx arg
         asm.iconst(-1); // no table index (use -1 as sentinel)
         asm.load(ctx.memorySlot(), OBJECT_TYPE);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);

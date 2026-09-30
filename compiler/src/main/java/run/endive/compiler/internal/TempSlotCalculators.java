@@ -1,6 +1,7 @@
 package run.endive.compiler.internal;
 
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
+import static run.endive.compiler.internal.CompilerUtil.paramSlots;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
 
 import java.util.List;
@@ -33,7 +34,8 @@ final class TempSlotCalculators {
             CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
         var type = module.typeSection().getType((int) ins.operand(0));
         if (hasTooManyParameters(type)) {
-            return paramSlots(type);
+            // the boxed arguments and the funcTableIdx
+            return paramSlots(type) + 1;
         }
         return 0;
     }
@@ -80,11 +82,11 @@ final class TempSlotCalculators {
     static int callRef(
             CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
         var type = module.typeSection().getType((int) ins.operand(0));
-        int slots = 1;
+        // the funcref, above the boxed arguments
         if (hasTooManyParameters(type)) {
-            slots = Math.max(slots, paramSlots(type));
+            return paramSlots(type) + 1;
         }
-        return slots;
+        return 1;
     }
 
     static int structNew(
@@ -119,9 +121,5 @@ final class TempSlotCalculators {
 
     static int one(CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
         return 1;
-    }
-
-    private static int paramSlots(FunctionType type) {
-        return type.params().stream().mapToInt(CompilerUtil::slotCount).sum();
     }
 }

@@ -15,10 +15,6 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.github.jnr</groupId>
-      <artifactId>jffi</artifactId>
-    </dependency>
-    <dependency>
       <groupId>run.endive</groupId>
       <artifactId>redline-api-experimental</artifactId>
     </dependency>
@@ -37,8 +33,7 @@
     <dependency>
       <groupId>com.github.jnr</groupId>
       <artifactId>jffi</artifactId>
-      <classifier>native</classifier>
-      <scope>runtime</scope>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 </project>

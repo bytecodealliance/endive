@@ -8,19 +8,8 @@
   <packaging>jar</packaging>
 
   <dependencies>
-    <!-- What a consumer needs: jffi, which the runner declares as provided, and the
-         runner, which brings in redline-api, runtime and wasm transitively. -->
-    <dependency>
-      <groupId>com.github.jnr</groupId>
-      <artifactId>jffi</artifactId>
-      <version>@jffi.version@</version>
-    </dependency>
-    <dependency>
-      <groupId>com.github.jnr</groupId>
-      <artifactId>jffi</artifactId>
-      <version>@jffi.version@</version>
-      <classifier>native</classifier>
-    </dependency>
+    <!-- The only dependency a consumer needs. It brings in redline-api (used by
+         the generated builder), runtime and wasm transitively. -->
     <dependency>
       <groupId>run.endive</groupId>
       <artifactId>redline-runner-jffi-experimental</artifactId>

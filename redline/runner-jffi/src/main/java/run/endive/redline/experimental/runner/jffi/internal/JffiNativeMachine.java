@@ -17,12 +17,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import run.endive.redline.experimental.api.internal.CtxBuffer;
+import run.endive.redline.experimental.api.internal.InterruptWatchdog;
 import run.endive.redline.experimental.api.internal.RedlineTarget;
 import run.endive.redline.experimental.api.internal.TypeMapUtils;
 import run.endive.redline.experimental.bridge.internal.CraneliftBridge;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.runtime.TrapException;
+import run.endive.runtime.WasmInterruptedException;
 import run.endive.runtime.WasmRuntimeException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.FunctionType;
@@ -85,8 +87,7 @@ public final class JffiNativeMachine implements Machine {
     }
 
     private final Instance instance;
-    private final CallContext[] entryTrampolineCallCtxs; // entry trampoline CallContext per func
-    private final long[] entryTrampolineAddrs; // entry trampoline native addr per func
+    private final Function[] entryTrampolines; // entry trampoline per func
     private final FunctionType[] funcTypes; // wasm FunctionType per func
     private final long codeRegionAddr;
     private final int codeRegionOsPages;
@@ -113,6 +114,7 @@ public final class JffiNativeMachine implements Machine {
     private JffiNativeMemory nativeMemory;
     private volatile Throwable pendingException;
     private int callDepth;
+    private final InterruptWatchdog.InterruptSink interruptFlag = this::raiseInterruptFlag;
 
     // Keep closure handles alive to prevent GC
     private final Closure.Handle trampolineHandle;
@@ -137,8 +139,7 @@ public final class JffiNativeMachine implements Machine {
                                                                 .FUNCTION)
                                 .count();
         int totalFuncs = numImports + module.codeSection().functionBodyCount();
-        this.entryTrampolineCallCtxs = new CallContext[totalFuncs];
-        this.entryTrampolineAddrs = new long[totalFuncs];
+        this.entryTrampolines = new Function[totalFuncs];
         this.funcTypes = new FunctionType[totalFuncs];
         this.importHandles = new Closure.Handle[numImports];
 
@@ -373,9 +374,10 @@ public final class JffiNativeMachine implements Machine {
                 for (int i = 0; i < compiledCode.length; i++) {
                     if (compiledCode[i] != null) {
                         int funcId = numImports + i;
-                        entryTrampolineAddrs[funcId] = entryTrampolinePtrs.get(funcTypesByBody[i]);
-                        entryTrampolineCallCtxs[funcId] =
-                                createEntryTrampolineCallContext(funcTypesByBody[i]);
+                        entryTrampolines[funcId] =
+                                new Function(
+                                        entryTrampolinePtrs.get(funcTypesByBody[i]),
+                                        createEntryTrampolineCallContext(funcTypesByBody[i]));
                     }
                 }
             }
@@ -931,7 +933,7 @@ public final class JffiNativeMachine implements Machine {
             return new TrapException("unaligned atomic");
         }
         if (trapCode == CtxBuffer.TRAP_INTERRUPTED) {
-            return new TrapException("interrupted");
+            return new WasmInterruptedException("Thread interrupted");
         }
         return new WasmEngineException("trap: unknown code " + trapCode);
     }
@@ -939,8 +941,7 @@ public final class JffiNativeMachine implements Machine {
     // --- Native function invocation ---
 
     private long invokeViaEntryTrampoline(
-            CallContext trampolineCallCtx,
-            long trampolineAddr,
+            Function trampoline,
             FunctionType funcType,
             long funcAddr,
             long memBase,
@@ -948,6 +949,8 @@ public final class JffiNativeMachine implements Machine {
             long[] wasmArgs) {
         // nativeArgCount = funcPtr + memBase + ctxPtr + wasm params
         int nativeArgCount = 3 + wasmArgs.length;
+        CallContext trampolineCallCtx = trampoline.getCallContext();
+        long trampolineAddr = trampoline.getFunctionAddress();
 
         switch (nativeArgCount) {
             case 3:
@@ -978,25 +981,17 @@ public final class JffiNativeMachine implements Machine {
             default:
                 // >6 args: use HeapInvocationBuffer
                 return invokeViaBufferWithTrampoline(
-                        trampolineCallCtx,
-                        trampolineAddr,
-                        funcType,
-                        funcAddr,
-                        memBase,
-                        ctxPtr,
-                        wasmArgs);
+                        trampoline, funcType, funcAddr, memBase, ctxPtr, wasmArgs);
         }
     }
 
     private long invokeViaBufferWithTrampoline(
-            CallContext trampolineCallCtx,
-            long trampolineAddr,
+            Function func,
             FunctionType funcType,
             long funcAddr,
             long memBase,
             long ctxPtr,
             long[] wasmArgs) {
-        var func = new Function(trampolineAddr, trampolineCallCtx);
         var buffer = new HeapInvocationBuffer(func);
         buffer.putAddress(funcAddr); // funcPtr (first arg to entry trampoline)
         buffer.putAddress(memBase);
@@ -1042,8 +1037,6 @@ public final class JffiNativeMachine implements Machine {
 
         var funcType = funcTypes[funcId];
         long funcAddr = MEM.getLong(funcTableAddr + (long) funcId * 8);
-        long trampolineAddr = entryTrampolineAddrs[funcId];
-        var trampolineCallCtx = entryTrampolineCallCtxs[funcId];
 
         try {
             boolean outermostCall = callDepth++ == 0;
@@ -1076,45 +1069,28 @@ public final class JffiNativeMachine implements Machine {
                 MEM.putInt(ctxBufferAddr + CtxBuffer.MEMORY_PAGES, mem.pages());
             }
 
-            if (Thread.interrupted()) {
-                throw new TrapException("interrupted");
+            if (Thread.currentThread().isInterrupted()) {
+                throw new WasmInterruptedException("Thread interrupted");
             }
 
-            Thread caller = Thread.currentThread();
-            Thread watchdog =
-                    new Thread(
-                            () -> {
-                                // Keeps raising rather than returning after the
-                                // first: a nested call clears the flag when it
-                                // finishes, and the outer call still needs it.
-                                while (!Thread.currentThread().isInterrupted()) {
-                                    if (caller.isInterrupted()) {
-                                        requestInterrupt();
-                                    }
-                                    try {
-                                        Thread.sleep(1);
-                                    } catch (InterruptedException e) {
-                                        return;
-                                    }
-                                }
-                            });
-            watchdog.setDaemon(true);
-            watchdog.start();
+            // nested calls run inside the outermost call's watch
+            InterruptWatchdog.Registration watchdog =
+                    outermostCall ? InterruptWatchdog.enter(interruptFlag) : null;
             long result;
             try {
                 result =
                         invokeViaEntryTrampoline(
-                                trampolineCallCtx,
-                                trampolineAddr,
+                                entryTrampolines[funcId],
                                 funcType,
                                 funcAddr,
                                 cachedMemBase,
                                 ctxBufferAddr,
                                 args);
             } finally {
-                watchdog.interrupt();
-                // The flag only ever means "stop this call". Left set it would
-                // trap the next one on a thread nobody interrupted.
+                if (watchdog != null) {
+                    // exit first, so the poller cannot raise the flag after the clear
+                    InterruptWatchdog.exit(watchdog);
+                }
                 clearInterrupt();
             }
 
@@ -1134,7 +1110,6 @@ public final class JffiNativeMachine implements Machine {
             if (trapCode != 0) {
                 MEM.putInt(ctxBufferAddr + CtxBuffer.TRAP_CODE, 0);
                 if (trapCode == CtxBuffer.TRAP_INTERRUPTED) {
-                    CHECKED_MEM.putLong(ctxBufferAddr + CtxBuffer.INTERRUPT_FLAG, 0L);
                     Thread.currentThread().interrupt();
                 }
                 throw trapException(trapCode);
@@ -1165,16 +1140,15 @@ public final class JffiNativeMachine implements Machine {
             // Prevent the JIT from considering this machine unreachable during
             // the native call, which would let GC collect and close() free
             // native memory while code is executing.
-            // (ctxBuffer, funcTypesArray, code region) while code is executing.
             Reference.reachabilityFence(this);
         }
     }
 
-    public void requestInterrupt() {
+    private void raiseInterruptFlag() {
         CHECKED_MEM.putLong(ctxBufferAddr + CtxBuffer.INTERRUPT_FLAG, 1L);
     }
 
-    public void clearInterrupt() {
+    private void clearInterrupt() {
         CHECKED_MEM.putLong(ctxBufferAddr + CtxBuffer.INTERRUPT_FLAG, 0L);
     }
 

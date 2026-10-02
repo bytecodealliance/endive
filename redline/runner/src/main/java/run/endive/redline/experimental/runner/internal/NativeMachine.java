@@ -14,12 +14,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import run.endive.redline.experimental.api.internal.CtxBuffer;
+import run.endive.redline.experimental.api.internal.InterruptWatchdog;
 import run.endive.redline.experimental.api.internal.RedlineTarget;
 import run.endive.redline.experimental.api.internal.TypeMapUtils;
 import run.endive.redline.experimental.bridge.internal.CraneliftBridge;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.runtime.TrapException;
+import run.endive.runtime.WasmInterruptedException;
 import run.endive.runtime.WasmRuntimeException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.FunctionType;
@@ -102,6 +104,7 @@ public final class NativeMachine implements Machine {
     private NativeMemory nativeMemory;
     private volatile Throwable pendingException;
     private int callDepth;
+    private final InterruptWatchdog.InterruptSink interruptFlag = this::raiseInterruptFlag;
     private boolean ownsMemory;
     private boolean closed;
 
@@ -972,7 +975,7 @@ public final class NativeMachine implements Machine {
             case CtxBuffer.TRAP_INDIRECT_CALL_TYPE_MISMATCH ->
                     new TrapException("indirect call type mismatch");
             case CtxBuffer.TRAP_UNALIGNED_ATOMIC -> new TrapException("unaligned atomic");
-            case CtxBuffer.TRAP_INTERRUPTED -> new TrapException("interrupted");
+            case CtxBuffer.TRAP_INTERRUPTED -> new WasmInterruptedException("Thread interrupted");
             default -> new WasmEngineException("trap: unknown code " + trapCode);
         };
     }
@@ -1079,37 +1082,21 @@ public final class NativeMachine implements Machine {
                 ctxBuffer.set(ValueLayout.JAVA_INT, CtxBuffer.MEMORY_PAGES, mem.pages());
             }
 
-            if (Thread.interrupted()) {
-                throw new TrapException("interrupted");
+            if (Thread.currentThread().isInterrupted()) {
+                throw new WasmInterruptedException("Thread interrupted");
             }
 
-            Thread caller = Thread.currentThread();
-            Thread watchdog =
-                    new Thread(
-                            () -> {
-                                // Keeps raising rather than returning after the
-                                // first: a nested call clears the flag when it
-                                // finishes, and the outer call still needs it.
-                                while (!Thread.currentThread().isInterrupted()) {
-                                    if (caller.isInterrupted()) {
-                                        requestInterrupt();
-                                    }
-                                    try {
-                                        Thread.sleep(1);
-                                    } catch (InterruptedException e) {
-                                        return;
-                                    }
-                                }
-                            });
-            watchdog.setDaemon(true);
-            watchdog.start();
+            // nested calls run inside the outermost call's watch
+            InterruptWatchdog.Registration watchdog =
+                    outermostCall ? InterruptWatchdog.enter(interruptFlag) : null;
             long result;
             try {
                 result = (long) handle.invokeExact(cachedMemBase, ctxBuffer, args);
             } finally {
-                watchdog.interrupt();
-                // The flag only ever means "stop this call". Left set it would
-                // trap the next one on a thread nobody interrupted.
+                if (watchdog != null) {
+                    // exit first, so the poller cannot raise the flag after the clear
+                    InterruptWatchdog.exit(watchdog);
+                }
                 clearInterrupt();
             }
 
@@ -1129,7 +1116,6 @@ public final class NativeMachine implements Machine {
             if (trapCode != 0) {
                 ctxBuffer.set(ValueLayout.JAVA_INT, CtxBuffer.TRAP_CODE, 0);
                 if (trapCode == CtxBuffer.TRAP_INTERRUPTED) {
-                    ctxBuffer.set(ValueLayout.JAVA_LONG, CtxBuffer.INTERRUPT_FLAG, 0L);
                     Thread.currentThread().interrupt();
                 }
                 throw trapException(trapCode);
@@ -1164,11 +1150,11 @@ public final class NativeMachine implements Machine {
         }
     }
 
-    public void requestInterrupt() {
+    private void raiseInterruptFlag() {
         ctxBuffer.set(ValueLayout.JAVA_LONG, CtxBuffer.INTERRUPT_FLAG, 1L);
     }
 
-    public void clearInterrupt() {
+    private void clearInterrupt() {
         ctxBuffer.set(ValueLayout.JAVA_LONG, CtxBuffer.INTERRUPT_FLAG, 0L);
     }
 

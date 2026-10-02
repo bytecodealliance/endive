@@ -4,6 +4,7 @@ import java.io.IOException;
 import run.endive.runtime.ByteArrayMemory;
 import run.endive.runtime.ImportValues;
 import run.endive.runtime.Instance;
+import run.endive.runtime.InterpreterMachine;
 import run.endive.runtime.Store;
 import run.endive.tools.wasm.Wat2Wasm;
 import run.endive.wasm.MalformedException;
@@ -73,7 +74,7 @@ public class TestModule {
         ImportValues importValues = s.toImportValues();
         return Instance.builder(module)
                 .withImportValues(importValues)
-                .withMachineFactory(InterpreterMachineFactory::create)
+                .withMachineFactory(InterpreterMachine::new)
                 .withMemoryFactory(ByteArrayMemory::new)
                 .build();
     }

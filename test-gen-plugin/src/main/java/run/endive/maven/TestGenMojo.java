@@ -3,6 +3,7 @@ package run.endive.maven;
 import static org.apache.maven.plugins.annotations.LifecyclePhase.GENERATE_TEST_SOURCES;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.maven.model.Resource;
@@ -56,6 +57,12 @@ public class TestGenMojo extends AbstractMojo {
      */
     @Parameter(required = true)
     private List<String> includedWasts;
+
+    /**
+     * Local wast files relative to the Maven project directory.
+     */
+    @Parameter(required = false)
+    private List<String> localWasts = Collections.emptyList();
 
     /**
      * Exclude list for tests that are still failing.
@@ -112,9 +119,11 @@ public class TestGenMojo extends AbstractMojo {
                     testSuiteRepo,
                     testSuiteRepoRef,
                     testsuiteFolder,
+                    project.getBasedir(),
                     sourceDestinationFolder,
                     compiledWastTargetFolder,
                     includedWasts,
+                    localWasts,
                     excludedTests,
                     excludedMalformedWasts,
                     excludedInvalidWasts,

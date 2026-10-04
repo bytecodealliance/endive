@@ -52,6 +52,25 @@ public final class ByteArrayMemory implements Memory {
     private static final boolean HAS_INT_ATOMICS = hasFullAtomicSupport(INT_ARR_HANDLE);
     private static final boolean HAS_LONG_ATOMICS = hasFullAtomicSupport(LONG_ARR_HANDLE);
 
+    // Resolved once: isAccessModeSupported is expensive when the mode is unsupported, as it is
+    // for byte array views on recent JDKs (it throws and catches an error internally).
+    private static final boolean HAS_BYTE_VOLATILE_GET =
+            BYTE_ARR_HANDLE.isAccessModeSupported(AccessMode.GET_VOLATILE);
+    private static final boolean HAS_SHORT_VOLATILE_GET =
+            SHORT_ARR_HANDLE.isAccessModeSupported(AccessMode.GET_VOLATILE);
+    private static final boolean HAS_INT_VOLATILE_GET =
+            INT_ARR_HANDLE.isAccessModeSupported(AccessMode.GET_VOLATILE);
+    private static final boolean HAS_LONG_VOLATILE_GET =
+            LONG_ARR_HANDLE.isAccessModeSupported(AccessMode.GET_VOLATILE);
+    private static final boolean HAS_BYTE_VOLATILE_SET =
+            BYTE_ARR_HANDLE.isAccessModeSupported(AccessMode.SET_VOLATILE);
+    private static final boolean HAS_SHORT_VOLATILE_SET =
+            SHORT_ARR_HANDLE.isAccessModeSupported(AccessMode.SET_VOLATILE);
+    private static final boolean HAS_INT_VOLATILE_SET =
+            INT_ARR_HANDLE.isAccessModeSupported(AccessMode.SET_VOLATILE);
+    private static final boolean HAS_LONG_VOLATILE_SET =
+            LONG_ARR_HANDLE.isAccessModeSupported(AccessMode.SET_VOLATILE);
+
     // Page addressing constants
     private static final int PAGE_SHIFT = 16; // PAGE_SIZE = 65536 = 2^16
     private static final int PAGE_MASK = PAGE_SIZE - 1;
@@ -1067,7 +1086,7 @@ public final class ByteArrayMemory implements Memory {
         try {
             byte[] page = pages[addr >>> PAGE_SHIFT];
             int off = addr & PAGE_MASK;
-            if (BYTE_ARR_HANDLE.isAccessModeSupported(AccessMode.GET_VOLATILE)) {
+            if (HAS_BYTE_VOLATILE_GET) {
                 return (byte) BYTE_ARR_HANDLE.getVolatile(page, off);
             }
             synchronized (monitor(addr)) {
@@ -1083,7 +1102,7 @@ public final class ByteArrayMemory implements Memory {
         try {
             byte[] page = pages[addr >>> PAGE_SHIFT];
             int off = addr & PAGE_MASK;
-            if (INT_ARR_HANDLE.isAccessModeSupported(AccessMode.GET_VOLATILE)) {
+            if (HAS_INT_VOLATILE_GET) {
                 return (int) INT_ARR_HANDLE.getVolatile(page, off);
             }
             synchronized (monitor(addr)) {
@@ -1099,7 +1118,7 @@ public final class ByteArrayMemory implements Memory {
         try {
             byte[] page = pages[addr >>> PAGE_SHIFT];
             int off = addr & PAGE_MASK;
-            if (LONG_ARR_HANDLE.isAccessModeSupported(AccessMode.GET_VOLATILE)) {
+            if (HAS_LONG_VOLATILE_GET) {
                 return (long) LONG_ARR_HANDLE.getVolatile(page, off);
             }
             synchronized (monitor(addr)) {
@@ -1115,7 +1134,7 @@ public final class ByteArrayMemory implements Memory {
         try {
             byte[] page = pages[addr >>> PAGE_SHIFT];
             int off = addr & PAGE_MASK;
-            if (SHORT_ARR_HANDLE.isAccessModeSupported(AccessMode.GET_VOLATILE)) {
+            if (HAS_SHORT_VOLATILE_GET) {
                 return (short) SHORT_ARR_HANDLE.getVolatile(page, off);
             }
             synchronized (monitor(addr)) {
@@ -1131,7 +1150,7 @@ public final class ByteArrayMemory implements Memory {
         try {
             byte[] page = pages[addr >>> PAGE_SHIFT];
             int off = addr & PAGE_MASK;
-            if (BYTE_ARR_HANDLE.isAccessModeSupported(AccessMode.SET_VOLATILE)) {
+            if (HAS_BYTE_VOLATILE_SET) {
                 BYTE_ARR_HANDLE.setVolatile(page, off, value);
                 return;
             }
@@ -1148,7 +1167,7 @@ public final class ByteArrayMemory implements Memory {
         try {
             byte[] page = pages[addr >>> PAGE_SHIFT];
             int off = addr & PAGE_MASK;
-            if (INT_ARR_HANDLE.isAccessModeSupported(AccessMode.SET_VOLATILE)) {
+            if (HAS_INT_VOLATILE_SET) {
                 INT_ARR_HANDLE.setVolatile(page, off, value);
                 return;
             }
@@ -1165,7 +1184,7 @@ public final class ByteArrayMemory implements Memory {
         try {
             byte[] page = pages[addr >>> PAGE_SHIFT];
             int off = addr & PAGE_MASK;
-            if (LONG_ARR_HANDLE.isAccessModeSupported(AccessMode.SET_VOLATILE)) {
+            if (HAS_LONG_VOLATILE_SET) {
                 LONG_ARR_HANDLE.setVolatile(page, off, value);
                 return;
             }
@@ -1182,7 +1201,7 @@ public final class ByteArrayMemory implements Memory {
         try {
             byte[] page = pages[addr >>> PAGE_SHIFT];
             int off = addr & PAGE_MASK;
-            if (SHORT_ARR_HANDLE.isAccessModeSupported(AccessMode.SET_VOLATILE)) {
+            if (HAS_SHORT_VOLATILE_SET) {
                 SHORT_ARR_HANDLE.setVolatile(page, off, value);
                 return;
             }

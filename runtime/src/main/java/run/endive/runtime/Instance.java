@@ -62,6 +62,8 @@ public class Instance implements AutoCloseable {
     private final DataSegment[] dataSegments;
     private final Global[] globalInitializers;
     private final GlobalInstance[] globals;
+    // imported globals first, then the module's own: the index space of global.get and global.set
+    private final GlobalInstance[] globalSpace;
     private final FunctionType[] types;
     private final int[] functionTypes;
     private final ImportValues imports;
@@ -120,6 +122,10 @@ public class Instance implements AutoCloseable {
         this.types = types.clone();
         this.functionTypes = functionTypes.clone();
         this.imports = imports;
+        this.globalSpace = new GlobalInstance[imports.globalCount() + globalInitializers.length];
+        for (int i = 0; i < imports.globalCount(); i++) {
+            globalSpace[i] = imports.global(i).instance();
+        }
         this.machine = machineFactory.apply(this);
         this.tables = new TableInstance[tables.length];
         this.elements = elements.clone();
@@ -178,6 +184,7 @@ public class Instance implements AutoCloseable {
                                 .build();
             }
             globals[i].setInstance(this);
+            globalSpace[imports.globalCount() + i] = globals[i];
             if (g.valueType().isReference()) {
                 globals[i].setRefValue(result.ref());
             }
@@ -387,14 +394,10 @@ public class Instance implements AutoCloseable {
     }
 
     public GlobalInstance global(int idx) {
-        if (idx < imports.globalCount()) {
-            return imports.global(idx).instance();
-        }
-        var i = idx - imports.globalCount();
-        if (i < 0 || i >= globals.length) {
+        if (idx < 0 || idx >= globalSpace.length) {
             throw new InvalidException("unknown global " + idx);
         }
-        return globals[idx - imports.globalCount()];
+        return globalSpace[idx];
     }
 
     public FunctionType type(int idx) {

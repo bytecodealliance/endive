@@ -27,6 +27,7 @@ final class Context {
     private final FunctionBody body;
     private final boolean[] tailCallFunctions;
     private final boolean[] tailCallTypes;
+    private final boolean[] checkedCallees;
     private final List<Integer> slots;
     private final int memorySlot;
     private final int instanceSlot;
@@ -46,6 +47,7 @@ final class Context {
             FunctionBody body,
             boolean[] tailCallFunctions,
             boolean[] tailCallTypes,
+            boolean[] checkedCallees,
             IntFunction<String> callIndirectClassResolver,
             int maxTempSlots,
             IntFunction<String> methodNames) {
@@ -59,6 +61,7 @@ final class Context {
         this.body = body;
         this.tailCallFunctions = tailCallFunctions;
         this.tailCallTypes = tailCallTypes;
+        this.checkedCallees = checkedCallees;
         this.callIndirectClassResolver = callIndirectClassResolver;
         this.methodNames = methodNames;
 
@@ -183,5 +186,9 @@ final class Context {
             throw new IllegalStateException("Tag not found: " + tagId);
         }
         return type;
+    }
+
+    public boolean checksInterruptionOnCall(int funcId) {
+        return checkedCallees[funcId];
     }
 }

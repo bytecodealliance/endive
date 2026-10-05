@@ -387,7 +387,9 @@ final class Emitters {
         int funcId = (int) ins.operand(0);
         FunctionType functionType = ctx.functionTypes().get(funcId);
 
-        emitInvokeStatic(asm, ShadedRefs.CHECK_INTERRUPTION);
+        if (ctx.checksInterruptionOnCall(funcId)) {
+            emitInvokeStatic(asm, ShadedRefs.CHECK_INTERRUPTION);
+        }
         if (hasTooManyParameters(functionType)) {
             emitBoxValuesOnStack(ctx, asm, functionType.params());
         }

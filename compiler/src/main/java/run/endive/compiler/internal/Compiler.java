@@ -158,6 +158,7 @@ public final class Compiler {
     private int maxFunctionsPerClass;
     private final HashSet<Integer> interpretedFunctions;
     private final Set<Integer> callRefTypeIds;
+    private final boolean[] checkedCallees;
     private final boolean[] tailCallFunctions;
     private final boolean[] tailCallTypes;
     private final boolean moduleHasTailCalls;
@@ -198,6 +199,7 @@ public final class Compiler {
 
         this.functionTypes = analyzer.functionTypes();
         this.callRefTypeIds = collectCallRefTypeIds();
+        this.checkedCallees = CallCycles.checkedCallees(module);
         this.tailCallFunctions = analyzer.tailCallFunctions();
         this.tailCallTypes = analyzer.tailCallTypes();
         this.moduleHasTailCalls = analyzer.hasTailCalls();
@@ -2147,6 +2149,7 @@ public final class Compiler {
                         body,
                         tailCallFunctions,
                         tailCallTypes,
+                        checkedCallees,
                         useBridgeClasses ? callIndirectClassResolver : typeId -> internalClassName,
                         analysis.maxTempSlots(),
                         this::methodName);

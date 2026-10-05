@@ -24,7 +24,10 @@ public class MemoryTest {
                         (Supplier<Memory>) () -> new ByteArrayMemory(new MemoryLimits(2, 2))),
                 Arguments.of(
                         "ByteBufferMemory",
-                        (Supplier<Memory>) () -> new ByteBufferMemory(new MemoryLimits(2, 2))));
+                        (Supplier<Memory>) () -> new ByteBufferMemory(new MemoryLimits(2, 2))),
+                Arguments.of(
+                        "FlatByteArrayMemory",
+                        (Supplier<Memory>) () -> new FlatByteArrayMemory(new MemoryLimits(2, 2))));
     }
 
     private static Stream<Arguments> growableMemoryImplementations() {

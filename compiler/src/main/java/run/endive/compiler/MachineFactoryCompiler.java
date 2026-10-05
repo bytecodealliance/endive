@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -18,6 +19,9 @@ import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
+import run.endive.wasm.types.CodeSection;
+import run.endive.wasm.types.ExternalType;
+import run.endive.wasm.types.FunctionBody;
 
 /**
  * Compiles WASM function bodies to JVM byte code that can be used as a machine factory for {@link Instance}'s.
@@ -85,6 +89,7 @@ public final class MachineFactoryCompiler {
     public static final class Builder {
         private final WasmModule module;
         private final run.endive.compiler.internal.Compiler.Builder compilerBuilder;
+        private boolean releaseFunctionBodies;
         private Cache cache;
 
         private Builder(WasmModule module) {
@@ -121,6 +126,20 @@ public final class MachineFactoryCompiler {
             return this;
         }
 
+        /**
+         * Drops the parsed instructions of every compiled function once compilation is done. The
+         * module handed to instances keeps each function's local types, and the functions left to
+         * the interpreter keep their instructions, but the compiled ones no longer hold their
+         * parsed code for as long as the module lives. Compiled machines never read it.
+         *
+         * <p>Modules loaded from a {@link #withCache(Cache) cache} keep their instructions, since
+         * the cache does not record which functions were interpreted.
+         */
+        public Builder withReleasedFunctionBodies() {
+            this.releaseFunctionBodies = true;
+            return this;
+        }
+
         public Builder withCache(Cache cache) {
             this.cache = cache;
             return this;
@@ -152,11 +171,30 @@ public final class MachineFactoryCompiler {
                     cache.putIfAbsent(module.digest(), storeClassLoadingCollector(collector));
                 }
 
-                return new MachineFactory(module, collector.machineFactory());
+                WasmModule compiledModule = module;
+                if (releaseFunctionBodies) {
+                    compiledModule = withoutCompiledBodies(module, result.interpretedFunctions());
+                }
+                return new MachineFactory(compiledModule, collector.machineFactory());
             } catch (IOException e) {
                 throw new WasmEngineException(e);
             }
         }
+    }
+
+    private static WasmModule withoutCompiledBodies(WasmModule module, Set<Integer> interpreted) {
+        int imports = module.importSection().count(ExternalType.FUNCTION);
+        var code = module.codeSection();
+        var stripped = CodeSection.builder().setRequiresDataCount(code.isRequiresDataCount());
+        for (int i = 0; i < code.functionBodyCount(); i++) {
+            FunctionBody body = code.getFunctionBody(i);
+            if (interpreted.contains(imports + i)) {
+                stripped.addFunctionBody(body);
+            } else {
+                stripped.addFunctionBody(new FunctionBody(body.localTypes(), List.of()));
+            }
+        }
+        return module.withCodeSection(stripped.build());
     }
 
     private static byte[] storeClassLoadingCollector(ClassLoadingCollector collector) {

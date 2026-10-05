@@ -126,6 +126,30 @@ public final class WasmModule {
         return digest;
     }
 
+    /**
+     * Returns a copy of this module with the given code section in place of its own. Every other
+     * section, the custom sections and the digest are shared with this module.
+     */
+    public WasmModule withCodeSection(CodeSection replacement) {
+        return new WasmModule(
+                typeSection,
+                importSection,
+                functionSection,
+                tableSection,
+                memorySection,
+                globalSection,
+                exportSection,
+                startSection,
+                elementSection,
+                replacement,
+                dataSection,
+                dataCountSection,
+                tagSection,
+                customSections,
+                ignoredSections,
+                digest);
+    }
+
     public List<CustomSection> customSections() {
         return new ArrayList<>(customSections.values());
     }

@@ -24,6 +24,7 @@ import run.endive.wasm.types.BlockType;
 import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionImport;
 import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.MemoryImport;
 import run.endive.wasm.types.OpCode;
 import run.endive.wasm.types.ValType;
 
@@ -41,6 +42,7 @@ public final class NativeCompiler {
     private final WasmModule module;
     private final int numImports;
     private final int[] canonicalTypeMap;
+    private final boolean sharedMemory;
 
     private NativeCompiler(CraneliftBridge bridge, String triple, WasmModule module) {
         this.bridge = bridge;
@@ -52,6 +54,20 @@ public final class NativeCompiler {
                                 .filter(i -> i.importType() == ExternalType.FUNCTION)
                                 .count();
         this.canonicalTypeMap = TypeMapUtils.buildCanonicalTypeMap(module);
+        this.sharedMemory = isMemoryShared(module);
+    }
+
+    // Memory 0 is the first memory import, or else the first defined memory
+    private static boolean isMemoryShared(WasmModule module) {
+        for (int i = 0; i < module.importSection().importCount(); i++) {
+            var imp = module.importSection().getImport(i);
+            if (imp.importType() == ExternalType.MEMORY) {
+                return ((MemoryImport) imp).limits().shared();
+            }
+        }
+        return module.memorySection()
+                .map(ms -> ms.memoryCount() > 0 && ms.getMemory(0).limits().shared())
+                .orElse(false);
     }
 
     // --- Control frame ---
@@ -442,7 +458,8 @@ public final class NativeCompiler {
                         ctxPtrVar,
                         new HashMap<>(),
                         multiReturn,
-                        canonicalTypeMap);
+                        canonicalTypeMap,
+                        sharedMemory);
 
         // --- Emission loop ---
         Deque<ControlFrame> controlStack = new ArrayDeque<>();

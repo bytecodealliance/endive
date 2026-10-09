@@ -1,10 +1,13 @@
 package run.endive.redline.experimental.runner.jffi.internal;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 import run.endive.redline.experimental.runner.jffi.JffiNativeMachineFactory;
+import run.endive.runtime.Memory;
 import run.endive.runtime.WasmRuntimeException;
+import run.endive.wasm.UninstantiableException;
 import run.endive.wasm.types.MemoryLimits;
 
 /**
@@ -40,5 +43,32 @@ public class MemoryBoundsTest {
         var memory = JffiNativeMachineFactory.createMemory(new MemoryLimits(1, 2));
         memory.writeI32(PAGE - 4, 0x11223344);
         org.junit.jupiter.api.Assertions.assertEquals(0x11223344, memory.readInt(PAGE - 4));
+    }
+
+    @Test
+    public void wideAccessesAreLittleEndianAtOddOffsets() {
+        var memory = JffiNativeMachineFactory.createMemory(new MemoryLimits(1, 1));
+        for (int i = 0; i < 8; i++) {
+            memory.writeByte(101 + i, (byte) (i + 1));
+        }
+        assertEquals((short) 0x0201, memory.readShort(101));
+        assertEquals(0x0807060504030201L, memory.readLong(101));
+
+        memory.writeShort(201, (short) 0x0201);
+        memory.writeLong(301, 0x0807060504030201L);
+        assertEquals(1, memory.read(201));
+        assertEquals(2, memory.read(202));
+        for (int i = 0; i < 8; i++) {
+            assertEquals(i + 1, memory.read(301 + i));
+        }
+    }
+
+    @Test
+    public void anInitialSizePastTheRuntimeLimitIsRejected() {
+        assertThrows(
+                UninstantiableException.class,
+                () ->
+                        JffiNativeMachineFactory.createMemory(
+                                new MemoryLimits(Memory.RUNTIME_MAX_PAGES + 1)));
     }
 }

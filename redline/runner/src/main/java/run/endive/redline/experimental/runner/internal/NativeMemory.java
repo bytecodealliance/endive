@@ -4,9 +4,11 @@ import static run.endive.runtime.ConstantEvaluators.computeConstantValue;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import run.endive.redline.experimental.api.internal.NativeAtomics;
+import run.endive.redline.experimental.api.internal.NativeWaiters;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Memory;
 import run.endive.wasm.UninstantiableException;
@@ -25,44 +27,69 @@ import run.endive.wasm.types.PassiveDataSegment;
  */
 public final class NativeMemory implements Memory, AutoCloseable {
 
-    private static final class WaitState {
-        int waiterCount;
-        int pendingWakeups;
-    }
+    // Static final so the JIT folds each layout's VarHandle; withOrder() allocates per call.
+    private static final ValueLayout.OfInt INT_UNALIGNED_LE =
+            ValueLayout.JAVA_INT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN);
+    private static final ValueLayout.OfLong LONG_UNALIGNED_LE =
+            ValueLayout.JAVA_LONG_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN);
+    private static final ValueLayout.OfShort SHORT_UNALIGNED_LE =
+            ValueLayout.JAVA_SHORT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN);
+    private static final VarHandle PAGES_CELL = ValueLayout.JAVA_INT.varHandle();
+    private static final byte[] NO_DATA = new byte[0];
 
-    private final Map<Integer, WaitState> waitStates = new ConcurrentHashMap<>();
     private final MemoryLimits limits;
     private final MemorySegment reserved;
-    // Build the value layouts at compile time and use known JIT value for lookups instead of building object for each call.
-    private static final ValueLayout.OfInt INT_LE =
-            ValueLayout.JAVA_INT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN);
-    private static final ValueLayout.OfLong LONG_LE =
-            ValueLayout.JAVA_LONG_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN);
-    private static final ValueLayout.OfShort SHORT_LE =
-            ValueLayout.JAVA_SHORT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN);
-
-    private MemorySegment segment;
-    private int nPages;
     private final long reservedSize;
+    private final NativeWaiters waiters;
+    private final NativeAtomics atomics;
+    // Page count compiled code reads for a shared memory, which other instances may grow
+    private MemorySegment pagesCell;
+    private volatile MemorySegment segment;
+    private volatile int nPages;
     private DataSegment[] dataSegments;
 
     public NativeMemory(MemoryLimits limits) {
         this.limits = limits;
-        this.nPages = limits.initialPages();
         int maxPages = Math.min(limits.maximumPages(), RUNTIME_MAX_PAGES);
+        if (limits.initialPages() > maxPages) {
+            throw new UninstantiableException(
+                    "memory of "
+                            + limits.initialPages()
+                            + " pages exceeds the limit of "
+                            + maxPages
+                            + " pages");
+        }
+        this.nPages = limits.initialPages();
         this.reservedSize = PAGE_SIZE * (long) maxPages;
+        this.waiters = new NativeWaiters(limits.shared());
 
+        MemorySegment mapping = MemorySegment.NULL;
         try {
-            this.reserved = PanamaExecutor.mmapNoAccess(reservedSize);
-
+            mapping = PanamaExecutor.mmapNoAccess(reservedSize);
             if (nPages > 0) {
-                PanamaExecutor.mprotectReadWrite(reserved, PAGE_SIZE * (long) nPages);
+                PanamaExecutor.mprotectReadWrite(mapping, PAGE_SIZE * (long) nPages);
             }
+            this.pagesCell = PanamaExecutor.malloc(Integer.BYTES);
         } catch (Throwable t) {
-            throw new WasmEngineException("Failed to mmap native memory", t);
+            var failure = new WasmEngineException("Failed to mmap native memory", t);
+            if (reservedSize > 0 && mapping.address() != 0) {
+                try {
+                    PanamaExecutor.munmap(mapping, reservedSize);
+                } catch (Throwable e) {
+                    failure.addSuppressed(e);
+                }
+            }
+            throw failure;
         }
 
+        this.reserved = mapping;
+        PAGES_CELL.setVolatile(pagesCell, 0L, nPages);
         this.segment = reserved.reinterpret(PAGE_SIZE * (long) nPages);
+        this.atomics =
+                new NativeAtomics(
+                        reservedSize > 0
+                                ? reserved.reinterpret(reservedSize).asByteBuffer()
+                                : ByteBuffer.allocateDirect(0));
     }
 
     @Override
@@ -74,11 +101,24 @@ public final class NativeMemory implements Memory, AutoCloseable {
                 throw new WasmEngineException("Failed to unmap native memory", e);
             }
         }
+        if (pagesCell.address() != 0) {
+            try {
+                PanamaExecutor.free(pagesCell);
+            } catch (Throwable e) {
+                throw new WasmEngineException("Failed to free native memory page count", e);
+            }
+            pagesCell = MemorySegment.NULL;
+        }
     }
 
     /** Get the native address of the memory buffer, for passing to native code. */
     public MemorySegment nativeAddress() {
         return segment;
+    }
+
+    /** Where compiled code reads the current page count of a shared memory. */
+    public MemorySegment pagesAddress() {
+        return pagesCell;
     }
 
     @Override
@@ -87,7 +127,7 @@ public final class NativeMemory implements Memory, AutoCloseable {
     }
 
     @Override
-    public int grow(int size) {
+    public synchronized int grow(int size) {
         var prevPages = nPages;
         var numPages = prevPages + size;
         if (numPages > maximumPages() || numPages < prevPages) {
@@ -97,6 +137,8 @@ public final class NativeMemory implements Memory, AutoCloseable {
         try {
             long newSize = PAGE_SIZE * (long) numPages;
             PanamaExecutor.mprotectReadWrite(reserved, newSize);
+            PAGES_CELL.setVolatile(pagesCell, 0L, numPages);
+            // the segment first, so a host that sees the new page count can access it
             this.segment = reserved.reinterpret(newSize);
             this.nPages = numPages;
         } catch (Throwable t) {
@@ -127,87 +169,25 @@ public final class NativeMemory implements Memory, AutoCloseable {
         if (!shared()) {
             return new Object();
         }
-        return waitStates.computeIfAbsent(address, k -> new WaitState());
-    }
-
-    private int waitOn(int address, java.util.function.BooleanSupplier condition, long timeout) {
-        if (!shared()) {
-            throw new WasmEngineException("Attempt to wait on a non-shared memory, not supported.");
-        }
-
-        long deadline = (timeout < 0) ? Long.MAX_VALUE : System.nanoTime() + timeout;
-        WaitState state = waitStates.computeIfAbsent(address, k -> new WaitState());
-
-        synchronized (state) {
-            if (!condition.getAsBoolean()) {
-                return 1; // not-equal
-            }
-
-            state.waiterCount++;
-            try {
-                while (state.pendingWakeups == 0) {
-                    long remaining = deadline - System.nanoTime();
-                    if (remaining <= 0) {
-                        return 2; // timeout
-                    }
-                    long millis = Math.max(remaining / 1_000_000L, 0);
-                    int nanos = Math.max((int) (remaining % 1_000_000L), 0);
-                    try {
-                        state.wait(millis, nanos);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new WasmEngineException("Thread interrupted");
-                    }
-                }
-                return 0; // woken
-            } finally {
-                if (state.pendingWakeups > 0) {
-                    state.pendingWakeups--;
-                }
-                state.waiterCount--;
-            }
-        }
+        return waiters.monitor(address);
     }
 
     @SuppressWarnings("removal")
     @Override
     public int waitOn(int address, int expected, long timeout) {
-        return waitOn(address, () -> readInt(address) == expected, timeout);
+        return waiters.waitOn(address, () -> atomicReadInt(address) == expected, timeout);
     }
 
     @SuppressWarnings("removal")
     @Override
     public int waitOn(int address, long expected, long timeout) {
-        return waitOn(address, () -> readLong(address) == expected, timeout);
+        return waiters.waitOn(address, () -> atomicReadLong(address) == expected, timeout);
     }
 
     @SuppressWarnings("removal")
     @Override
     public int notify(int address, int maxThreads) {
-        if (!shared()) {
-            return 0;
-        }
-
-        WaitState state = waitStates.get(address);
-        if (state == null) {
-            return 0;
-        }
-
-        synchronized (state) {
-            int actualWaiters = state.waiterCount - state.pendingWakeups;
-            if (actualWaiters == 0) {
-                return 0;
-            }
-            int toWake;
-            if (maxThreads < 0) {
-                toWake = actualWaiters;
-            } else {
-                toWake = Math.min(actualWaiters, maxThreads);
-            }
-            state.pendingWakeups += toWake;
-            state.notifyAll();
-            return toWake;
-        }
+        return waiters.notify(address, maxThreads);
     }
 
     @Override
@@ -218,9 +198,9 @@ public final class NativeMemory implements Memory, AutoCloseable {
         }
         for (var s : dataSegments) {
             if (s instanceof ActiveDataSegment seg) {
-                var data = seg.data();
+                var data = seg.bytes();
                 var offset = (int) computeConstantValue(instance, seg.offsetInstructions())[0];
-                if (offset < 0 || offset + data.length > sizeInBytes()) {
+                if (offset < 0 || (long) offset + data.length > sizeInBytes()) {
                     throw new UninstantiableException(
                             "out of bounds memory access: offset="
                                     + offset
@@ -235,27 +215,23 @@ public final class NativeMemory implements Memory, AutoCloseable {
     @Override
     public void initPassiveSegment(int segmentId, int dest, int offset, int size) {
         var seg = dataSegments[segmentId];
-        if (seg == null || seg == run.endive.wasm.types.PassiveDataSegment.EMPTY) {
-            if (size > 0) {
-                throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
-            }
-            return;
-        }
-        write(dest, seg.data(), offset, size);
+        // a dropped segment is empty, and still bounds-checks both offsets
+        var data = (seg == null || seg == PassiveDataSegment.EMPTY) ? NO_DATA : seg.bytes();
+        write(dest, data, offset, size);
     }
 
-    private int sizeInBytes() {
-        return PAGE_SIZE * nPages;
+    private long sizeInBytes() {
+        return PAGE_SIZE * (long) nPages;
     }
 
     @Override
     public void write(int addr, byte[] data, int offset, int size) {
-        long limit = segment.byteSize();
+        var view = segment;
         if (Integer.toUnsignedLong(offset) + Integer.toUnsignedLong(size) > data.length
-                || Integer.toUnsignedLong(addr) + Integer.toUnsignedLong(size) > limit) {
+                || Integer.toUnsignedLong(addr) + Integer.toUnsignedLong(size) > view.byteSize()) {
             throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
         }
-        MemorySegment.copy(MemorySegment.ofArray(data), offset, segment, addr, size);
+        MemorySegment.copy(MemorySegment.ofArray(data), offset, view, addr, size);
     }
 
     /**
@@ -266,6 +242,13 @@ public final class NativeMemory implements Memory, AutoCloseable {
     private static run.endive.runtime.WasmRuntimeException outOfBounds(int addr) {
         return new run.endive.runtime.WasmRuntimeException(
                 "out of bounds memory access: attempted to access address: " + addr);
+    }
+
+    private int checkAtomic(int addr, int size) {
+        if (Integer.toUnsignedLong(addr) + size > segment.byteSize()) {
+            throw outOfBounds(addr);
+        }
+        return addr;
     }
 
     @Override
@@ -279,17 +262,20 @@ public final class NativeMemory implements Memory, AutoCloseable {
 
     @Override
     public byte[] readBytes(int addr, int len) {
-        try {
-            return segment.asSlice(addr, len).toArray(ValueLayout.JAVA_BYTE);
-        } catch (IndexOutOfBoundsException e) {
+        var view = segment;
+        if (len < 0
+                || Integer.toUnsignedLong(addr) + Integer.toUnsignedLong(len) > view.byteSize()) {
             throw outOfBounds(addr);
         }
+        byte[] result = new byte[len];
+        MemorySegment.copy(view, ValueLayout.JAVA_BYTE, addr, result, 0, len);
+        return result;
     }
 
     @Override
     public void writeI32(int addr, int data) {
         try {
-            segment.set(INT_LE, addr, data);
+            segment.set(INT_UNALIGNED_LE, addr, data);
         } catch (IndexOutOfBoundsException e) {
             throw outOfBounds(addr);
         }
@@ -298,7 +284,7 @@ public final class NativeMemory implements Memory, AutoCloseable {
     @Override
     public int readInt(int addr) {
         try {
-            return segment.get(INT_LE, addr);
+            return segment.get(INT_UNALIGNED_LE, addr);
         } catch (IndexOutOfBoundsException e) {
             throw outOfBounds(addr);
         }
@@ -307,7 +293,7 @@ public final class NativeMemory implements Memory, AutoCloseable {
     @Override
     public void writeLong(int addr, long data) {
         try {
-            segment.set(LONG_LE, addr, data);
+            segment.set(LONG_UNALIGNED_LE, addr, data);
         } catch (IndexOutOfBoundsException e) {
             throw outOfBounds(addr);
         }
@@ -316,7 +302,7 @@ public final class NativeMemory implements Memory, AutoCloseable {
     @Override
     public long readLong(int addr) {
         try {
-            return segment.get(LONG_LE, addr);
+            return segment.get(LONG_UNALIGNED_LE, addr);
         } catch (IndexOutOfBoundsException e) {
             throw outOfBounds(addr);
         }
@@ -325,7 +311,7 @@ public final class NativeMemory implements Memory, AutoCloseable {
     @Override
     public void writeShort(int addr, short data) {
         try {
-            segment.set(SHORT_LE, addr, data);
+            segment.set(SHORT_UNALIGNED_LE, addr, data);
         } catch (IndexOutOfBoundsException e) {
             throw outOfBounds(addr);
         }
@@ -334,7 +320,7 @@ public final class NativeMemory implements Memory, AutoCloseable {
     @Override
     public short readShort(int addr) {
         try {
-            return segment.get(SHORT_LE, addr);
+            return segment.get(SHORT_UNALIGNED_LE, addr);
         } catch (IndexOutOfBoundsException e) {
             throw outOfBounds(addr);
         }
@@ -391,23 +377,25 @@ public final class NativeMemory implements Memory, AutoCloseable {
 
     @Override
     public void copy(int dest, int src, int size) {
-        long limit = segment.byteSize();
+        var view = segment;
+        long limit = view.byteSize();
         if (Integer.toUnsignedLong(src) + Integer.toUnsignedLong(size) > limit
                 || Integer.toUnsignedLong(dest) + Integer.toUnsignedLong(size) > limit) {
             throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
         }
-        MemorySegment.copy(segment, src, segment, dest, size);
+        MemorySegment.copy(view, src, view, dest, size);
     }
 
     @Override
     public void fill(byte value, int fromIndex, int toIndex) {
-        long limit = segment.byteSize();
+        var view = segment;
+        long limit = view.byteSize();
         if (Integer.toUnsignedLong(fromIndex) > limit
                 || Integer.toUnsignedLong(toIndex) > limit
                 || fromIndex > toIndex) {
             throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
         }
-        segment.asSlice(fromIndex, toIndex - fromIndex).fill(value);
+        view.asSlice(fromIndex, toIndex - fromIndex).fill(value);
     }
 
     @Override
@@ -415,5 +403,165 @@ public final class NativeMemory implements Memory, AutoCloseable {
         if (dataSegments != null) {
             dataSegments[segment] = PassiveDataSegment.EMPTY;
         }
+    }
+
+    @Override
+    public int atomicReadInt(int addr) {
+        return atomics.readInt(checkAtomic(addr, 4));
+    }
+
+    @Override
+    public long atomicReadLong(int addr) {
+        return atomics.readLong(checkAtomic(addr, 8));
+    }
+
+    @Override
+    public short atomicReadShort(int addr) {
+        return atomics.readShort(checkAtomic(addr, 2));
+    }
+
+    @Override
+    public byte atomicReadByte(int addr) {
+        return atomics.readByte(checkAtomic(addr, 1));
+    }
+
+    @Override
+    public void atomicWriteInt(int addr, int value) {
+        atomics.writeInt(checkAtomic(addr, 4), value);
+    }
+
+    @Override
+    public void atomicWriteLong(int addr, long value) {
+        atomics.writeLong(checkAtomic(addr, 8), value);
+    }
+
+    @Override
+    public void atomicWriteShort(int addr, short value) {
+        atomics.writeShort(checkAtomic(addr, 2), value);
+    }
+
+    @Override
+    public void atomicWriteByte(int addr, byte value) {
+        atomics.writeByte(checkAtomic(addr, 1), value);
+    }
+
+    @Override
+    public int atomicAddInt(int addr, int delta) {
+        return atomics.addInt(checkAtomic(addr, 4), delta);
+    }
+
+    @Override
+    public int atomicAndInt(int addr, int mask) {
+        return atomics.andInt(checkAtomic(addr, 4), mask);
+    }
+
+    @Override
+    public int atomicOrInt(int addr, int mask) {
+        return atomics.orInt(checkAtomic(addr, 4), mask);
+    }
+
+    @Override
+    public int atomicXorInt(int addr, int mask) {
+        return atomics.xorInt(checkAtomic(addr, 4), mask);
+    }
+
+    @Override
+    public int atomicXchgInt(int addr, int value) {
+        return atomics.xchgInt(checkAtomic(addr, 4), value);
+    }
+
+    @Override
+    public int atomicCmpxchgInt(int addr, int expected, int replacement) {
+        return atomics.cmpxchgInt(checkAtomic(addr, 4), expected, replacement);
+    }
+
+    @Override
+    public long atomicAddLong(int addr, long delta) {
+        return atomics.addLong(checkAtomic(addr, 8), delta);
+    }
+
+    @Override
+    public long atomicAndLong(int addr, long mask) {
+        return atomics.andLong(checkAtomic(addr, 8), mask);
+    }
+
+    @Override
+    public long atomicOrLong(int addr, long mask) {
+        return atomics.orLong(checkAtomic(addr, 8), mask);
+    }
+
+    @Override
+    public long atomicXorLong(int addr, long mask) {
+        return atomics.xorLong(checkAtomic(addr, 8), mask);
+    }
+
+    @Override
+    public long atomicXchgLong(int addr, long value) {
+        return atomics.xchgLong(checkAtomic(addr, 8), value);
+    }
+
+    @Override
+    public long atomicCmpxchgLong(int addr, long expected, long replacement) {
+        return atomics.cmpxchgLong(checkAtomic(addr, 8), expected, replacement);
+    }
+
+    @Override
+    public short atomicAddShort(int addr, short delta) {
+        return atomics.addShort(checkAtomic(addr, 2), delta);
+    }
+
+    @Override
+    public short atomicAndShort(int addr, short mask) {
+        return atomics.andShort(checkAtomic(addr, 2), mask);
+    }
+
+    @Override
+    public short atomicOrShort(int addr, short mask) {
+        return atomics.orShort(checkAtomic(addr, 2), mask);
+    }
+
+    @Override
+    public short atomicXorShort(int addr, short mask) {
+        return atomics.xorShort(checkAtomic(addr, 2), mask);
+    }
+
+    @Override
+    public short atomicXchgShort(int addr, short value) {
+        return atomics.xchgShort(checkAtomic(addr, 2), value);
+    }
+
+    @Override
+    public short atomicCmpxchgShort(int addr, short expected, short replacement) {
+        return atomics.cmpxchgShort(checkAtomic(addr, 2), expected, replacement);
+    }
+
+    @Override
+    public byte atomicAddByte(int addr, byte delta) {
+        return atomics.addByte(checkAtomic(addr, 1), delta);
+    }
+
+    @Override
+    public byte atomicAndByte(int addr, byte mask) {
+        return atomics.andByte(checkAtomic(addr, 1), mask);
+    }
+
+    @Override
+    public byte atomicOrByte(int addr, byte mask) {
+        return atomics.orByte(checkAtomic(addr, 1), mask);
+    }
+
+    @Override
+    public byte atomicXorByte(int addr, byte mask) {
+        return atomics.xorByte(checkAtomic(addr, 1), mask);
+    }
+
+    @Override
+    public byte atomicXchgByte(int addr, byte value) {
+        return atomics.xchgByte(checkAtomic(addr, 1), value);
+    }
+
+    @Override
+    public byte atomicCmpxchgByte(int addr, byte expected, byte replacement) {
+        return atomics.cmpxchgByte(checkAtomic(addr, 1), expected, replacement);
     }
 }

@@ -25,6 +25,7 @@ final class EmitContext {
     final Map<String, Integer> sigRefCache;
     final boolean multiReturn;
     final int[] canonicalTypeMap;
+    final boolean sharedMemory;
 
     EmitContext(
             CraneliftBridge bridge,
@@ -37,7 +38,8 @@ final class EmitContext {
             int ctxPtrVar,
             Map<String, Integer> sigRefCache,
             boolean multiReturn,
-            int[] canonicalTypeMap) {
+            int[] canonicalTypeMap,
+            boolean sharedMemory) {
         this.bridge = bridge;
         this.valueStack = valueStack;
         this.module = module;
@@ -49,6 +51,19 @@ final class EmitContext {
         this.sigRefCache = sigRefCache;
         this.multiReturn = multiReturn;
         this.canonicalTypeMap = canonicalTypeMap;
+        this.sharedMemory = sharedMemory;
+    }
+
+    /** The current page count; a shared memory's lives with the memory, as others may grow it. */
+    int emitLoadMemoryPages() {
+        var b = bridge.exports();
+        int zero = b.emitIconst32(0);
+        int ctxPtr = b.useVar(ctxPtrVar);
+        if (!sharedMemory) {
+            return b.emitLoadI32(ctxPtr, zero, CtxBuffer.MEMORY_PAGES);
+        }
+        int pagesPtr = b.emitLoadI64(ctxPtr, zero, CtxBuffer.MEMORY_PAGES_PTR);
+        return b.emitLoadI32(pagesPtr, zero, 0);
     }
 
     // --- Helpers used by emitters ---

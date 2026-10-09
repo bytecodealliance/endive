@@ -415,6 +415,14 @@ public final class JffiNativeMachine implements Machine {
         }
     }
 
+    // Host code may have grown the memory since compiled code last saw its size
+    private void refreshMemoryPages() {
+        var mem = instance.memory();
+        if (mem != null) {
+            MEM.putInt(ctxBufferAddr + CtxBuffer.MEMORY_PAGES, mem.pages());
+        }
+    }
+
     private long importDispatchDirect(int funcId) {
         try {
             int argCount = MEM.getInt(ctxBufferAddr + CtxBuffer.ARG_COUNT);
@@ -425,6 +433,7 @@ public final class JffiNativeMachine implements Machine {
             if (funcId < numImports) {
                 var importFunc = instance.imports().function(funcId);
                 long[] result = importFunc.handle().apply(instance, args);
+                refreshMemoryPages();
                 if (result == null || result.length == 0) {
                     return 0L;
                 }
@@ -914,6 +923,9 @@ public final class JffiNativeMachine implements Machine {
                 if (mem instanceof JffiNativeMemory) {
                     cachedMemBase = ((JffiNativeMemory) mem).nativeAddress();
                     MEM.putLong(ctxBufferAddr + CtxBuffer.MEM_BASE_ADDR, cachedMemBase);
+                    MEM.putLong(
+                            ctxBufferAddr + CtxBuffer.MEMORY_PAGES_PTR,
+                            ((JffiNativeMemory) mem).pagesAddress());
                 } else if (mem != null) {
                     throw new WasmEngineException(foreignImportMessage("memory", mem));
                 } else {
@@ -921,11 +933,7 @@ public final class JffiNativeMachine implements Machine {
                 }
                 memBaseInitialized = true;
             }
-            // MEMORY_PAGES can change via grow() — must refresh every call
-            var mem = instance.memory();
-            if (mem != null) {
-                MEM.putInt(ctxBufferAddr + CtxBuffer.MEMORY_PAGES, mem.pages());
-            }
+            refreshMemoryPages();
 
             if (Thread.currentThread().isInterrupted()) {
                 throw new WasmInterruptedException("Thread interrupted");

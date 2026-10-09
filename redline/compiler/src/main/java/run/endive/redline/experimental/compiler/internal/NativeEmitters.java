@@ -452,14 +452,7 @@ final class NativeEmitters {
                                                 (int) (endOffset >>> 32)));
 
         // Load memory size in bytes: memPages * 65536
-        int zero = ctx.bridge.exports().emitIconst32(0);
-        int memPages =
-                ctx.bridge
-                        .exports()
-                        .emitLoadI32(
-                                ctx.bridge.exports().useVar(ctx.ctxPtrVar),
-                                zero,
-                                CtxBuffer.MEMORY_PAGES);
+        int memPages = ctx.emitLoadMemoryPages();
         int memPages64 = ctx.bridge.exports().emitUextendI64(memPages);
         int memSize =
                 ctx.bridge.exports().emitIshl(memPages64, ctx.bridge.exports().emitIconst64(16, 0));
@@ -636,15 +629,7 @@ final class NativeEmitters {
     // --- Memory operations ---
 
     static void emitMemorySize(EmitContext ctx) {
-        int zero = ctx.bridge.exports().emitIconst32(0);
-        int pages =
-                ctx.bridge
-                        .exports()
-                        .emitLoadI32(
-                                ctx.bridge.exports().useVar(ctx.ctxPtrVar),
-                                zero,
-                                CtxBuffer.MEMORY_PAGES);
-        ctx.valueStack.push(pages);
+        ctx.valueStack.push(ctx.emitLoadMemoryPages());
     }
 
     static void emitMemoryGrow(EmitContext ctx) {
@@ -667,6 +652,7 @@ final class NativeEmitters {
         int growSig = ctx.getOrCreateTrampolineSigRef();
         ctx.bridge.exports().pushCallArg(ctx.bridge.exports().useVar(ctx.ctxPtrVar));
         int rawResult = ctx.bridge.exports().emitCallIndirect(growSig, memGrowPtr);
+        emitTrapCheck(ctx);
         int result = ctx.bridge.exports().emitIreduceI32(rawResult);
         ctx.valueStack.push(result);
         int newMemBase =
@@ -1257,6 +1243,7 @@ final class NativeEmitters {
         int trampolineSig = ctx.getOrCreateTrampolineSigRef();
         b.pushCallArg(b.useVar(ctx.ctxPtrVar));
         b.emitCallIndirect(trampolineSig, tableOpsPtr);
+        emitTrapCheck(ctx);
 
         b.emitJumpWithArg(mergeBlock, oldSize);
 
@@ -1304,6 +1291,7 @@ final class NativeEmitters {
         int trampolineSig = ctx.getOrCreateTrampolineSigRef();
         b.pushCallArg(b.useVar(ctx.ctxPtrVar));
         b.emitCallIndirect(trampolineSig, trampolinePtr);
+        emitTrapCheck(ctx);
     }
 
     static void emitTableCopy(EmitContext ctx, AnnotatedInstruction ins) {
@@ -1350,6 +1338,7 @@ final class NativeEmitters {
         int trampolineSig = ctx.getOrCreateTrampolineSigRef();
         b.pushCallArg(b.useVar(ctx.ctxPtrVar));
         b.emitCallIndirect(trampolineSig, trampolinePtr);
+        emitTrapCheck(ctx);
     }
 
     static void emitTableInit(EmitContext ctx, AnnotatedInstruction ins) {
@@ -1380,6 +1369,7 @@ final class NativeEmitters {
         int trampolineSig = ctx.getOrCreateTrampolineSigRef();
         b.pushCallArg(b.useVar(ctx.ctxPtrVar));
         b.emitCallIndirect(trampolineSig, trampolinePtr);
+        emitTrapCheck(ctx);
     }
 
     static void emitElemDrop(EmitContext ctx, AnnotatedInstruction ins) {
@@ -1401,6 +1391,7 @@ final class NativeEmitters {
         int trampolineSig = ctx.getOrCreateTrampolineSigRef();
         b.pushCallArg(b.useVar(ctx.ctxPtrVar));
         b.emitCallIndirect(trampolineSig, trampolinePtr);
+        emitTrapCheck(ctx);
     }
 
     // --- Bulk memory operations (inline native memmove/memset) ---
@@ -1415,8 +1406,7 @@ final class NativeEmitters {
         int size64 = b.emitUextendI64(size);
         int end = b.emitIadd(addr64, size64);
 
-        int zero = b.emitIconst32(0);
-        int memPages = b.emitLoadI32(b.useVar(ctx.ctxPtrVar), zero, CtxBuffer.MEMORY_PAGES);
+        int memPages = ctx.emitLoadMemoryPages();
         int memPages64 = b.emitUextendI64(memPages);
         int memSize = b.emitIshl(memPages64, b.emitIconst64(16, 0));
 
@@ -1504,6 +1494,7 @@ final class NativeEmitters {
         int trampolineSig = ctx.getOrCreateTrampolineSigRef();
         b.pushCallArg(b.useVar(ctx.ctxPtrVar));
         b.emitCallIndirect(trampolineSig, trampolinePtr);
+        emitTrapCheck(ctx);
     }
 
     static void emitDataDrop(EmitContext ctx, AnnotatedInstruction ins) {
@@ -1524,6 +1515,7 @@ final class NativeEmitters {
         int trampolineSig = ctx.getOrCreateTrampolineSigRef();
         b.pushCallArg(b.useVar(ctx.ctxPtrVar));
         b.emitCallIndirect(trampolineSig, trampolinePtr);
+        emitTrapCheck(ctx);
     }
 
     // --- Atomic operations ---
@@ -1766,6 +1758,7 @@ final class NativeEmitters {
         int trampolineSig = ctx.getOrCreateTrampolineSigRef();
         b.pushCallArg(b.useVar(ctx.ctxPtrVar));
         int rawResult = b.emitCallIndirect(trampolineSig, trampolinePtr);
+        emitTrapCheck(ctx);
         ctx.valueStack.push(b.emitIreduceI32(rawResult));
     }
 
@@ -1796,6 +1789,7 @@ final class NativeEmitters {
         int trampolineSig = ctx.getOrCreateTrampolineSigRef();
         b.pushCallArg(b.useVar(ctx.ctxPtrVar));
         int rawResult = b.emitCallIndirect(trampolineSig, trampolinePtr);
+        emitTrapCheck(ctx);
         ctx.valueStack.push(b.emitIreduceI32(rawResult));
     }
 
@@ -1824,6 +1818,7 @@ final class NativeEmitters {
         int trampolineSig = ctx.getOrCreateTrampolineSigRef();
         b.pushCallArg(b.useVar(ctx.ctxPtrVar));
         int rawResult = b.emitCallIndirect(trampolineSig, trampolinePtr);
+        emitTrapCheck(ctx);
         ctx.valueStack.push(b.emitIreduceI32(rawResult));
     }
 

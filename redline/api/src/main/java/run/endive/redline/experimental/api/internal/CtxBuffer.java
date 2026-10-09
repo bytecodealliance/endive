@@ -19,6 +19,7 @@ package run.endive.redline.experimental.api.internal;
  *  56     i64    memmovePtr        Pointer to libc memmove
  *  64     i64    memsetPtr         Pointer to libc memset
  *  72     i64    interruptFlag     Non-zero = interrupt requested
+ *  80     i64    memoryPagesPtr    Shared memory: pointer to its current page count (i32)
  * 200     i64    globalsPtr        Pointer to globals buffer
  * 208     i64    memGrowPtr        Upcall stub for memory.grow
  * 216     i32    memoryPages       Current memory page count
@@ -52,6 +53,7 @@ public final class CtxBuffer {
     public static final int MEMMOVE_PTR = 56;
     public static final int MEMSET_PTR = 64;
     public static final int INTERRUPT_FLAG = 72;
+    public static final int MEMORY_PAGES_PTR = 80;
 
     public static final int GLOBALS_PTR = 200;
     public static final int MEM_GROW_PTR = 208;

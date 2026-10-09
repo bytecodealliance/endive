@@ -454,6 +454,14 @@ public final class NativeMachine implements Machine {
      * Dispatches a function call from native code. Reads args from ctxBuffer.
      * Called by import upcall stubs and bridge stubs for non-native functions.
      */
+    // Host code may have grown the memory since compiled code last saw its size
+    private void refreshMemoryPages() {
+        var mem = instance.memory();
+        if (mem != null) {
+            ctxBuffer.set(ValueLayout.JAVA_INT, CtxBuffer.MEMORY_PAGES, mem.pages());
+        }
+    }
+
     @SuppressWarnings("unused")
     private long importDispatchDirect(int funcId) {
         try {
@@ -465,6 +473,7 @@ public final class NativeMachine implements Machine {
             if (funcId < numImports) {
                 var importFunc = instance.imports().function(funcId);
                 long[] result = importFunc.handle().apply(instance, args);
+                refreshMemoryPages();
                 if (result == null || result.length == 0) {
                     return 0L;
                 }
@@ -929,6 +938,10 @@ public final class NativeMachine implements Machine {
                             ValueLayout.JAVA_LONG,
                             CtxBuffer.MEM_BASE_ADDR,
                             cachedMemBase.address());
+                    ctxBuffer.set(
+                            ValueLayout.JAVA_LONG,
+                            CtxBuffer.MEMORY_PAGES_PTR,
+                            nativeMemory.pagesAddress().address());
                 } else if (mem != null) {
                     throw new WasmEngineException(foreignImportMessage("memory", mem));
                 } else {
@@ -936,11 +949,7 @@ public final class NativeMachine implements Machine {
                 }
                 memBaseInitialized = true;
             }
-            // MEMORY_PAGES can change via grow() — must refresh every call
-            var mem = instance.memory();
-            if (mem != null) {
-                ctxBuffer.set(ValueLayout.JAVA_INT, CtxBuffer.MEMORY_PAGES, mem.pages());
-            }
+            refreshMemoryPages();
 
             if (Thread.currentThread().isInterrupted()) {
                 throw new WasmInterruptedException("Thread interrupted");

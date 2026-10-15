@@ -29,8 +29,6 @@ final class PanamaExecutor {
     private static final java.lang.invoke.MethodHandle MMAP;
     private static final java.lang.invoke.MethodHandle MPROTECT;
     private static final java.lang.invoke.MethodHandle MUNMAP;
-    private static final java.lang.invoke.MethodHandle MALLOC;
-    private static final java.lang.invoke.MethodHandle FREE;
 
     // POSIX constants
     private static final int PROT_READ = 0x1;
@@ -62,14 +60,6 @@ final class PanamaExecutor {
         var lookup = LINKER.defaultLookup();
         MEMMOVE_ADDR = lookup.find("memmove").orElseThrow().address();
         MEMSET_ADDR = lookup.find("memset").orElseThrow().address();
-        MALLOC =
-                LINKER.downcallHandle(
-                        lookup.find("malloc").orElseThrow(),
-                        FunctionDescriptor.of(ValueLayout.ADDRESS, ValueLayout.JAVA_LONG));
-        FREE =
-                LINKER.downcallHandle(
-                        lookup.find("free").orElseThrow(),
-                        FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
 
         try {
             if (IS_WINDOWS) {
@@ -137,18 +127,6 @@ final class PanamaExecutor {
         } catch (Throwable e) {
             throw new ExceptionInInitializerError(e);
         }
-    }
-
-    static MemorySegment malloc(long size) throws Throwable {
-        MemorySegment addr = (MemorySegment) MALLOC.invokeExact(size);
-        if (addr.address() == 0) {
-            throw new OutOfMemoryError("malloc failed for " + size + " bytes");
-        }
-        return addr.reinterpret(size);
-    }
-
-    static void free(MemorySegment addr) throws Throwable {
-        FREE.invokeExact(addr);
     }
 
     /** Allocate a writable memory region. Must call mprotectExec before executing. */
@@ -257,6 +235,15 @@ final class PanamaExecutor {
         int result = (int) MPROTECT.invokeExact(addr, size, PROT_READ | PROT_WRITE);
         if (result != 0) {
             throw new RuntimeException("mprotect failed: " + result);
+        }
+    }
+
+    /** Unmaps a region as an arena cleanup action, which has nowhere to report a failure. */
+    static void unmapQuietly(MemorySegment region) {
+        try {
+            munmap(region, region.byteSize());
+        } catch (Throwable e) {
+            // the region stays mapped: nothing else can be done from a cleanup action
         }
     }
 

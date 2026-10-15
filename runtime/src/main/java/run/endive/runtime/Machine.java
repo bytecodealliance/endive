@@ -17,6 +17,10 @@ public interface Machine extends AutoCloseable {
         return CallResult.of(call(funcId, args, refArgs), null);
     }
 
+    /** Releases what this machine holds, or throws IllegalStateException releasing nothing. */
     @Override
     default void close() {}
+
+    /** Instead of close() when the build fails: release only what other instances wait on. */
+    default void abandon() {}
 }

@@ -10,10 +10,14 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.ref.Reference;
 import java.util.ArrayList;
+import java.util.List;
 import run.endive.redline.experimental.api.NativeCode;
+import run.endive.redline.experimental.api.internal.Borrowers;
 import run.endive.redline.experimental.api.internal.CtxBuffer;
 import run.endive.redline.experimental.api.internal.InterruptWatchdog;
 import run.endive.redline.experimental.api.internal.NativeCodeCheck;
+import run.endive.redline.experimental.api.internal.NativeResource;
+import run.endive.redline.experimental.api.internal.NativeResourceCount;
 import run.endive.redline.experimental.api.internal.TypeMapUtils;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
@@ -93,7 +97,9 @@ public final class NativeMachine implements Machine {
     private NativeTable[] nativeTables;
     private boolean tablesInitialized;
     private final int numImports;
+    private final int importGlobalCount;
     private final int globalCount;
+    private int definedGlobalsBound;
     private boolean importGlobalsInitialized;
     private MemorySegment cachedMemBase;
     private boolean memBaseInitialized;
@@ -103,13 +109,11 @@ public final class NativeMachine implements Machine {
     private final InterruptWatchdog.InterruptSink interruptFlag = this::raiseInterruptFlag;
     private boolean ownsMemory;
     private boolean closed;
+    private final List<NativeResource> borrowed = new ArrayList<>();
+    private final List<NativeGlobalInstance> boundGlobals = new ArrayList<>();
 
-    public NativeMachine(
-            Instance instance,
-            Arena arena,
-            java.util.List<NativeTable> sharedTables,
-            MemorySegment sharedGlobalsBuffer,
-            NativeCode precompiledCode) {
+    /** Takes ownership of {@code arena}: closing this machine closes it. */
+    public NativeMachine(Instance instance, Arena arena, NativeCode precompiledCode) {
         this.instance = instance;
         this.arena = arena;
         var module = instance.module();
@@ -132,20 +136,23 @@ public final class NativeMachine implements Machine {
         // Allocate function pointer table (one i64 per function)
         funcTable = arena.allocate((long) totalFuncs * 8, 8);
 
-        // Globals buffer from factory (already has module globals written by Instance)
-        this.globalsBuffer = sharedGlobalsBuffer;
-        this.globalCount =
+        this.importGlobalCount =
                 (int)
-                                module.importSection().stream()
-                                        .filter(
-                                                i ->
-                                                        i.importType()
-                                                                == run.endive.wasm.types
-                                                                        .ExternalType.GLOBAL)
-                                        .count()
+                        module.importSection().stream()
+                                .filter(
+                                        i ->
+                                                i.importType()
+                                                        == run.endive.wasm.types.ExternalType
+                                                                .GLOBAL)
+                                .count();
+        this.globalCount =
+                importGlobalCount
                         + (module.globalSection() != null
                                 ? module.globalSection().globalCount()
                                 : 0);
+        // One slot per global, imported or defined, which bind() moves them onto
+        this.globalsBuffer =
+                globalCount > 0 ? arena.allocate((long) globalCount * 8, 8) : MemorySegment.NULL;
 
         // Allocate args buffer (separate from ctxBuffer, no fixed arg limit)
         this.argsBuffer = arena.allocate((long) CtxBuffer.ARGS_BUFFER_CAPACITY * 8, 8);
@@ -197,6 +204,8 @@ public final class NativeMachine implements Machine {
 
         try {
             codeRegion = PanamaExecutor.mmapCode(codeRegionSize);
+            // unmapped with the arena; downcalls keep this global view and don't acquire it
+            codeRegion.reinterpret(arena, PanamaExecutor::unmapQuietly);
             MemorySegment.copy(MemorySegment.ofArray(image), 0, codeRegion, 0, image.length);
             for (int funcId = 0; funcId < numImports; funcId++) {
                 codeRegion.set(
@@ -238,29 +247,137 @@ public final class NativeMachine implements Machine {
         // An imported memory outlives this instance and may back others, so only
         // a memory this module defines is ours to close.
         this.ownsMemory = instance.imports().memoryCount() == 0;
+        // last, so nothing after it can fail and leave an owner waiting on us
+        borrowImports();
+        NativeResourceCount.allocated();
+    }
+
+    private void borrowImports() {
+        var imports = instance.imports();
+        try {
+            for (int i = 0; i < imports.memoryCount(); i++) {
+                if (imports.memory(i).memory() instanceof NativeMemory memory) {
+                    borrow(memory, "An imported memory");
+                }
+            }
+            for (int i = 0; i < imports.tableCount(); i++) {
+                if (imports.table(i).table() instanceof NativeTable table) {
+                    borrow(table, "An imported table");
+                }
+            }
+        } catch (RuntimeException e) {
+            // a failed build is never closed, so it must not keep an owner waiting
+            releaseBorrowed();
+            throw e;
+        }
+    }
+
+    private void borrow(NativeResource resource, String what) {
+        resource.borrowers().add(this, what);
+        borrowed.add(resource);
+    }
+
+    private void releaseBorrowed() {
+        for (var resource : borrowed) {
+            resource.borrowers().remove(this);
+        }
+        borrowed.clear();
+    }
+
+    /** The memory and tables this module defines, which are freed with it. */
+    private List<NativeResource> ownedResources() {
+        var owned = new ArrayList<NativeResource>();
+        if (ownsMemory && nativeMemory != null) {
+            owned.add(nativeMemory);
+        }
+        for (int i = instance.imports().tableCount(); i < instance.tableCount(); i++) {
+            if (instance.table(i) instanceof NativeTable table) {
+                owned.add(table);
+            }
+        }
+        return owned;
+    }
+
+    /** Binds a global this module defines to its slot, as the instance creates it. */
+    void bindDefinedGlobal(NativeGlobalInstance global) {
+        if (closed) {
+            throw new IllegalStateException("This instance has been closed");
+        }
+        int slot = importGlobalCount + definedGlobalsBound;
+        if (slot >= globalCount) {
+            throw new IllegalStateException(
+                    "A natively compiled instance can only be initialized once");
+        }
+        definedGlobalsBound++;
+        global.bind(globalsBuffer, slot);
+        boundGlobals.add(global);
+    }
+
+    private long[] globalValues() {
+        var values = new long[boundGlobals.size()];
+        for (int i = 0; i < values.length; i++) {
+            values[i] = boundGlobals.get(i).getValue();
+        }
+        return values;
+    }
+
+    private void detachGlobals(long[] values) {
+        for (int i = 0; i < values.length; i++) {
+            boundGlobals.get(i).detach(values[i]);
+        }
     }
 
     @Override
     public void close() {
         if (closed) {
-            // munmap below is a native free, so a second close would unmap a
-            // region that may already have been handed back out.
+            return;
+        }
+        if (callDepth > 0) {
+            throw new IllegalStateException(
+                    "Cannot close an instance while one of its calls is running");
+        }
+        var owned = ownedResources();
+        // refuses, changing nothing, while another instance still imports one of them
+        Borrowers.tryCloseAll(owned);
+        // read now: the globals buffer goes with the arena
+        long[] values = globalValues();
+        try {
+            // frees the code, stubs and buffers, or fails while a downcall holds the ctx
+            arena.close();
+        } catch (IllegalStateException e) {
+            Borrowers.reopenAll(owned);
+            throw new IllegalStateException(
+                    "Cannot close an instance while one of its calls is running", e);
+        }
+        closed = true;
+        detachGlobals(values);
+        releaseBorrowed();
+        NativeResourceCount.freed();
+        RuntimeException failure = null;
+        for (var resource : owned) {
+            try {
+                resource.close();
+            } catch (RuntimeException e) {
+                if (failure == null) {
+                    failure = e;
+                } else {
+                    failure.addSuppressed(e);
+                }
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    @Override
+    public void abandon() {
+        if (closed) {
             return;
         }
         closed = true;
-        if (nativeMemory != null && ownsMemory) {
-            nativeMemory.close();
-        }
-        try {
-            arena.close();
-        } catch (IllegalStateException e) {
-            // may already be closed
-        }
-        try {
-            PanamaExecutor.munmap(codeRegion, codeRegionSize);
-        } catch (Throwable e) {
-            throw new WasmEngineException("Failed to unmap native code", e);
-        }
+        detachGlobals(globalValues());
+        releaseBorrowed();
     }
 
     @SuppressWarnings("unchecked")
@@ -768,10 +885,11 @@ public final class NativeMachine implements Machine {
             if (!(global instanceof NativeGlobalInstance nativeGlobal)) {
                 throw new WasmEngineException(foreignImportMessage("global", global));
             }
-            if (nativeGlobal.isStandalone()) {
+            if (nativeGlobal.isAdoptable()) {
                 // Passed in by the host: adopt it, so what this module writes stays
                 // visible through the caller's own object.
-                nativeGlobal.rebind(globalsBuffer, i);
+                nativeGlobal.bind(globalsBuffer, i);
+                boundGlobals.add(nativeGlobal);
             } else {
                 // Exported by another module, and already sitting where that
                 // module's compiled code reads it. Its storage cannot move, so this
@@ -907,6 +1025,9 @@ public final class NativeMachine implements Machine {
 
     @Override
     public long[] call(int funcId, long[] args) throws WasmEngineException {
+        if (closed) {
+            throw new IllegalStateException("This instance has been closed");
+        }
         if (funcId < numImports) {
             // Host import — delegate directly
             var imprt = instance.imports().function(funcId);
@@ -933,7 +1054,8 @@ public final class NativeMachine implements Machine {
             if (!memBaseInitialized) {
                 var mem = instance.memory();
                 if (mem instanceof NativeMemory nativeMemory) {
-                    cachedMemBase = nativeMemory.nativeAddress();
+                    // an unscoped view, so calls don't acquire the memory's arena
+                    cachedMemBase = MemorySegment.ofAddress(nativeMemory.nativeAddress().address());
                     ctxBuffer.set(
                             ValueLayout.JAVA_LONG,
                             CtxBuffer.MEM_BASE_ADDR,

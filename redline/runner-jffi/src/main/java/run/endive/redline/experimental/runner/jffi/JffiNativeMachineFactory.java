@@ -1,8 +1,5 @@
 package run.endive.redline.experimental.runner.jffi;
 
-import com.kenai.jffi.MemoryIO;
-import java.util.ArrayList;
-import java.util.List;
 import run.endive.redline.experimental.api.NativeCode;
 import run.endive.redline.experimental.runner.jffi.internal.JffiNativeGlobalInstance;
 import run.endive.redline.experimental.runner.jffi.internal.JffiNativeMachine;
@@ -22,34 +19,10 @@ import run.endive.wasm.types.ValType;
 
 public final class JffiNativeMachineFactory {
 
-    private static final MemoryIO MEM = MemoryIO.getInstance();
-
-    private final WasmModule module;
     private final NativeCode precompiledCode;
-    private final List<JffiNativeTable> nativeTables = new ArrayList<>();
-    private long globalsBufferAddr;
-    private int globalIndex;
-    private JffiNativeMachine nativeMachine;
 
-    private JffiNativeMachineFactory(WasmModule module, NativeCode precompiledCode) {
-        this.module = module;
+    private JffiNativeMachineFactory(NativeCode precompiledCode) {
         this.precompiledCode = precompiledCode;
-
-        int importGlobalCount =
-                (int)
-                        module.importSection().stream()
-                                .filter(
-                                        i ->
-                                                i.importType()
-                                                        == run.endive.wasm.types.ExternalType
-                                                                .GLOBAL)
-                                .count();
-        int definedGlobalCount =
-                module.globalSection() != null ? module.globalSection().globalCount() : 0;
-        int totalGlobals = importGlobalCount + definedGlobalCount;
-        this.globalsBufferAddr =
-                totalGlobals > 0 ? MEM.allocateMemory((long) totalGlobals * 8, true) : 0L;
-        this.globalIndex = importGlobalCount;
     }
 
     public static Builder builder(WasmModule module) {
@@ -57,45 +30,31 @@ public final class JffiNativeMachineFactory {
     }
 
     public TableInstance createTable(Table table, int initValue) {
-        var nativeTable = new JffiNativeTable(table, initValue);
-        nativeTables.add(nativeTable);
-        return nativeTable;
+        return new JffiNativeTable(table, initValue);
     }
 
+    /** The caller owns the table and closes it once no instance imports it. */
     public static TableInstance createImportTable(Table table, int initValue) {
         return new JffiNativeTable(table, initValue);
     }
 
     public GlobalInstance createGlobal(
             long value, long highValue, ValType type, MutabilityType mutability) {
-        return new JffiNativeGlobalInstance(
-                globalsBufferAddr, globalIndex++, value, type, mutability);
+        return JffiNativeGlobalInstance.defined(value, type, mutability);
     }
 
     public static GlobalInstance createImportGlobal(
             long value, ValType type, MutabilityType mutability) {
-        return JffiNativeGlobalInstance.standalone(value, type, mutability);
+        return JffiNativeGlobalInstance.hostCreated(value, type, mutability);
     }
 
+    /** The caller owns the memory and closes it once no instance imports it. */
     public static Memory createMemory(MemoryLimits limits) {
         return new JffiNativeMemory(limits);
     }
 
     public Machine compile(Instance instance) {
-        int importGlobalCount =
-                (int)
-                        module.importSection().stream()
-                                .filter(
-                                        i ->
-                                                i.importType()
-                                                        == run.endive.wasm.types.ExternalType
-                                                                .GLOBAL)
-                                .count();
-        this.globalIndex = importGlobalCount;
-        this.nativeTables.clear();
-        this.nativeMachine =
-                new JffiNativeMachine(instance, nativeTables, globalsBufferAddr, precompiledCode);
-        return nativeMachine;
+        return new JffiNativeMachine(instance, precompiledCode);
     }
 
     public static final class Builder {
@@ -137,7 +96,7 @@ public final class JffiNativeMachineFactory {
         }
 
         public Instance.Builder toInstanceBuilder() {
-            var factory = new JffiNativeMachineFactory(module, precompiledCode);
+            var factory = new JffiNativeMachineFactory(precompiledCode);
             return Instance.builder(module)
                     .withMachineFactory(factory::compile)
                     .withTableFactory(factory::createTable)

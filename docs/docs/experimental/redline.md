@@ -128,6 +128,20 @@ try (var instance = MyModule.builder().build()) {
 }
 ```
 
+## Closing instances
+
+A natively compiled instance keeps its code, memory and tables off the Java heap, where the garbage
+collector never frees them. Unlike the bytecode it falls back to, it has to be closed, or what it
+holds stays allocated until the JVM exits. Use try-with-resources, as above.
+
+- After `close()`, calling an export or touching the instance's memory throws
+  `IllegalStateException`. Its globals keep their last value.
+- `close()` throws `IllegalStateException`, and frees nothing, while one of the instance's calls is
+  running, for example when a host function tries to close the instance that called it.
+- An instance whose memory or tables another open instance imports can't be closed until that
+  instance is. Close importers first.
+- If building an instance fails, what it had allocated may leak.
+
 ## Falling back
 
 When native code cannot be used, `builder()` falls back to the bytecode produced by the
@@ -171,25 +185,29 @@ it can only use ones it made, and building one yourself fails with a message say
 declare their own memory, including anything built for WASI, are unaffected.
 
 ```text
-var imports = MyModule.imports();
+try (var imports = MyModule.imports()) {
+    var memory = imports.memory(new MemoryLimits(1, 2));
+    var table = imports.table(new Table(ValType.FuncRef, new TableLimits(1)), REF_NULL_VALUE);
+    var counter = imports.global(Value.i32(0), MutabilityType.Var);
 
-var memory = imports.memory(new MemoryLimits(1, 2));
-var table = imports.table(new Table(ValType.FuncRef, new TableLimits(1)), REF_NULL_VALUE);
-var counter = imports.global(Value.i32(0), MutabilityType.Var);
+    var importValues = ImportValues.builder()
+            .addMemory(new ImportMemory("env", "memory", memory))
+            .addTable(new ImportTable("env", "table", table))
+            .addGlobal(new ImportGlobal("env", "counter", counter))
+            .build();
 
-var importValues = ImportValues.builder()
-        .addMemory(new ImportMemory("env", "memory", memory))
-        .addTable(new ImportTable("env", "table", table))
-        .addGlobal(new ImportGlobal("env", "counter", counter))
-        .build();
+    try (var instance = MyModule.builder().withImportValues(importValues).build()) {
+        instance.export("my_function").apply();
 
-try (var instance = MyModule.builder().withImportValues(importValues).build()) {
-    instance.export("my_function").apply();
-
-    // what the module wrote, on whichever backend it ran on
-    System.out.println(counter.getValue());
+        // what the module wrote, on whichever backend it ran on
+        System.out.println(counter.getValue());
+    }
 }
 ```
+
+The factory owns the memories and tables it creates and frees them when it is closed, which it
+refuses to do while an instance still imports them. Close it after those instances, as the nesting
+above does.
 
 The factory hands back native instances on a platform in the table above and ordinary ones
 everywhere else, so this code is the same either way and needs no branch of its own. That matters

@@ -11,7 +11,10 @@ import com.kenai.jffi.PageManager;
 import com.kenai.jffi.Type;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
+import run.endive.redline.experimental.api.internal.Borrowers;
 import run.endive.redline.experimental.api.internal.NativeAtomics;
+import run.endive.redline.experimental.api.internal.NativeResource;
+import run.endive.redline.experimental.api.internal.NativeResourceCount;
 import run.endive.redline.experimental.api.internal.NativeWaiters;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Memory;
@@ -29,7 +32,7 @@ import run.endive.wasm.types.PassiveDataSegment;
  * memory committed), then mprotects pages as needed. Grow is zero-copy — just
  * mprotect the next range. The base address never changes.
  */
-public final class JffiNativeMemory implements Memory, AutoCloseable {
+public final class JffiNativeMemory implements Memory, NativeResource {
 
     private static final MemoryIO MEM = MemoryIO.getInstance();
     private static final PageManager PM = PageManager.getInstance();
@@ -98,6 +101,9 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
     private final int osPerWasm; // OS pages per Wasm page
     private final NativeWaiters waiters;
     private final NativeAtomics atomics;
+    private final Borrowers borrowers = new Borrowers();
+    // volatile for the failure paths below, which read it without the lock
+    private volatile boolean closed;
     // Page count compiled code reads for a shared memory, which other instances may grow
     private long pagesCell;
     private volatile int nPages;
@@ -171,6 +177,7 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
                                 ? MEM.newDirectByteBuffer(
                                         reservedAddress, reservedOsPages * osPageSize)
                                 : ByteBuffer.allocateDirect(0));
+        NativeResourceCount.allocated();
     }
 
     private void freeReservation() {
@@ -184,12 +191,26 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
     }
 
     @Override
-    public void close() {
-        freeReservation();
-        if (pagesCell != 0) {
-            MEM.freeMemory(pagesCell);
-            pagesCell = 0;
+    public Borrowers borrowers() {
+        return borrowers;
+    }
+
+    @Override
+    public synchronized void close() {
+        if (closed) {
+            return;
         }
+        if (!borrowers.tryClose()) {
+            throw borrowers.stillBorrowed("This memory");
+        }
+        closed = true;
+        // every accessor bounds-checks against the page count, so none reaches the pages
+        nPages = 0;
+        freeReservation();
+        MEM.freeMemory(pagesCell);
+        pagesCell = 0;
+        borrowers.freed();
+        NativeResourceCount.freed();
     }
 
     /** Get the native address of the memory buffer, for passing to native code. */
@@ -209,6 +230,9 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
 
     @Override
     public synchronized int grow(int size) {
+        if (closed) {
+            return -1;
+        }
         var prevPages = nPages;
         var numPages = prevPages + size;
         if (numPages > maximumPages() || numPages < prevPages) {
@@ -326,8 +350,16 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
      */
     private void checkBounds(int addr, int size) {
         if (Integer.toUnsignedLong(addr) + Integer.toUnsignedLong(size) > sizeInBytes()) {
-            throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
+            throw outOfBounds();
         }
+    }
+
+    // a closed memory has no pages left, so every access lands here
+    private RuntimeException outOfBounds() {
+        if (closed) {
+            return new IllegalStateException("This memory has been closed");
+        }
+        return new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
     }
 
     @Override
@@ -335,7 +367,7 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
         long limit = sizeInBytes();
         if (Integer.toUnsignedLong(offset) + Integer.toUnsignedLong(size) > data.length
                 || Integer.toUnsignedLong(addr) + Integer.toUnsignedLong(size) > limit) {
-            throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
+            throw outOfBounds();
         }
         MEM.putByteArray(reservedAddress + addr, data, offset, size);
     }
@@ -441,7 +473,7 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
         long limit = sizeInBytes();
         if (Integer.toUnsignedLong(src) + Integer.toUnsignedLong(size) > limit
                 || Integer.toUnsignedLong(dest) + Integer.toUnsignedLong(size) > limit) {
-            throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
+            throw outOfBounds();
         }
         // Use a temp buffer to handle overlap correctly (memmove semantics)
         if (size > 0) {
@@ -457,7 +489,7 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
         if (Integer.toUnsignedLong(fromIndex) > limit
                 || Integer.toUnsignedLong(toIndex) > limit
                 || fromIndex > toIndex) {
-            throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
+            throw outOfBounds();
         }
         MEM.setMemory(reservedAddress + fromIndex, toIndex - fromIndex, value);
     }

@@ -2,97 +2,101 @@ package run.endive.redline.experimental.runner.jffi.internal;
 
 import com.kenai.jffi.MemoryIO;
 import run.endive.runtime.GlobalInstance;
+import run.endive.runtime.Instance;
 import run.endive.wasm.types.MutabilityType;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
-/**
- * GlobalInstance backed by an off-heap buffer via jffi MemoryIO.
- * Native code and Java code read/write the same memory — no sync needed.
- */
+/** A global in its instance's off-heap globals buffer while bound, and on the heap otherwise. */
 public final class JffiNativeGlobalInstance extends GlobalInstance {
 
     private static final MemoryIO MEM = MemoryIO.getInstance();
 
-    // Not final: an imported global is built before the instance that will use it
-    // exists, so it starts out on its own buffer and is moved onto the machine's
-    // globals buffer by rebind() once there is one. See JffiNativeMachine.
+    /** Created by the host to be imported, so an instance may adopt it while detached. */
+    private final boolean hostCreated;
+
+    // 0 while detached
     private long bufferAddress;
     private long offset;
 
-    /**
-     * True while this global sits on a buffer of its own rather than inside some
-     * machine's globals buffer. Only such a global may be moved: one a module
-     * exports is already where that module's compiled code reads it.
-     */
-    private boolean standalone;
-
-    public JffiNativeGlobalInstance(
-            long bufferAddress,
-            int index,
+    private JffiNativeGlobalInstance(
             long initialValue,
             ValType valType,
-            MutabilityType mutabilityType) {
+            MutabilityType mutabilityType,
+            boolean hostCreated) {
         super(valType, mutabilityType, initialValue, 0);
-        this.bufferAddress = bufferAddress;
-        this.offset = (long) index * 8;
-        // Write initial value to buffer
-        MEM.putLong(bufferAddress + offset, initialValue);
+        this.hostCreated = hostCreated;
     }
 
-    /**
-     * A global for the host to pass in as an import, on storage of its own until the
-     * instance that receives it adopts it.
-     */
-    public static JffiNativeGlobalInstance standalone(
+    /** A global a module defines, bound to its instance's buffer by {@link #setInstance}. */
+    public static JffiNativeGlobalInstance defined(
             long initialValue, ValType valType, MutabilityType mutabilityType) {
-        var global =
-                new JffiNativeGlobalInstance(
-                        MEM.allocateMemory(8, true), 0, initialValue, valType, mutabilityType);
-        global.standalone = true;
-        return global;
+        return new JffiNativeGlobalInstance(initialValue, valType, mutabilityType, false);
     }
 
-    boolean isStandalone() {
-        return standalone;
+    /** A global for the host to pass in as an import. */
+    public static JffiNativeGlobalInstance hostCreated(
+            long initialValue, ValType valType, MutabilityType mutabilityType) {
+        return new JffiNativeGlobalInstance(initialValue, valType, mutabilityType, true);
     }
 
-    /**
-     * Moves this global onto the buffer compiled code reads, carrying its current
-     * value across. Both sides then share the same eight bytes, so neither can go
-     * stale while the other writes.
-     */
-    void rebind(long target, int index) {
+    /** Only a host global no instance is using yet can be adopted. */
+    boolean isAdoptable() {
+        return hostCreated && bufferAddress == 0;
+    }
+
+    @Override
+    public void setInstance(Instance instance) {
+        super.setInstance(instance);
+        if (instance.getMachine() instanceof JffiNativeMachine) {
+            ((JffiNativeMachine) instance.getMachine()).bindDefinedGlobal(this);
+        }
+    }
+
+    /** Moves the value onto slot {@code index} of {@code buffer}, carrying it across. */
+    void bind(long buffer, int index) {
         long current = getValue();
-        this.bufferAddress = target;
+        this.bufferAddress = buffer;
         this.offset = (long) index * 8;
-        this.standalone = false;
-        MEM.putLong(target + offset, current);
+        MEM.putLong(buffer + offset, current);
+    }
+
+    /** Moves the value back to the heap, before the buffer it sits on is freed. */
+    void detach() {
+        if (bufferAddress != 0) {
+            long current = getValue();
+            bufferAddress = 0;
+            super.setValueLow(current);
+        }
     }
 
     @Override
     public long getValue() {
-        return MEM.getLong(bufferAddress + offset);
+        return bufferAddress == 0 ? super.getValueLow() : MEM.getLong(bufferAddress + offset);
     }
 
     @Override
     public long getValueLow() {
-        return MEM.getLong(bufferAddress + offset);
+        return getValue();
     }
 
     @Override
     public void setValue(long value) {
-        MEM.putLong(bufferAddress + offset, value);
+        setValueLow(value);
     }
 
     @Override
     public void setValue(Value value) {
         checkType(value);
-        MEM.putLong(bufferAddress + offset, value.raw());
+        setValueLow(value.raw());
     }
 
     @Override
     public void setValueLow(long value) {
-        MEM.putLong(bufferAddress + offset, value);
+        if (bufferAddress == 0) {
+            super.setValueLow(value);
+        } else {
+            MEM.putLong(bufferAddress + offset, value);
+        }
     }
 }

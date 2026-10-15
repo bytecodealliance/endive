@@ -3,7 +3,10 @@ package run.endive.redline.experimental.runner.jffi.internal;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
 import com.kenai.jffi.MemoryIO;
+import run.endive.redline.experimental.api.internal.Borrowers;
 import run.endive.redline.experimental.api.internal.CtxBuffer;
+import run.endive.redline.experimental.api.internal.NativeResource;
+import run.endive.redline.experimental.api.internal.NativeResourceCount;
 import run.endive.runtime.Instance;
 import run.endive.runtime.TableInstance;
 import run.endive.wasm.WasmEngineException;
@@ -23,7 +26,7 @@ import run.endive.wasm.types.ValType;
  *   [8..16)  i64  funcPtr (native address)
  * </pre>
  */
-public final class JffiNativeTable extends TableInstance {
+public final class JffiNativeTable extends TableInstance implements NativeResource {
 
     private static final int MAX_PREALLOC = 1_000_000;
     private static final MemoryIO MEM = MemoryIO.getInstance();
@@ -31,7 +34,8 @@ public final class JffiNativeTable extends TableInstance {
     private final long bufferAddress;
     private final int capacity;
     private final boolean isExternRef;
-    private boolean freed;
+    private final Borrowers borrowers = new Borrowers();
+    private volatile boolean freed;
 
     public JffiNativeTable(Table table, int initValue) {
         super(table, initValue);
@@ -42,6 +46,7 @@ public final class JffiNativeTable extends TableInstance {
         long bufferSize =
                 CtxBuffer.TABLE_ENTRIES_OFFSET + (long) capacity * CtxBuffer.TABLE_ENTRY_SIZE;
         this.bufferAddress = MEM.allocateMemory(bufferSize, true);
+        NativeResourceCount.allocated();
 
         // Write header
         MEM.putInt(bufferAddress + CtxBuffer.TABLE_SIZE_OFFSET, initial);
@@ -76,6 +81,7 @@ public final class JffiNativeTable extends TableInstance {
      * machine, which is the case for a table initialiser.
      */
     void resolvePendingRefs(Instance instance) {
+        checkOpen();
         if (isExternRef) {
             return;
         }
@@ -145,16 +151,35 @@ public final class JffiNativeTable extends TableInstance {
         return freed;
     }
 
-    /** Free the off-heap buffer. Idempotent — safe to call multiple times. */
-    public void free() {
-        if (!freed && bufferAddress != 0) {
-            freed = true;
-            MEM.freeMemory(bufferAddress);
+    @Override
+    public Borrowers borrowers() {
+        return borrowers;
+    }
+
+    @Override
+    public synchronized void close() {
+        if (freed) {
+            return;
+        }
+        if (!borrowers.tryClose()) {
+            throw borrowers.stillBorrowed("This table");
+        }
+        freed = true;
+        MEM.freeMemory(bufferAddress);
+        borrowers.freed();
+        NativeResourceCount.freed();
+    }
+
+    // the buffer is a raw address, so reaching it after close would read freed memory
+    private void checkOpen() {
+        if (freed) {
+            throw new IllegalStateException("This table has been closed");
         }
     }
 
     @Override
     public int size() {
+        checkOpen();
         return MEM.getInt(bufferAddress + CtxBuffer.TABLE_SIZE_OFFSET);
     }
 
@@ -170,6 +195,7 @@ public final class JffiNativeTable extends TableInstance {
 
     @Override
     public int ref(int index) {
+        checkOpen();
         if (index < 0 || index >= size()) {
             throw new WasmEngineException("undefined element");
         }
@@ -188,6 +214,7 @@ public final class JffiNativeTable extends TableInstance {
 
     @Override
     public void setRef(int index, int value, Instance instance) {
+        checkOpen();
         if (index < 0 || index >= size()) {
             throw new run.endive.wasm.UninstantiableException("out of bounds table access");
         }
@@ -200,6 +227,7 @@ public final class JffiNativeTable extends TableInstance {
 
     @Override
     public int grow(int delta, int value, Instance instance) {
+        checkOpen();
         int oldSize = size();
         int newSize = oldSize + delta;
         int max = MEM.getInt(bufferAddress + CtxBuffer.TABLE_MAX_OFFSET);
@@ -227,6 +255,7 @@ public final class JffiNativeTable extends TableInstance {
 
     @Override
     public void reset() {
+        checkOpen();
         int sz = size();
         for (int i = 0; i < sz; i++) {
             writeNullEntry(i);

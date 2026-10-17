@@ -21,7 +21,8 @@ final class EmitterMap {
                         Emitters::DROP_KEEP,
                         TempSlotCalculators::dropKeep)
                 .intrinsic(CompilerOpCode.TRAP, Emitters::TRAP)
-                .intrinsic(CompilerOpCode.RETURN, Emitters::RETURN)
+                .intrinsic(
+                        CompilerOpCode.RETURN, Emitters::RETURN, TempSlotCalculators::returnResult)
                 .intrinsic(CompilerOpCode.DROP, Emitters::DROP)
                 .intrinsic(CompilerOpCode.ELEM_DROP, Emitters::ELEM_DROP)
                 .intrinsic(CompilerOpCode.SELECT, Emitters::SELECT)

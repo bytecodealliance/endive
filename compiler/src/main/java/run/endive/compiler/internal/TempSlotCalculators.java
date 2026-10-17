@@ -1,6 +1,7 @@
 package run.endive.compiler.internal;
 
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
+import static run.endive.compiler.internal.CompilerUtil.hasTooManyResults;
 import static run.endive.compiler.internal.CompilerUtil.paramSlots;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
 
@@ -11,6 +12,13 @@ import run.endive.wasm.types.FunctionType;
 final class TempSlotCalculators {
 
     private TempSlotCalculators() {}
+
+    static int returnResult(
+            CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
+        // the operands are the function's result types
+        int slots = ins.operands().mapToInt(CompilerUtil::slotCount).sum();
+        return hasTooManyResults(slots) ? slots : 0;
+    }
 
     static int dropKeep(
             CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {

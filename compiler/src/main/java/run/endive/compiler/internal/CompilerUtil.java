@@ -34,13 +34,17 @@ final class CompilerUtil {
 
     private CompilerUtil() {}
 
+    // the JVM's limit on the parameter slots of a method descriptor
+    private static final int MAX_METHOD_PARAMETER_SLOTS = 255;
+
     // funcTableIdx, tableIdx, Memory and Instance: the most any generated method appends
     private static final Class<?>[] CALL_INDIRECT_EXTRA_PARAMS = {
         int.class, int.class, Memory.class, Instance.class
     };
 
-    // wasm parameter slots above this are boxed, to stay within the JVM's 255
-    private static final int MAX_PARAMETER_COUNT = 255 - CALL_INDIRECT_EXTRA_PARAMS.length;
+    // wasm parameter slots above this are boxed, to stay within the JVM's limit
+    private static final int MAX_PARAMETER_COUNT =
+            MAX_METHOD_PARAMETER_SLOTS - CALL_INDIRECT_EXTRA_PARAMS.length;
 
     private static final Method LONG_TO_F32;
     private static final Method LONG_TO_F64;
@@ -186,6 +190,15 @@ final class CompilerUtil {
         boolean hasGcRef = types.stream().anyMatch(t -> t.isObjectRef());
         Class<?> returnType = hasGcRef ? Object[].class : long[].class;
         return methodType(returnType, jvmTypes(types));
+    }
+
+    // value_xxx takes the results as its only parameters; wider results are boxed inline
+    public static boolean hasTooManyResults(List<ValType> types) {
+        return hasTooManyResults(types.stream().mapToInt(CompilerUtil::slotCount).sum());
+    }
+
+    public static boolean hasTooManyResults(int resultSlots) {
+        return resultSlots > MAX_METHOD_PARAMETER_SLOTS;
     }
 
     public static MethodType callIndirectMethodType(FunctionType functionType) {

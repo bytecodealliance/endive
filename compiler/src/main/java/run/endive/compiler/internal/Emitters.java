@@ -18,6 +18,7 @@ import static run.endive.compiler.internal.CompilerUtil.emitJvmToLong;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
 import static run.endive.compiler.internal.CompilerUtil.emitPop;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
+import static run.endive.compiler.internal.CompilerUtil.hasTooManyResults;
 import static run.endive.compiler.internal.CompilerUtil.jvmReturnType;
 import static run.endive.compiler.internal.CompilerUtil.localType;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
@@ -154,14 +155,44 @@ final class Emitters {
     }
 
     public static void RETURN(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        if (ctx.getType().returns().size() > 1) {
-            asm.invokestatic(
-                    ctx.internalClassName(),
-                    valueMethodName(ctx.getType().returns()),
-                    valueMethodType(ctx.getType().returns()).toMethodDescriptorString(),
-                    false);
+        var results = ctx.getType().returns();
+        if (results.size() > 1) {
+            if (hasTooManyResults(results)) {
+                emitBoxResults(ctx, asm, results);
+            } else {
+                asm.invokestatic(
+                        ctx.internalClassName(),
+                        valueMethodName(results),
+                        valueMethodType(results).toMethodDescriptorString(),
+                        false);
+            }
         }
         asm.areturn(getType(jvmReturnType(ctx.getType())));
+    }
+
+    // what value_xxx would return: a long[], or with object refs an Object[] with numbers as Long
+    private static void emitBoxResults(Context ctx, InstructionAdapter asm, List<ValType> types) {
+        int firstSlot = ctx.tempSlot();
+        if (types.stream().noneMatch(ValType::isObjectRef)) {
+            emitBoxValuesOnStack(ctx, asm, types, firstSlot);
+            return;
+        }
+        emitStoreValuesOnStack(ctx, asm, types, firstSlot);
+        asm.iconst(types.size());
+        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+        int slot = firstSlot;
+        for (int i = 0; i < types.size(); i++) {
+            ValType valType = types.get(i);
+            asm.dup();
+            asm.iconst(i);
+            asm.load(slot, asmType(valType));
+            if (!valType.isObjectRef()) {
+                emitJvmToLong(asm, valType);
+                asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+            }
+            asm.astore(OBJECT_TYPE);
+            slot += slotCount(valType);
+        }
     }
 
     public static void DROP(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -190,11 +221,9 @@ final class Emitters {
         emitPop(asm, type);
     }
 
-    // stores the values in the temp slots from firstSlot on, then boxes them into a long[]
-    private static void emitBoxValuesOnStack(
+    // pops the values, the last one on top, into the temp slots from firstSlot on, in order
+    private static void emitStoreValuesOnStack(
             Context ctx, InstructionAdapter asm, List<ValType> types, int firstSlot) {
-
-        // Store values from stack to locals in reverse order
         int slotsNeeded = types.stream().mapToInt(CompilerUtil::slotCount).sum();
         assertTempSlotInRange(ctx, firstSlot - ctx.tempSlot() + slotsNeeded);
         int slot = firstSlot + slotsNeeded;
@@ -203,13 +232,19 @@ final class Emitters {
             slot -= slotCount(valType);
             asm.store(slot, asmType(valType));
         }
+    }
+
+    // stores the values in the temp slots from firstSlot on, then boxes them into a long[]
+    private static void emitBoxValuesOnStack(
+            Context ctx, InstructionAdapter asm, List<ValType> types, int firstSlot) {
+        emitStoreValuesOnStack(ctx, asm, types, firstSlot);
 
         // Create the array
         asm.iconst(types.size());
         asm.newarray(LONG_TYPE);
 
         // Load from locals and store in array
-        slot = firstSlot;
+        int slot = firstSlot;
         for (int i = 0; i < types.size(); i++) {
             ValType valType = types.get(i);
 

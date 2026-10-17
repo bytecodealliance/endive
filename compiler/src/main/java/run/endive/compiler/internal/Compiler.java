@@ -33,6 +33,7 @@ import static run.endive.compiler.internal.CompilerUtil.emitJvmToLong;
 import static run.endive.compiler.internal.CompilerUtil.emitLoadArguments;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
+import static run.endive.compiler.internal.CompilerUtil.hasTooManyResults;
 import static run.endive.compiler.internal.CompilerUtil.internalClassName;
 import static run.endive.compiler.internal.CompilerUtil.jvmReturnType;
 import static run.endive.compiler.internal.CompilerUtil.localType;
@@ -735,6 +736,7 @@ public final class Compiler {
                 functionTypes.stream()
                         .map(FunctionType::returns)
                         .filter(types -> types.size() > 1)
+                        .filter(types -> !hasTooManyResults(types))
                         .collect(toSet());
         for (var types : returnTypes) {
             var methodName = valueMethodName(types);

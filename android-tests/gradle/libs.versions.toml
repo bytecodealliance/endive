@@ -14,4 +14,4 @@ android-gradle-plugin-api = { module = "com.android.tools.build:gradle-api", ver
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-android-junit5 = { id = "de.mannodermaus.android-junit5", version = "2.0.1"}
+android-junit5 = { id = "de.mannodermaus.android-junit5", version = "2.0.2"}

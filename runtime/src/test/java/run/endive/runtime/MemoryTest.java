@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
@@ -285,18 +286,22 @@ public class MemoryTest {
         memory.atomicWriteInt(addr, 0);
 
         var stop = new AtomicBoolean();
+        // not the common pool: on a 3-core runner it can leave the waiter queued behind adds
+        var threads = Executors.newFixedThreadPool(2);
         var adds =
                 CompletableFuture.runAsync(
                         () -> {
                             while (!stop.get()) {
                                 memory.atomicAddInt(0, 1);
                             }
-                        });
+                        },
+                        threads);
         try {
             for (int round = 0; round < 100; round++) {
                 var waiter =
                         CompletableFuture.supplyAsync(
-                                () -> memory.atomicWait(addr, 0, TimeUnit.SECONDS.toNanos(30)));
+                                () -> memory.atomicWait(addr, 0, TimeUnit.SECONDS.toNanos(30)),
+                                threads);
                 while (memory.atomicNotify(addr, 1) == 0 && !waiter.isDone()) {
                     Thread.onSpinWait();
                 }
@@ -304,6 +309,7 @@ public class MemoryTest {
             }
         } finally {
             stop.set(true);
+            threads.shutdown();
         }
         adds.get(30, TimeUnit.SECONDS);
     }

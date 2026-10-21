@@ -9,6 +9,8 @@ jobs:
   ci:
     name: CI
     runs-on: ${{ matrix.os }}
+    # a hung test fails in an hour instead of at GitHub's 6 hour default
+    timeout-minutes: 60
     continue-on-error: true
     strategy:
       fail-fast: false

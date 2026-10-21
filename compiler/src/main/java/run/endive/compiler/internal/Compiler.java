@@ -36,6 +36,7 @@ import static run.endive.compiler.internal.CompilerUtil.jvmReturnType;
 import static run.endive.compiler.internal.CompilerUtil.localType;
 import static run.endive.compiler.internal.CompilerUtil.methodNameForFunc;
 import static run.endive.compiler.internal.CompilerUtil.methodTypeFor;
+import static run.endive.compiler.internal.CompilerUtil.newClassWriter;
 import static run.endive.compiler.internal.CompilerUtil.rawMethodTypeFor;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
 import static run.endive.compiler.internal.CompilerUtil.valueMethodName;
@@ -574,7 +575,7 @@ public final class Compiler {
     private byte[] compileClass() {
         var internalClassName = internalClassName(className);
 
-        ClassWriter binaryWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        ClassWriter binaryWriter = newClassWriter();
         ClassVisitor classWriter = shadedClassRemapper(binaryWriter, className);
 
         classWriter.visit(
@@ -1077,7 +1078,7 @@ public final class Compiler {
     }
 
     private void compileMachineCallClass() {
-        ClassWriter binaryWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        ClassWriter binaryWriter = newClassWriter();
         ClassVisitor classWriter = shadedClassRemapper(binaryWriter, className);
         String machineCallClassName = internalClassName(className + "MachineCall");
 
@@ -1169,7 +1170,7 @@ public final class Compiler {
 
     private void compileExtraClass(
             ClassCollector collector, String name, Consumer<ClassVisitor> consumer) {
-        ClassWriter binaryWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        ClassWriter binaryWriter = newClassWriter();
         ClassVisitor classWriter = shadedClassRemapper(binaryWriter, className);
         String internalClassName = internalClassName(name);
         classWriter.visit(

@@ -15,6 +15,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Locale;
+import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -53,6 +54,30 @@ final class CompilerUtil {
         } catch (NoSuchMethodException e) {
             throw new AssertionError(e);
         }
+    }
+
+    // ClassWriter.setComputeLimits exists since ASM 9.11
+    private static final boolean HAS_COMPUTE_LIMITS = hasComputeLimits();
+
+    private static boolean hasComputeLimits() {
+        try {
+            ClassWriter.class.getMethod("setComputeLimits", int.class, long.class);
+            return true;
+        } catch (NoSuchMethodException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns a {@link ClassWriter} computing stack map frames, with no limit on the work ASM does
+     * to compute them.
+     */
+    public static ClassWriter newClassWriter() {
+        var writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        if (HAS_COMPUTE_LIMITS) {
+            writer.setComputeLimits(Integer.MAX_VALUE, Long.MAX_VALUE);
+        }
+        return writer;
     }
 
     public static Class<?> jvmType(ValType type) {

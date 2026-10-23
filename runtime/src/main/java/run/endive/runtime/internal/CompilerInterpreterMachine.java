@@ -60,7 +60,7 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
     protected void CALL(Operands operands) {
         var instance = instance();
         var funcId = (int) operands.get(0);
-        if (interpretedFuncIds.contains(funcId) || instance.function(funcId) == null) {
+        if (interpretedFuncIds.contains(funcId) || instance.isImportedFunction(funcId)) {
             // continue interpreting for interpreted functions or imported functions
             super.CALL(operands);
         } else {

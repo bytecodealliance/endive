@@ -8,12 +8,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import run.endive.wasm.types.CodeSection;
 import run.endive.wasm.types.CustomSection;
 import run.endive.wasm.types.DataCountSection;
 import run.endive.wasm.types.DataSection;
 import run.endive.wasm.types.ElementSection;
 import run.endive.wasm.types.ExportSection;
+import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionSection;
 import run.endive.wasm.types.GlobalSection;
 import run.endive.wasm.types.ImportSection;
@@ -100,6 +103,39 @@ public final class WasmModule {
 
     public CodeSection codeSection() {
         return codeSection;
+    }
+
+    /**
+     * Returns a copy of this module that keeps only the bodies of the functions in {@code
+     * funcIds}, sharing every other section. Accessing a dropped body throws {@link
+     * IllegalStateException}.
+     *
+     * @param funcIds function indices in the module's function index space (imports included)
+     */
+    public WasmModule retainingFunctionBodies(Set<Integer> funcIds) {
+        int functionImports = importSection.count(ExternalType.FUNCTION);
+        var indices =
+                funcIds.stream()
+                        .filter(funcId -> funcId >= functionImports)
+                        .map(funcId -> funcId - functionImports)
+                        .collect(Collectors.toSet());
+        return new WasmModule(
+                typeSection,
+                importSection,
+                functionSection,
+                tableSection,
+                memorySection,
+                globalSection,
+                exportSection,
+                startSection,
+                elementSection,
+                codeSection.retainingFunctionBodies(indices),
+                dataSection,
+                dataCountSection,
+                tagSection,
+                customSections,
+                ignoredSections,
+                digest);
     }
 
     public DataSection dataSection() {

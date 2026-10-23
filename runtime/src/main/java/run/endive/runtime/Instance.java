@@ -346,10 +346,19 @@ public class Instance implements AutoCloseable {
     public FunctionBody function(long idx) {
         if (idx < 0 || idx >= (functions.length + imports.functionCount())) {
             throw new InvalidException("unknown function " + idx);
-        } else if (idx < imports.functionCount()) {
+        } else if (isImportedFunction(idx)) {
             return null;
         }
-        return functions[(int) idx - imports.functionCount()];
+        var body = functions[(int) idx - imports.functionCount()];
+        if (body == null) {
+            throw new IllegalStateException(
+                    "Function body " + idx + " has been dropped from the module");
+        }
+        return body;
+    }
+
+    public boolean isImportedFunction(long idx) {
+        return idx < imports.functionCount();
     }
 
     public int functionCount() {
@@ -615,6 +624,14 @@ public class Instance implements AutoCloseable {
 
     public static Builder builder(WasmModule module) {
         return new Builder(module);
+    }
+
+    /**
+     * Creates a builder for instances of a compiled module, using its module and machine factory.
+     */
+    public static Builder builder(CompiledModule compiledModule) {
+        return new Builder(compiledModule.wasmModule())
+                .withMachineFactory(compiledModule.machineFactory());
     }
 
     public static final class Builder {

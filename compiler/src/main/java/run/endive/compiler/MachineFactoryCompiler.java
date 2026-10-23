@@ -4,7 +4,9 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -14,10 +16,13 @@ import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 import run.endive.compiler.internal.ClassLoadingCollector;
 import run.endive.compiler.internal.MachineFactory;
+import run.endive.runtime.CompiledModule;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.WasmModule;
+import run.endive.wasm.types.ExternalType;
+import run.endive.wasm.types.OpCode;
 
 /**
  * Compiles WASM function bodies to JVM byte code that can be used as a machine factory for {@link Instance}'s.
@@ -127,6 +132,20 @@ public final class MachineFactoryCompiler {
         }
 
         public Function<Instance, Machine> compile() {
+            return compileFactory(false);
+        }
+
+        /**
+         * Compiles the module and returns it together with a machine factory for instances of it,
+         * see {@link Instance#builder(CompiledModule)}. The returned module is a copy without the
+         * bodies of compiled functions, unless the compilation is loaded from the cache. The
+         * module passed to the builder is left unchanged.
+         */
+        public CompiledModule compileModule() {
+            return compileFactory(true);
+        }
+
+        private MachineFactory compileFactory(boolean dropCompiledFunctionBodies) {
             try {
 
                 // Can we load the byte codes from the cache?
@@ -152,11 +171,50 @@ public final class MachineFactoryCompiler {
                     cache.putIfAbsent(module.digest(), storeClassLoadingCollector(collector));
                 }
 
-                return new MachineFactory(module, collector.machineFactory());
+                var compiledModule =
+                        dropCompiledFunctionBodies
+                                ? withoutCompiledFunctionBodies(
+                                        module, result.interpretedFunctions())
+                                : module;
+                return new MachineFactory(compiledModule, collector.machineFactory());
             } catch (IOException e) {
                 throw new WasmEngineException(e);
             }
         }
+    }
+
+    private static WasmModule withoutCompiledFunctionBodies(
+            WasmModule module, Set<Integer> interpretedFunctions) {
+        var retained = interpretableFunctions(module, interpretedFunctions);
+        return retained == null ? module : module.retainingFunctionBodies(retained);
+    }
+
+    /**
+     * Returns the functions the interpreter may run: the interpreted functions and, since the
+     * interpreter runs tail calls itself, every function they reach through tail calls. Returns
+     * {@code null} if an indirect tail call makes the targets unknown.
+     */
+    private static Set<Integer> interpretableFunctions(
+            WasmModule module, Set<Integer> interpretedFunctions) {
+        int functionImports = module.importSection().count(ExternalType.FUNCTION);
+        var result = new HashSet<Integer>();
+        var pending = new ArrayDeque<>(interpretedFunctions);
+        while (!pending.isEmpty()) {
+            int funcId = pending.pop();
+            if (funcId < functionImports || !result.add(funcId)) {
+                continue;
+            }
+            var body = module.codeSection().getFunctionBody(funcId - functionImports);
+            for (var ins : body.instructions()) {
+                if (ins.opcode() == OpCode.RETURN_CALL) {
+                    pending.push((int) ins.operand(0));
+                } else if (ins.opcode() == OpCode.RETURN_CALL_INDIRECT
+                        || ins.opcode() == OpCode.RETURN_CALL_REF) {
+                    return null;
+                }
+            }
+        }
+        return result;
     }
 
     private static byte[] storeClassLoadingCollector(ClassLoadingCollector collector) {

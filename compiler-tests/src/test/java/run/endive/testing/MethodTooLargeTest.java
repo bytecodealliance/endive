@@ -1,6 +1,7 @@
 package run.endive.testing;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.objectweb.asm.Type.getInternalName;
 import static run.endive.corpus.WatGenerator.methodTooLarge;
 
@@ -14,6 +15,7 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.util.TraceClassVisitor;
+import run.endive.compiler.InterpreterFallback;
 import run.endive.compiler.internal.Compiler;
 import run.endive.compiler.internal.Shaded;
 import run.endive.wabt.Wat2Wasm;
@@ -31,6 +33,29 @@ public class MethodTooLargeTest {
 
         // We only verify that the resulting class contains the fallback to interpreter
         verifyClass(result.classBytes(), true);
+    }
+
+    @Test
+    public void testFuncWithFarJumpsAndManyLocals() {
+        var wat = new StringBuilder("(module (func (param i32) (local");
+        wat.append(" i32".repeat(1500)).append(") (block (br_if 0 (local.get 0))");
+        for (int i = 1; i <= 3000; i++) {
+            int local = (i % 1500) + 1;
+            wat.append(
+                    String.format(
+                            " (local.set %d (i32.add (local.get %d) (i32.const %d)))",
+                            local, local, i));
+        }
+        wat.append(")))");
+        var module = Parser.parse(Wat2Wasm.parse(wat.toString()));
+
+        var result =
+                Compiler.builder(module)
+                        .withInterpreterFallback(InterpreterFallback.FAIL)
+                        .build()
+                        .compile();
+
+        assertTrue(result.interpretedFunctions().isEmpty());
     }
 
     private static void verifyClass(Map<String, byte[]> classBytes, boolean skipMethodsClss) {

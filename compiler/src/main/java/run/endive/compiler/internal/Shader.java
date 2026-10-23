@@ -2,6 +2,7 @@ package run.endive.compiler.internal;
 
 import static org.objectweb.asm.Type.getInternalName;
 import static run.endive.compiler.internal.CompilerUtil.internalClassName;
+import static run.endive.compiler.internal.CompilerUtil.newClassWriter;
 
 import java.io.IOException;
 import org.objectweb.asm.ClassReader;
@@ -21,7 +22,7 @@ final class Shader {
 
     public static void createShadedClass(String className, ClassCollector collector) {
         String shadedClassName = internalClassName(className + "Shaded");
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        ClassWriter writer = newClassWriter();
         ClassVisitor visitor = shadedClassRemapper(writer, className);
 
         visitor =

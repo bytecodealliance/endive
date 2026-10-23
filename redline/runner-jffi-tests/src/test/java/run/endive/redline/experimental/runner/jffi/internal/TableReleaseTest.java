@@ -1,6 +1,7 @@
 package run.endive.redline.experimental.runner.jffi.internal;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -30,8 +31,8 @@ public class TableReleaseTest {
         var module = Parser.parse(CorpusResources.getResource("compiled/big-table.wat.wasm"));
 
         JffiNativeTable table;
+        // no call first: the table belongs to the instance whether or not it ever ran
         try (var instance = build(module, null)) {
-            instance.export("noop").apply();
             table = (JffiNativeTable) instance.table(0);
             assertFalse(table.isFreed(), "still in use");
         }
@@ -53,12 +54,17 @@ public class TableReleaseTest {
 
         try (var instance = build(module, imports)) {
             instance.export("noop").apply();
+            assertThrows(
+                    IllegalStateException.class,
+                    borrowed::close,
+                    "an open instance still reads the table through a raw address");
         }
 
         assertFalse(
                 borrowed.isFreed(),
                 "an imported table belongs to its creator and may back other instances");
-        borrowed.free();
+        borrowed.close();
+        assertTrue(borrowed.isFreed());
     }
 
     private static run.endive.runtime.Instance build(WasmModule module, ImportValues imports) {

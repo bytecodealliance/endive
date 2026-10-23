@@ -89,6 +89,10 @@ public final class NativeWaiters {
                 return 0;
             }
             int toWake = maxThreads < 0 ? actualWaiters : Math.min(actualWaiters, maxThreads);
+            if (toWake == 0) {
+                // a new generation would let later arrivals take wakeups already handed out
+                return 0;
+            }
             // waiters arriving after this notify wait for the next one
             state.pendingWakeups += toWake;
             state.generation++;

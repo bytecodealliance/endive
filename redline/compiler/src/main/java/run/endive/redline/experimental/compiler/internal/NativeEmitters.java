@@ -1146,6 +1146,19 @@ final class NativeEmitters {
             b.emitStoreI64(tablePtr, entryOffset, b.emitIconst64(0, 0), entryFuncPtrOff);
             b.emitStoreI64(tablePtr, entryOffset, b.emitIconst64(0, 0), entryOwnerOff);
         } else {
+            // A funcref from another instance's table can be outside this one's functions
+            int funcCount = ctx.numImports + ctx.module.functionSection().functionCount();
+            int unknown =
+                    b.emitIcmp(
+                            9,
+                            b.emitUextendI64(funcId),
+                            b.emitUextendI64(b.emitIconst32(funcCount)));
+            int unknownBlock = b.createBlock();
+            int knownBlock = b.createBlock();
+            b.emitBrif(unknown, unknownBlock, knownBlock);
+            fillTrapBlock(ctx, unknownBlock, CtxBuffer.TRAP_UNDEFINED_ELEMENT);
+            b.switchToBlock(knownBlock);
+
             // A funcref value carries no owner, so it is taken to be this instance's
             emitRegisterTableWriter(ctx, tableIdx);
             int funcTablePtr =

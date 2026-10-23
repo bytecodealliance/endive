@@ -13,7 +13,7 @@ import java.nio.ByteBuffer;
  * <p>Format:
  * <pre>
  *   [4 bytes: magic "CL4J"]
- *   [4 bytes: version (3)]
+ *   [4 bytes: version (4)]
  *   [modified UTF-8: target triple]
  *   [4 bytes: image length]
  *   [N bytes: image]

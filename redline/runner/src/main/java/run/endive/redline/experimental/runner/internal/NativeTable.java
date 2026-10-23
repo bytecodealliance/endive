@@ -6,9 +6,13 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.util.Arrays;
+import run.endive.redline.experimental.api.internal.Borrowers;
 import run.endive.redline.experimental.api.internal.CtxBuffer;
+import run.endive.redline.experimental.api.internal.NativeResource;
+import run.endive.redline.experimental.api.internal.NativeResourceCount;
 import run.endive.runtime.Instance;
 import run.endive.runtime.TableInstance;
+import run.endive.runtime.TrapException;
 import run.endive.wasm.UninstantiableException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.Table;
@@ -46,13 +50,17 @@ import run.endive.wasm.types.ValType;
  * passed to {@link #setRef}, obtaining the calling module's NativeMachine.
  * This ensures cross-module shared tables resolve to the correct native addresses.
  */
-public final class NativeTable extends TableInstance {
+public final class NativeTable extends TableInstance implements NativeResource {
 
     private static final int MAX_PREALLOC = 1_000_000;
 
     private final MemorySegment buffer;
     private final int capacity;
     private final boolean isExternRef;
+    // null for a table its instance defines: that instance's arena frees it
+    private final Arena ownArena;
+    private final Borrowers borrowers = new Borrowers();
+    private boolean closed;
 
     /**
      * Owner of each entry written from Java without an owner id: one not
@@ -67,8 +75,14 @@ public final class NativeTable extends TableInstance {
     private int pruneAt = 8;
     private volatile NativeMachine lastWriter;
 
+    /** A table a module defines, allocated in its instance's arena. */
     public NativeTable(Table table, int initValue, Arena arena) {
+        this(table, initValue, arena, null);
+    }
+
+    private NativeTable(Table table, int initValue, Arena arena, Arena ownArena) {
         super(table, initValue);
+        this.ownArena = ownArena;
         this.isExternRef = table.elementType().equals(ValType.ExternRef);
         int initial = (int) table.limits().min();
         int max = (int) table.limits().max();
@@ -80,7 +94,11 @@ public final class NativeTable extends TableInstance {
 
         // Write header
         buffer.set(ValueLayout.JAVA_INT, CtxBuffer.TABLE_SIZE_OFFSET, initial);
-        buffer.set(ValueLayout.JAVA_INT, CtxBuffer.TABLE_MAX_OFFSET, max > 0 ? max : capacity);
+        // compiled table.grow checks only this, so it must not exceed the buffer
+        buffer.set(
+                ValueLayout.JAVA_INT,
+                CtxBuffer.TABLE_MAX_OFFSET,
+                max > 0 ? Math.min(max, capacity) : capacity);
 
         // Only the entries below size are reachable: every access bounds-checks
         // against the size field, and grow fills the slots it exposes. Filling
@@ -95,6 +113,14 @@ public final class NativeTable extends TableInstance {
                 writeUnresolvedEntry(i, initValue, null);
             }
         }
+    }
+
+    /** A table for the host to pass in as an import, freed by {@link #close()}. */
+    public static NativeTable standalone(Table table, int initValue) {
+        var arena = Arena.ofShared();
+        var nativeTable = new NativeTable(table, initValue, arena, arena);
+        NativeResourceCount.allocated();
+        return nativeTable;
     }
 
     private long entryBase(int index) {
@@ -166,6 +192,10 @@ public final class NativeTable extends TableInstance {
      * @param owner the open native machine that defines the function
      */
     private void writeResolvedEntry(int index, int funcId, NativeMachine owner) {
+        if (funcId < 0 || funcId >= owner.functionCount()) {
+            // a funcref from another instance can carry an id outside this one's functions
+            throw new TrapException("undefined element");
+        }
         long funcPtr = owner.getFuncTable().get(ValueLayout.JAVA_LONG, (long) funcId * 8);
         if (funcPtr == 0L) {
             // Not compiled, so only the owner's runner can report it
@@ -300,6 +330,16 @@ public final class NativeTable extends TableInstance {
         throw new WasmEngineException("table entry owner " + id + " is not registered");
     }
 
+    /** Whether entries of this table may hold {@code machine}'s id. */
+    boolean hasWriter(NativeMachine machine) {
+        for (NativeMachine w : writers) {
+            if (w == machine) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Returns how many machines the table keeps for its entries. */
     int writerCount() {
         return writers.length;
@@ -351,6 +391,33 @@ public final class NativeTable extends TableInstance {
         return buffer;
     }
 
+    @Override
+    public Borrowers borrowers() {
+        return borrowers;
+    }
+
+    /** Frees a host table; a table a module defines is freed with its instance instead. */
+    @Override
+    public synchronized void close() {
+        if (closed) {
+            return;
+        }
+        if (!borrowers.tryClose()) {
+            throw borrowers.stillBorrowed("This table");
+        }
+        if (ownArena != null) {
+            try {
+                ownArena.close();
+            } catch (IllegalStateException e) {
+                borrowers.reopen();
+                throw e;
+            }
+            NativeResourceCount.freed();
+        }
+        closed = true;
+        borrowers.freed();
+    }
+
     boolean isExternRef() {
         return isExternRef;
     }
@@ -399,11 +466,11 @@ public final class NativeTable extends TableInstance {
     @Override
     public int grow(int delta, int value, Instance instance) {
         int oldSize = size();
-        int newSize = oldSize + delta;
         int max = buffer.get(ValueLayout.JAVA_INT, CtxBuffer.TABLE_MAX_OFFSET);
-        if (delta < 0 || newSize > max || newSize > capacity) {
+        if (delta < 0 || delta > Math.min(max, capacity) - oldSize) {
             return -1;
         }
+        int newSize = oldSize + delta;
         fill(oldSize, newSize, value, instance);
         // Update size
         buffer.set(ValueLayout.JAVA_INT, CtxBuffer.TABLE_SIZE_OFFSET, newSize);

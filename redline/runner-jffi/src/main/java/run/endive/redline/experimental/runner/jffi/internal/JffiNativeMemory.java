@@ -11,7 +11,10 @@ import com.kenai.jffi.PageManager;
 import com.kenai.jffi.Type;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
+import run.endive.redline.experimental.api.internal.Borrowers;
 import run.endive.redline.experimental.api.internal.NativeAtomics;
+import run.endive.redline.experimental.api.internal.NativeResource;
+import run.endive.redline.experimental.api.internal.NativeResourceCount;
 import run.endive.redline.experimental.api.internal.NativeWaiters;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Memory;
@@ -29,7 +32,7 @@ import run.endive.wasm.types.PassiveDataSegment;
  * memory committed), then mprotects pages as needed. Grow is zero-copy — just
  * mprotect the next range. The base address never changes.
  */
-public final class JffiNativeMemory implements Memory, AutoCloseable {
+public final class JffiNativeMemory implements Memory, NativeResource {
 
     private static final MemoryIO MEM = MemoryIO.getInstance();
     private static final PageManager PM = PageManager.getInstance();
@@ -49,6 +52,9 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
     private static final int MEM_RELEASE = 0x8000;
     private static final int PAGE_NOACCESS = 0x01;
     private static final int PAGE_READWRITE = 0x04;
+    // POSIX mprotect, called directly: PageManager.protectPages drops its result
+    private static final long MPROTECT_ADDR;
+    private static final CallContext MPROTECT_CTX;
 
     static {
         if (IS_WINDOWS) {
@@ -74,11 +80,23 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
                             Type.SINT32,
                             new Type[] {Type.POINTER, Type.ULONG, Type.UINT32},
                             CallingConvention.DEFAULT);
+            MPROTECT_ADDR = 0;
+            MPROTECT_CTX = null;
         } else {
             VIRTUAL_ALLOC_ADDR = 0;
             VIRTUAL_FREE_ADDR = 0;
             VIRTUAL_ALLOC_CTX = null;
             VIRTUAL_FREE_CTX = null;
+            MPROTECT_ADDR = Library.getDefault().getSymbolAddress("mprotect");
+            if (MPROTECT_ADDR == 0) {
+                throw new ExceptionInInitializerError("mprotect not found");
+            }
+            // int mprotect(void *addr, size_t len, int prot)
+            MPROTECT_CTX =
+                    new CallContext(
+                            Type.SINT32,
+                            new Type[] {Type.POINTER, Type.ULONG, Type.SINT32},
+                            CallingConvention.DEFAULT);
         }
     }
 
@@ -90,6 +108,12 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
         return (int) INV.invokeN3(VIRTUAL_FREE_CTX, VIRTUAL_FREE_ADDR, addr, size, freeType);
     }
 
+    private static boolean protectReadWrite(long addr, long osPages) {
+        int prot = PageManager.PROT_READ | PageManager.PROT_WRITE;
+        long size = osPages * PM.pageSize();
+        return (int) INV.invokeN3(MPROTECT_CTX, MPROTECT_ADDR, addr, size, prot) == 0;
+    }
+
     private static final byte[] NO_DATA = new byte[0];
 
     private final MemoryLimits limits;
@@ -98,6 +122,9 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
     private final int osPerWasm; // OS pages per Wasm page
     private final NativeWaiters waiters;
     private final NativeAtomics atomics;
+    private final Borrowers borrowers = new Borrowers();
+    // volatile for the failure paths below, which read it without the lock
+    private volatile boolean closed;
     // Page count compiled code reads for a shared memory, which other instances may grow
     private long pagesCell;
     private volatile int nPages;
@@ -142,16 +169,9 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
                 if (reservedAddress == 0 || reservedAddress == -1) {
                     throw new WasmEngineException("Failed to reserve memory pages");
                 }
-                if (nPages > 0) {
-                    try {
-                        PM.protectPages(
-                                reservedAddress,
-                                nPages * osPerWasm,
-                                PageManager.PROT_READ | PageManager.PROT_WRITE);
-                    } catch (Throwable t) {
-                        PM.freePages(reservedAddress, reservedOsPages);
-                        throw new WasmEngineException("Failed to commit initial memory pages", t);
-                    }
+                if (nPages > 0 && !protectReadWrite(reservedAddress, (long) nPages * osPerWasm)) {
+                    PM.freePages(reservedAddress, reservedOsPages);
+                    throw new WasmEngineException("Failed to commit initial memory pages");
                 }
             }
         } else {
@@ -171,6 +191,7 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
                                 ? MEM.newDirectByteBuffer(
                                         reservedAddress, reservedOsPages * osPageSize)
                                 : ByteBuffer.allocateDirect(0));
+        NativeResourceCount.allocated();
     }
 
     private void freeReservation() {
@@ -184,12 +205,26 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
     }
 
     @Override
-    public void close() {
-        freeReservation();
-        if (pagesCell != 0) {
-            MEM.freeMemory(pagesCell);
-            pagesCell = 0;
+    public Borrowers borrowers() {
+        return borrowers;
+    }
+
+    @Override
+    public synchronized void close() {
+        if (closed) {
+            return;
         }
+        if (!borrowers.tryClose()) {
+            throw borrowers.stillBorrowed("This memory");
+        }
+        closed = true;
+        // every accessor bounds-checks against the page count, so none reaches the pages
+        nPages = 0;
+        freeReservation();
+        MEM.freeMemory(pagesCell);
+        pagesCell = 0;
+        borrowers.freed();
+        NativeResourceCount.freed();
     }
 
     /** Get the native address of the memory buffer, for passing to native code. */
@@ -209,6 +244,9 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
 
     @Override
     public synchronized int grow(int size) {
+        if (closed) {
+            return -1;
+        }
         var prevPages = nPages;
         var numPages = prevPages + size;
         if (numPages > maximumPages() || numPages < prevPages) {
@@ -227,15 +265,13 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
                         return -1;
                     }
                 }
-            } else {
-                PM.protectPages(
-                        reservedAddress,
-                        numPages * osPerWasm,
-                        PageManager.PROT_READ | PageManager.PROT_WRITE);
+            } else if (!protectReadWrite(reservedAddress, (long) numPages * osPerWasm)) {
+                return -1;
             }
+            // the page count compiled code reads goes last, once Java accepts the new pages
+            this.nPages = numPages;
             VarHandle.releaseFence();
             MEM.putInt(pagesCell, numPages);
-            this.nPages = numPages;
         } catch (Throwable t) {
             return -1;
         }
@@ -326,8 +362,16 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
      */
     private void checkBounds(int addr, int size) {
         if (Integer.toUnsignedLong(addr) + Integer.toUnsignedLong(size) > sizeInBytes()) {
-            throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
+            throw outOfBounds();
         }
+    }
+
+    // a closed memory has no pages left, so every access lands here
+    private RuntimeException outOfBounds() {
+        if (closed) {
+            return new IllegalStateException("This memory has been closed");
+        }
+        return new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
     }
 
     @Override
@@ -335,7 +379,7 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
         long limit = sizeInBytes();
         if (Integer.toUnsignedLong(offset) + Integer.toUnsignedLong(size) > data.length
                 || Integer.toUnsignedLong(addr) + Integer.toUnsignedLong(size) > limit) {
-            throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
+            throw outOfBounds();
         }
         MEM.putByteArray(reservedAddress + addr, data, offset, size);
     }
@@ -441,7 +485,7 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
         long limit = sizeInBytes();
         if (Integer.toUnsignedLong(src) + Integer.toUnsignedLong(size) > limit
                 || Integer.toUnsignedLong(dest) + Integer.toUnsignedLong(size) > limit) {
-            throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
+            throw outOfBounds();
         }
         // Use a temp buffer to handle overlap correctly (memmove semantics)
         if (size > 0) {
@@ -457,7 +501,7 @@ public final class JffiNativeMemory implements Memory, AutoCloseable {
         if (Integer.toUnsignedLong(fromIndex) > limit
                 || Integer.toUnsignedLong(toIndex) > limit
                 || fromIndex > toIndex) {
-            throw new run.endive.runtime.WasmRuntimeException("out of bounds memory access");
+            throw outOfBounds();
         }
         MEM.setMemory(reservedAddress + fromIndex, toIndex - fromIndex, value);
     }

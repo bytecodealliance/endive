@@ -1,5 +1,6 @@
 package run.endive.redline.experimental.runner.jffi.internal;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -157,6 +158,39 @@ public class CrossInstanceCallIndirectTest {
         }
     }
 
+    /** A host function may return no results, which the import path already tolerates. */
+    @Test
+    public void multiValueHostFunctionReturningNull() {
+        var none =
+                new HostFunction(
+                        "host",
+                        "none",
+                        FunctionType.of(List.of(), List.of(ValType.I32, ValType.I32)),
+                        (inst, args) -> null);
+        var store = new Store().addFunction(none);
+        try (var owner =
+                nativeInstance(
+                        "(module\n"
+                                + "  (import \"host\" \"none\" (func $none (result i32 i32)))\n"
+                                + "  (table (export \"tab\") 1 funcref)\n"
+                                + "  (elem (i32.const 0) $none))\n",
+                        store)) {
+            store.register("owner", owner);
+            try (var caller =
+                    nativeInstance(
+                            "(module\n"
+                                    + "  (type $pair (func (result i32 i32)))\n"
+                                    + "  (import \"owner\" \"tab\" (table 1 funcref))\n"
+                                    + "  (func (export \"call\")\n"
+                                    + "    (call_indirect (type $pair) (i32.const 0))\n"
+                                    + "    drop\n"
+                                    + "    drop))\n",
+                            store)) {
+                assertDoesNotThrow(() -> caller.export("call").apply());
+            }
+        }
+    }
+
     @Test
     public void calleeTrapStopsTheCaller() {
         try (var linked = linkNative()) {
@@ -224,6 +258,41 @@ public class CrossInstanceCallIndirectTest {
                                 + "      (then\n"
                                 + "        (call $descend (i32.sub (local.get 0) (i32.const 1))))\n"
                                 + "      (else (call_indirect (type $i32) (i32.const 0))))))\n",
+                            store)) {
+                int callerBudget = depthReached(caller, -1, caller);
+                int fromTheTop = depthReached(caller, 0, owner);
+                int fromHalfway = depthReached(caller, callerBudget / 2, owner);
+                assertTrue(
+                        fromHalfway < fromTheTop * 3 / 4,
+                        fromHalfway + " levels from halfway, " + fromTheTop + " from the top");
+            }
+        }
+    }
+
+    /** A call through a function import reaches the callee via the host, and shares the budget too. */
+    @Test
+    public void importedFunctionSharesTheCallersStackBudget() {
+        var store = new Store();
+        try (var owner =
+                nativeInstance(
+                        "(module\n"
+                                + "  (global (export \"depth\") (mut i32) (i32.const 0))\n"
+                                + "  (func $recurse (export \"recurse\") (result i32)\n"
+                                + "    (global.set 0 (i32.add (global.get 0) (i32.const 1)))\n"
+                                + "    (call $recurse)))\n",
+                        store)) {
+            store.register("owner", owner);
+            try (var caller =
+                    nativeInstance(
+                            "(module\n"
+                                + "  (import \"owner\" \"recurse\" (func $recurse (result i32)))\n"
+                                + "  (global (export \"depth\") (mut i32) (i32.const 0))\n"
+                                + "  (func $descend (export \"descend\") (param i32) (result i32)\n"
+                                + "    (global.set 0 (i32.add (global.get 0) (i32.const 1)))\n"
+                                + "    (if (result i32) (local.get 0)\n"
+                                + "      (then\n"
+                                + "        (call $descend (i32.sub (local.get 0) (i32.const 1))))\n"
+                                + "      (else (call $recurse)))))\n",
                             store)) {
                 int callerBudget = depthReached(caller, -1, caller);
                 int fromTheTop = depthReached(caller, 0, owner);

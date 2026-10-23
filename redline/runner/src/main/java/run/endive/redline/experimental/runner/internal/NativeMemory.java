@@ -2,12 +2,16 @@ package run.endive.redline.experimental.runner.internal;
 
 import static run.endive.runtime.ConstantEvaluators.computeConstantValue;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import run.endive.redline.experimental.api.internal.Borrowers;
 import run.endive.redline.experimental.api.internal.NativeAtomics;
+import run.endive.redline.experimental.api.internal.NativeResource;
+import run.endive.redline.experimental.api.internal.NativeResourceCount;
 import run.endive.redline.experimental.api.internal.NativeWaiters;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Memory;
@@ -24,8 +28,10 @@ import run.endive.wasm.types.PassiveDataSegment;
  * <p>Reserves the full maximum address range upfront with PROT_NONE (no physical
  * memory committed), then mprotects pages as needed. Grow is zero-copy — just
  * mprotect the next range. The base address never changes.
+ *
+ * <p>The mapping is tied to its own arena, so host access after close throws.
  */
-public final class NativeMemory implements Memory, AutoCloseable {
+public final class NativeMemory implements Memory, NativeResource {
 
     // Static final so the JIT folds each layout's VarHandle; withOrder() allocates per call.
     private static final ValueLayout.OfInt INT_UNALIGNED_LE =
@@ -42,8 +48,11 @@ public final class NativeMemory implements Memory, AutoCloseable {
     private final long reservedSize;
     private final NativeWaiters waiters;
     private final NativeAtomics atomics;
+    private final Arena arena = Arena.ofShared();
+    private final Borrowers borrowers = new Borrowers();
     // Page count compiled code reads for a shared memory, which other instances may grow
-    private MemorySegment pagesCell;
+    private final MemorySegment pagesCell;
+    private boolean closed;
     private volatile MemorySegment segment;
     private volatile int nPages;
     private DataSegment[] dataSegments;
@@ -65,24 +74,22 @@ public final class NativeMemory implements Memory, AutoCloseable {
 
         MemorySegment mapping = MemorySegment.NULL;
         try {
-            mapping = PanamaExecutor.mmapNoAccess(reservedSize);
+            if (reservedSize > 0) {
+                mapping =
+                        PanamaExecutor.mmapNoAccess(reservedSize)
+                                .reinterpret(reservedSize, arena, PanamaExecutor::unmapQuietly);
+            }
             if (nPages > 0) {
                 PanamaExecutor.mprotectReadWrite(mapping, PAGE_SIZE * (long) nPages);
             }
-            this.pagesCell = PanamaExecutor.malloc(Integer.BYTES);
         } catch (Throwable t) {
-            var failure = new WasmEngineException("Failed to mmap native memory", t);
-            if (reservedSize > 0 && mapping.address() != 0) {
-                try {
-                    PanamaExecutor.munmap(mapping, reservedSize);
-                } catch (Throwable e) {
-                    failure.addSuppressed(e);
-                }
-            }
-            throw failure;
+            // unmaps the reservation, if there is one
+            arena.close();
+            throw new WasmEngineException("Failed to mmap native memory", t);
         }
 
         this.reserved = mapping;
+        this.pagesCell = arena.allocate(ValueLayout.JAVA_INT);
         PAGES_CELL.setVolatile(pagesCell, 0L, nPages);
         this.segment = reserved.reinterpret(PAGE_SIZE * (long) nPages);
         this.atomics =
@@ -90,25 +97,32 @@ public final class NativeMemory implements Memory, AutoCloseable {
                         reservedSize > 0
                                 ? reserved.reinterpret(reservedSize).asByteBuffer()
                                 : ByteBuffer.allocateDirect(0));
+        NativeResourceCount.allocated();
     }
 
     @Override
-    public void close() {
-        if (reservedSize > 0) {
-            try {
-                PanamaExecutor.munmap(reserved, reservedSize);
-            } catch (Throwable e) {
-                throw new WasmEngineException("Failed to unmap native memory", e);
-            }
+    public Borrowers borrowers() {
+        return borrowers;
+    }
+
+    @Override
+    public synchronized void close() {
+        if (closed) {
+            return;
         }
-        if (pagesCell.address() != 0) {
-            try {
-                PanamaExecutor.free(pagesCell);
-            } catch (Throwable e) {
-                throw new WasmEngineException("Failed to free native memory page count", e);
-            }
-            pagesCell = MemorySegment.NULL;
+        if (!borrowers.tryClose()) {
+            throw borrowers.stillBorrowed("This memory");
         }
+        try {
+            arena.close();
+        } catch (IllegalStateException e) {
+            borrowers.reopen();
+            throw new IllegalStateException(
+                    "Cannot close a memory while another thread is accessing it", e);
+        }
+        closed = true;
+        borrowers.freed();
+        NativeResourceCount.freed();
     }
 
     /** Get the native address of the memory buffer, for passing to native code. */
@@ -128,6 +142,9 @@ public final class NativeMemory implements Memory, AutoCloseable {
 
     @Override
     public synchronized int grow(int size) {
+        if (closed) {
+            return -1;
+        }
         var prevPages = nPages;
         var numPages = prevPages + size;
         if (numPages > maximumPages() || numPages < prevPages) {
@@ -137,10 +154,10 @@ public final class NativeMemory implements Memory, AutoCloseable {
         try {
             long newSize = PAGE_SIZE * (long) numPages;
             PanamaExecutor.mprotectReadWrite(reserved, newSize);
-            PAGES_CELL.setVolatile(pagesCell, 0L, numPages);
-            // the segment first, so a host that sees the new page count can access it
             this.segment = reserved.reinterpret(newSize);
             this.nPages = numPages;
+            // the page count compiled code reads goes last, once Java accepts the new pages
+            PAGES_CELL.setVolatile(pagesCell, 0L, numPages);
         } catch (Throwable t) {
             return -1;
         }

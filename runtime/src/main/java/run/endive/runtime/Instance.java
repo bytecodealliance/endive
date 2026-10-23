@@ -120,44 +120,73 @@ public class Instance implements AutoCloseable {
         this.types = types.clone();
         this.functionTypes = functionTypes.clone();
         this.imports = imports;
-        this.machine = machineFactory.apply(this);
-        this.tables = new TableInstance[tables.length];
-        this.elements = elements.clone();
-        this.tags = (tags == null) ? new TagInstance[0] : new TagInstance[tags.length];
-        for (int i = 0; i < this.tags.length; i++) {
-            this.tags[i] = new TagInstance(tags[i]);
-            this.tags[i].setType(types[tags[i].typeIdx()]);
+        try {
+            this.machine = machineFactory.apply(this);
+        } catch (RuntimeException | Error e) {
+            // no machine took them over
+            closeMemories(memories, e);
+            throw e;
         }
-        this.exports = exports;
-        this.listener = listener;
-        this.globalFactory = globalFactory;
-        this.fluentExports = new Exports(this);
+        try {
+            this.tables = new TableInstance[tables.length];
+            this.elements = elements.clone();
+            this.tags = (tags == null) ? new TagInstance[0] : new TagInstance[tags.length];
+            for (int i = 0; i < this.tags.length; i++) {
+                this.tags[i] = new TagInstance(tags[i]);
+                this.tags[i].setType(types[tags[i].typeIdx()]);
+            }
+            this.exports = exports;
+            this.listener = listener;
+            this.globalFactory = globalFactory;
+            this.fluentExports = new Exports(this);
 
-        for (int i = 0; i < tables.length; i++) {
-            var result = computeConstant(this, tables[i].initialize());
-            int initValue = (int) result.longValue();
-            if (tableFactory != null) {
-                this.tables[i] = tableFactory.create(tables[i], initValue);
-            } else {
-                this.tables[i] = new TableInstance(tables[i], initValue);
-            }
-            if (tables[i].elementType().isObjectRef() && result.ref() != null) {
-                var tbl = this.tables[i];
-                for (int j = 0; j < tbl.size(); j++) {
-                    tbl.setObjRef(j, result.ref(), this);
+            for (int i = 0; i < tables.length; i++) {
+                var result = computeConstant(this, tables[i].initialize());
+                int initValue = (int) result.longValue();
+                if (tableFactory != null) {
+                    this.tables[i] = tableFactory.create(tables[i], initValue);
+                } else {
+                    this.tables[i] = new TableInstance(tables[i], initValue);
                 }
-            } else if (initValue != Value.REF_NULL_VALUE) {
-                // Record the owner, or a table importer would call it as its own function
-                var tbl = this.tables[i];
-                var owner = computeConstantInstance(this, tables[i].initialize());
-                for (int j = 0; j < tbl.size(); j++) {
-                    tbl.setRef(j, initValue, owner);
+                if (tables[i].elementType().isObjectRef() && result.ref() != null) {
+                    var tbl = this.tables[i];
+                    for (int j = 0; j < tbl.size(); j++) {
+                        tbl.setObjRef(j, result.ref(), this);
+                    }
+                } else if (initValue != Value.REF_NULL_VALUE) {
+                    // Record the owner, or a table importer would call it as its own function
+                    var tbl = this.tables[i];
+                    var owner = computeConstantInstance(this, tables[i].initialize());
+                    for (int j = 0; j < tbl.size(); j++) {
+                        tbl.setRef(j, initValue, owner);
+                    }
                 }
             }
+
+            if (initialize) {
+                initialize(start);
+            }
+        } catch (RuntimeException | Error e) {
+            try {
+                machine.abandon();
+            } catch (RuntimeException | Error suppressed) {
+                e.addSuppressed(suppressed);
+            }
+            throw e;
         }
+    }
 
-        if (initialize) {
-            initialize(start);
+    /** Closes the memories built for an instance that failed to build, as some hold native memory. */
+    @SuppressWarnings("checkstyle:IllegalCatch")
+    private static void closeMemories(Memory[] memories, Throwable failure) {
+        for (var memory : memories) {
+            if (memory instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) memory).close();
+                } catch (Exception e) {
+                    failure.addSuppressed(e);
+                }
+            }
         }
     }
 
@@ -574,6 +603,7 @@ public class Instance implements AutoCloseable {
         return machine;
     }
 
+    /** Releases the machine, or throws IllegalStateException releasing nothing if it refuses. */
     @Override
     public void close() {
         machine.close();
@@ -1157,24 +1187,6 @@ public class Instance implements AutoCloseable {
 
             Element[] elements = module.elementSection().elements();
 
-            Memory[] memories = new Memory[0];
-            if (module.memorySection().isPresent()) {
-                var memSection = module.memorySection().get();
-                memories = new Memory[memSection.memoryCount()];
-                for (int i = 0; i < memSection.memoryCount(); i++) {
-                    var limits = memSection.getMemory(i).limits();
-                    if (i == 0) {
-                        memories[i] =
-                                requireNonNullElse(memoryFactory, ByteBufferMemory::new)
-                                        .apply(requireNonNullElse(memoryLimits, limits));
-                    } else {
-                        memories[i] =
-                                requireNonNullElse(memoryFactory, ByteBufferMemory::new)
-                                        .apply(limits);
-                    }
-                }
-            }
-
             for (var e : exports.values()) {
                 switch (e.exportType()) {
                     case FUNCTION:
@@ -1215,6 +1227,25 @@ public class Instance implements AutoCloseable {
                             }
                             break;
                         }
+                }
+            }
+
+            // after validation, which would leave a native memory allocated if it failed
+            Memory[] memories = new Memory[0];
+            if (module.memorySection().isPresent()) {
+                var memSection = module.memorySection().get();
+                memories = new Memory[memSection.memoryCount()];
+                for (int i = 0; i < memSection.memoryCount(); i++) {
+                    var limits = memSection.getMemory(i).limits();
+                    if (i == 0) {
+                        memories[i] =
+                                requireNonNullElse(memoryFactory, ByteBufferMemory::new)
+                                        .apply(requireNonNullElse(memoryLimits, limits));
+                    } else {
+                        memories[i] =
+                                requireNonNullElse(memoryFactory, ByteBufferMemory::new)
+                                        .apply(limits);
+                    }
                 }
             }
 

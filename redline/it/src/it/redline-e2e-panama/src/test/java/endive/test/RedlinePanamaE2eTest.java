@@ -69,36 +69,40 @@ class RedlinePanamaE2eTest {
      */
     @Test
     public void theModuleSharesTheImportsItWasGiven() {
-        var imports = ImportsModule.imports();
+        try (var imports = ImportsModule.imports()) {
+            var memory = imports.memory(new MemoryLimits(1, 1));
+            var table =
+                    imports.table(
+                            new Table(ValType.FuncRef, new TableLimits(2, 2)),
+                            Value.REF_NULL_VALUE);
+            var counter = imports.global(Value.i32(10), MutabilityType.Var);
 
-        var memory = imports.memory(new MemoryLimits(1, 1));
-        var table =
-                imports.table(
-                        new Table(ValType.FuncRef, new TableLimits(2, 2)), Value.REF_NULL_VALUE);
-        var counter = imports.global(Value.i32(10), MutabilityType.Var);
+            var importValues =
+                    ImportValues.builder()
+                            .addMemory(new ImportMemory("env", "memory", memory))
+                            .addTable(new ImportTable("env", "table", table))
+                            .addGlobal(new ImportGlobal("env", "counter", counter))
+                            .build();
 
-        var importValues =
-                ImportValues.builder()
-                        .addMemory(new ImportMemory("env", "memory", memory))
-                        .addTable(new ImportTable("env", "table", table))
-                        .addGlobal(new ImportGlobal("env", "counter", counter))
-                        .build();
+            try (var instance = ImportsModule.builder().withImportValues(importValues).build()) {
+                instance.export("run").apply();
 
-        try (var instance = ImportsModule.builder().withImportValues(importValues).build()) {
-            instance.export("run").apply();
+                assertEquals(
+                        11, counter.getValue(), "the caller's global must carry the increment");
+                assertEquals(23130, memory.readInt(0), "the caller's memory must carry the write");
+                assertNotEquals(
+                        Value.REF_NULL_VALUE,
+                        table.ref(0),
+                        "the caller's table must carry the stored funcref");
 
-            assertEquals(11, counter.getValue(), "the caller's global must carry the increment");
-            assertEquals(23130, memory.readInt(0), "the caller's memory must carry the write");
-            assertNotEquals(
-                    Value.REF_NULL_VALUE,
-                    table.ref(0),
-                    "the caller's table must carry the stored funcref");
-
-            // and the other direction: what the caller writes, the module reads
-            memory.writeI32(16, 21);
-            instance.export("doubleAt").apply(16);
-            assertEquals(
-                    42, memory.readInt(20), "the module must read what the caller wrote to memory");
+                // and the other direction: what the caller writes, the module reads
+                memory.writeI32(16, 21);
+                instance.export("doubleAt").apply(16);
+                assertEquals(
+                        42,
+                        memory.readInt(20),
+                        "the module must read what the caller wrote to memory");
+            }
         }
     }
 

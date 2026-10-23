@@ -63,7 +63,8 @@ final class EmitContext {
             return b.emitLoadI32(ctxPtr, zero, CtxBuffer.MEMORY_PAGES);
         }
         int pagesPtr = b.emitLoadI64(ctxPtr, zero, CtxBuffer.MEMORY_PAGES_PTR);
-        return b.emitLoadI32(pagesPtr, zero, 0);
+        // atomic, or a loop may keep a stale count and miss another thread's growth
+        return b.emitAtomicLoadI32(pagesPtr, zero, 0);
     }
 
     // --- Helpers used by emitters ---

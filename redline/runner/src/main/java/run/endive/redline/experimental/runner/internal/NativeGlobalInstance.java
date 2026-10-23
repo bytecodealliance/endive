@@ -1,73 +1,76 @@
 package run.endive.redline.experimental.runner.internal;
 
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import run.endive.runtime.GlobalInstance;
+import run.endive.runtime.Instance;
 import run.endive.wasm.types.MutabilityType;
 import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
-/**
- * GlobalInstance backed by an off-heap MemorySegment buffer.
- * Native code and Java code read/write the same memory — no sync needed.
- */
+/** A global in its instance's off-heap globals buffer while bound, and on the heap otherwise. */
 public final class NativeGlobalInstance extends GlobalInstance {
 
-    // Not final: an imported global is built before the instance that will use it
-    // exists, so it starts out on its own buffer and is moved onto the machine's
-    // globals buffer by rebind() once there is one. See NativeMachine.
+    /** Created by the host to be imported, so an instance may adopt it while detached. */
+    private final boolean hostCreated;
+
     private MemorySegment buffer;
     private long offset;
+    private boolean bound;
 
-    /**
-     * True while this global sits on a buffer of its own rather than inside some
-     * machine's globals buffer. Only such a global may be moved: one a module
-     * exports is already where that module's compiled code reads it.
-     */
-    private boolean standalone;
-
-    public NativeGlobalInstance(
-            MemorySegment buffer,
-            int index,
+    private NativeGlobalInstance(
             long initialValue,
             ValType valType,
-            MutabilityType mutabilityType) {
+            MutabilityType mutabilityType,
+            boolean hostCreated) {
         super(valType, mutabilityType, initialValue, 0);
-        this.buffer = buffer;
-        this.offset = (long) index * 8;
-        // Write initial value to buffer
-        buffer.set(ValueLayout.JAVA_LONG, offset, initialValue);
+        this.hostCreated = hostCreated;
+        this.buffer = heapCell(initialValue);
     }
 
-    /**
-     * A global for the host to pass in as an import, on storage of its own until the
-     * instance that receives it adopts it.
-     */
-    public static NativeGlobalInstance standalone(
+    private static MemorySegment heapCell(long value) {
+        return MemorySegment.ofArray(new long[] {value});
+    }
+
+    /** A global a module defines, bound to its instance's buffer by {@link #setInstance}. */
+    public static NativeGlobalInstance defined(
             long initialValue, ValType valType, MutabilityType mutabilityType) {
-        var global =
-                new NativeGlobalInstance(
-                        Arena.ofAuto().allocate(8, 8), 0, initialValue, valType, mutabilityType);
-        global.standalone = true;
-        return global;
+        return new NativeGlobalInstance(initialValue, valType, mutabilityType, false);
     }
 
-    boolean isStandalone() {
-        return standalone;
+    /** A global for the host to pass in as an import. */
+    public static NativeGlobalInstance hostCreated(
+            long initialValue, ValType valType, MutabilityType mutabilityType) {
+        return new NativeGlobalInstance(initialValue, valType, mutabilityType, true);
     }
 
-    /**
-     * Moves this global onto the buffer compiled code reads, carrying its current
-     * value across. Both sides then share the same eight bytes, so neither can go
-     * stale while the other writes.
-     */
-    void rebind(MemorySegment target, int index) {
+    /** Only a host global no instance is using yet can be adopted. */
+    boolean isAdoptable() {
+        return hostCreated && !bound;
+    }
+
+    @Override
+    public void setInstance(Instance instance) {
+        super.setInstance(instance);
+        if (instance.getMachine() instanceof NativeMachine machine) {
+            machine.bindDefinedGlobal(this);
+        }
+    }
+
+    /** Moves the value onto slot {@code index} of {@code target}, carrying it across. */
+    void bind(MemorySegment target, int index) {
         long current = getValue();
         this.buffer = target;
         this.offset = (long) index * 8;
-        this.standalone = false;
+        this.bound = true;
         target.set(ValueLayout.JAVA_LONG, offset, current);
+    }
+
+    /** Moves the value back to the heap, before the buffer it sat on is freed. */
+    void detach(long value) {
+        this.buffer = heapCell(value);
+        this.offset = 0;
+        this.bound = false;
     }
 
     @Override

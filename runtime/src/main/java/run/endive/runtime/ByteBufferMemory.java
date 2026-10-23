@@ -189,6 +189,10 @@ public final class ByteBufferMemory implements Memory {
             } else {
                 toWake = Math.min(actualWaiters, maxThreads);
             }
+            if (toWake == 0) {
+                // a new generation would let later arrivals take wakeups already handed out
+                return 0;
+            }
 
             // Add pending wakeups - waiters will consume these. The generation
             // bump marks every currently-registered waiter as eligible; threads

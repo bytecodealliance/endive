@@ -2828,6 +2828,8 @@ public class InterpreterMachine implements Machine {
             Deque<StackFrame> callStack,
             int funcId,
             StackFrame currentStackFrame) {
+        // a cycle of tail calls runs no backward branch or ordinary call, which poll otherwise
+        checkInterruption();
         var typeId = instance.functionType(funcId);
         var type = instance.type(typeId);
         var func = instance.function(funcId);

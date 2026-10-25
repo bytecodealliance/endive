@@ -1,0 +1,20 @@
+(module
+  (type $t (func))
+  (type $count (func (param i64) (result i64)))
+  (table 2 funcref)
+  (elem (i32.const 0) func $indirect $mutual_a)
+  (elem declare func $by_ref)
+
+  (func $direct (export "direct") return_call $direct)
+  (func $mutual_a (export "mutual") (type $t) return_call $mutual_b)
+  (func $mutual_b (type $t) (return_call_indirect (type $t) (i32.const 1)))
+  (func $indirect (export "indirect") (type $t)
+    (return_call_indirect (type $t) (i32.const 0)))
+  (func $by_ref (export "by_ref") (type $t)
+    (return_call_ref $t (ref.func $by_ref)))
+
+  (func $count_down (export "count_down") (type $count)
+    (if (result i64) (i64.eqz (local.get 0))
+      (then (i64.const 42))
+      (else (return_call $count_down (i64.sub (local.get 0) (i64.const 1))))))
+)

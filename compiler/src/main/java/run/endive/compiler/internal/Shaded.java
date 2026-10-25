@@ -93,17 +93,21 @@ public final class Shaded {
         return imprt.handle().applyWithRefs(instance, args, refArgs);
     }
 
+    // a cycle of tail calls runs no backward branch or ordinary call, which poll otherwise
     public static void setTailCall(int funcId, long[] args, Instance instance) {
+        checkInterruption();
         instance.setTailCall(funcId, args);
     }
 
     public static void setTailCallWithRefs(
             int funcId, long[] args, Object[] refArgs, Instance instance) {
+        checkInterruption();
         instance.setTailCall(funcId, args, refArgs);
     }
 
     public static void setTailCallIndirect(
             long[] args, int funcTableIdx, int typeId, int tableIdx, Instance instance) {
+        checkInterruption();
         TableInstance table = instance.table(tableIdx);
         int funcId = table.requiredRef(funcTableIdx);
         Instance refInstance = table.instance(funcTableIdx);
@@ -127,6 +131,7 @@ public final class Shaded {
             int typeId,
             int tableIdx,
             Instance instance) {
+        checkInterruption();
         TableInstance table = instance.table(tableIdx);
         int funcId = table.requiredRef(funcTableIdx);
         Instance refInstance = table.instance(funcTableIdx);

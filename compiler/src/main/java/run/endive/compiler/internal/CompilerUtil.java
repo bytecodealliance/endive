@@ -61,9 +61,9 @@ final class CompilerUtil {
 
     private static boolean hasComputeLimits() {
         try {
-            ClassWriter.class.getMethod("setComputeLimits", int.class, long.class);
+            new ClassWriter(0).setComputeLimits(Integer.MAX_VALUE, Long.MAX_VALUE);
             return true;
-        } catch (NoSuchMethodException e) {
+        } catch (NoSuchMethodError e) {
             return false;
         }
     }

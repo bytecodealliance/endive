@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+<rect width="900" height="420" fill="#ffffff"/>
+<text x="70" y="26" font-size="17" font-weight="600" fill="#1b1b1b">QuickJS throughput under quickjs4j</text>
+<text x="70" y="44" font-size="12" fill="#6b6b6b">lower is faster &#183; each window is the mean of several full compile-and-execute iterations</text>
+<line x1="70" y1="364.0" x2="750" y2="364.0" stroke="#e3e3e3"/>
+<text x="60" y="368.0" font-size="11" fill="#6b6b6b" text-anchor="end">0</text>
+<line x1="70" y1="282.4" x2="750" y2="282.4" stroke="#e3e3e3"/>
+<text x="60" y="286.4" font-size="11" fill="#6b6b6b" text-anchor="end">90</text>
+<line x1="70" y1="200.9" x2="750" y2="200.9" stroke="#e3e3e3"/>
+<text x="60" y="204.9" font-size="11" fill="#6b6b6b" text-anchor="end">180</text>
+<line x1="70" y1="119.3" x2="750" y2="119.3" stroke="#e3e3e3"/>
+<text x="60" y="123.3" font-size="11" fill="#6b6b6b" text-anchor="end">270</text>
+<text x="18" y="209.0" font-size="11" fill="#6b6b6b" transform="rotate(-90 18 209.0)" text-anchor="middle">ms per iteration</text>
+<line x1="70" y1="364" x2="750" y2="364" stroke="#bdbdbd"/>
+<text x="410.0" y="402" font-size="11" fill="#6b6b6b" text-anchor="middle">measurement window</text>
+<text x="70.0" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">0</text>
+<text x="122.3" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">1</text>
+<text x="174.6" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">2</text>
+<text x="226.9" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">3</text>
+<text x="279.2" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">4</text>
+<text x="331.5" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">5</text>
+<text x="383.8" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">6</text>
+<text x="436.2" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">7</text>
+<text x="488.5" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">8</text>
+<text x="540.8" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">9</text>
+<text x="593.1" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">10</text>
+<text x="645.4" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">11</text>
+<text x="697.7" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">12</text>
+<text x="750.0" y="380.0" font-size="10" fill="#6b6b6b" text-anchor="middle">13</text>
+<polyline points="70.0,87.2 122.3,107.3 174.6,110.0 226.9,115.4 279.2,115.5 331.5,115.3 383.8,117.5 436.2,117.9 488.5,116.3 540.8,117.9 593.1,118.7 645.4,120.0 697.7,119.6 750.0,119.5" fill="none" stroke="#b4472f" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="70.0" cy="87.2" r="3" fill="#b4472f"/>
+<circle cx="122.3" cy="107.3" r="3" fill="#b4472f"/>
+<circle cx="174.6" cy="110.0" r="3" fill="#b4472f"/>
+<circle cx="226.9" cy="115.4" r="3" fill="#b4472f"/>
+<circle cx="279.2" cy="115.5" r="3" fill="#b4472f"/>
+<circle cx="331.5" cy="115.3" r="3" fill="#b4472f"/>
+<circle cx="383.8" cy="117.5" r="3" fill="#b4472f"/>
+<circle cx="436.2" cy="117.9" r="3" fill="#b4472f"/>
+<circle cx="488.5" cy="116.3" r="3" fill="#b4472f"/>
+<circle cx="540.8" cy="117.9" r="3" fill="#b4472f"/>
+<circle cx="593.1" cy="118.7" r="3" fill="#b4472f"/>
+<circle cx="645.4" cy="120.0" r="3" fill="#b4472f"/>
+<circle cx="697.7" cy="119.6" r="3" fill="#b4472f"/>
+<circle cx="750.0" cy="119.5" r="3" fill="#b4472f"/>
+<polyline points="70.0,252.2 122.3,323.8 174.6,320.4 226.9,329.6 279.2,319.5 331.5,326.9 383.8,333.0 436.2,331.3 488.5,334.1 540.8,333.3 593.1,335.4 645.4,331.2 697.7,337.0 750.0,337.5" fill="none" stroke="#2f6fb4" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="70.0" cy="252.2" r="3" fill="#2f6fb4"/>
+<circle cx="122.3" cy="323.8" r="3" fill="#2f6fb4"/>
+<circle cx="174.6" cy="320.4" r="3" fill="#2f6fb4"/>
+<circle cx="226.9" cy="329.6" r="3" fill="#2f6fb4"/>
+<circle cx="279.2" cy="319.5" r="3" fill="#2f6fb4"/>
+<circle cx="331.5" cy="326.9" r="3" fill="#2f6fb4"/>
+<circle cx="383.8" cy="333.0" r="3" fill="#2f6fb4"/>
+<circle cx="436.2" cy="331.3" r="3" fill="#2f6fb4"/>
+<circle cx="488.5" cy="334.1" r="3" fill="#2f6fb4"/>
+<circle cx="540.8" cy="333.3" r="3" fill="#2f6fb4"/>
+<circle cx="593.1" cy="335.4" r="3" fill="#2f6fb4"/>
+<circle cx="645.4" cy="331.2" r="3" fill="#2f6fb4"/>
+<circle cx="697.7" cy="337.0" r="3" fill="#2f6fb4"/>
+<circle cx="750.0" cy="337.5" r="3" fill="#2f6fb4"/>
+<line x1="768" y1="64" x2="790" y2="64" stroke="#b4472f" stroke-width="2.5"/>
+<text x="796" y="68" font-size="12" font-weight="600" fill="#1b1b1b">before</text>
+<text x="768" y="84" font-size="11" fill="#6b6b6b">steady 269.8 ms</text>
+<line x1="768" y1="110" x2="790" y2="110" stroke="#2f6fb4" stroke-width="2.5"/>
+<text x="796" y="114" font-size="12" font-weight="600" fill="#1b1b1b">after</text>
+<text x="768" y="130" font-size="11" fill="#6b6b6b">steady 31.7 ms</text>
+<text x="768" y="358" font-size="15" font-weight="700" fill="#2f6fb4">8.5x faster</text>
+</svg>

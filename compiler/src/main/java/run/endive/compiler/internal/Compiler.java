@@ -32,7 +32,9 @@ import static run.endive.compiler.internal.CompilerUtil.emitJvmToLong;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.internalClassName;
+import static run.endive.compiler.internal.CompilerUtil.jvmParameterTypes;
 import static run.endive.compiler.internal.CompilerUtil.jvmReturnType;
+import static run.endive.compiler.internal.CompilerUtil.jvmType;
 import static run.endive.compiler.internal.CompilerUtil.localType;
 import static run.endive.compiler.internal.CompilerUtil.methodNameForFunc;
 import static run.endive.compiler.internal.CompilerUtil.methodTypeFor;
@@ -65,20 +67,31 @@ import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import org.objectweb.asm.ClassTooLargeException;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodTooLargeException;
+import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.InstructionAdapter;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.analysis.Analyzer;
+import org.objectweb.asm.tree.analysis.AnalyzerException;
+import org.objectweb.asm.tree.analysis.BasicInterpreter;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.Frame;
 import run.endive.compiler.InterpreterFallback;
 import run.endive.compiler.MethodPrefixer;
 import run.endive.runtime.CallResult;
@@ -148,6 +161,99 @@ public final class Compiler {
     // This should give us the biggest class size possible.
     private static final int DEFAULT_MAX_FUNCTIONS_PER_CLASS = 1024 * 12;
 
+    // ASM's exception-table bookkeeping (Handler.removeRange, invoked while the method
+    // writer finalizes code and computes stack-map frames) is a recursive linked-list
+    // walk whose cost -- and required JVM thread-stack depth -- scales with the number
+    // of handlers registered in a single method. A Wasm function with a very large
+    // number of try_table blocks (e.g. from aggressive inlining of exception-heavy code
+    // at high optimization levels) can overflow the stack, or simply take many seconds,
+    // while ASM tries to finish writing it -- well before the size-based
+    // MethodTooLargeException fallback below ever gets a chance to trigger, since that's
+    // only detected once the method has already been fully written. Detect and route
+    // these functions to the interpreter up front instead of attempting the compile.
+    private static final int MAX_TRY_TABLE_HANDLERS_PER_FUNCTION =
+            Integer.getInteger("endive.maxTryTableHandlersPerFunction", 256);
+
+    // HotSpot's optimizing JIT (C2, or Graal under JVMCI) declines to compile a method
+    // whose bytecode exceeds a size threshold at all (DontCompileHugeMethods), leaving
+    // it permanently on a much slower tier no matter how hot it runs -- confirmed
+    // empirically against a real, deployed module: a 7920-byte method was the largest
+    // ever observed to even be *attempted* by the JIT in a multi-minute production
+    // session, and several 9000-24000 byte functions from the same module never
+    // appeared in the JIT's compilation log at all. Endive's existing chunking only
+    // guards against the much larger (65535 byte) hard MethodTooLargeException limit,
+    // so a single Wasm function that compiles into one oversized JVM method sails
+    // straight through that guard and silently lands on the slow tier forever.
+    //
+    // This is a diagnostic-only check for now: it measures the actual compiled size of
+    // functions large enough to plausibly be at risk and warns, without changing what
+    // gets emitted. Splitting such functions into JIT-eligible pieces is a separate,
+    // higher-risk follow-up (needs real operand-stack analysis to find safe cut points
+    // -- this flags the functions that would need it).
+    private static final int LARGE_FUNCTION_INSTRUCTION_THRESHOLD =
+            Integer.getInteger("endive.largeFunctionInstructionThreshold", 200);
+    // A JVM method's Code attribute cannot exceed 65535 bytes, so a chunk above
+    // that is not merely un-JITable but unloadable. Clamp well under it: the
+    // planner's own size figures are estimates, so leave headroom rather than
+    // emitting a method the class writer will reject.
+    private static final int JVM_METHOD_SIZE_CEILING = 48000;
+
+    // The size a function body has to stay under to be worth JITing is the same
+    // ceiling HUGE_METHOD_LIMIT already expresses for dispatch methods, so reuse it
+    // rather than introducing a second notion of "too big to JIT" with its own
+    // number and its own knob: endive.hugeMethodLimit now tunes both together.
+    private static final int JIT_ELIGIBILITY_SIZE_BYTES =
+            Math.min(HUGE_METHOD_LIMIT, JVM_METHOD_SIZE_CEILING);
+
+    // A single br_table with targets scattered across a function creates spans that
+    // collectively block almost every candidate (all targets share one source
+    // position -- the switch itself). For switches with at least this many distinct
+    // targets, and where EVERY distinct target is independently safe to become its
+    // own chunk boundary (not a loop header, stack-depth-0, not blocked by any
+    // OTHER branch's span), those targets are added to the regular candidate pool
+    // -- exempted only from this one switch's own spans, nothing else's. The
+    // existing size-driven greedy packer then decides, same as always, whether to
+    // actually cut there. Below this threshold the complexity isn't worth it: a
+    // small switch's whole span is cheap to just keep intact.
+    private static final int SWITCH_SPLIT_MIN_TARGETS =
+            Integer.getInteger("endive.switchSplitMinTargets", 8);
+
+    // Linear chunking can never cut inside a loop, because a loop's back-edge is a
+    // JVM `goto` and a goto cannot cross a method boundary. That single restriction
+    // is what leaves the largest real functions interpreted: measured on real code,
+    // 97.5% of QuickJS's JS_CallInternal and 98.2% of printf_core sits inside a
+    // loop, so essentially no position in either is a legal cut.
+    //
+    // Trampoline splitting removes the restriction by replacing goto-based control
+    // flow *between* chunks with a driver loop. Every Wasm local lives in a long[]
+    // frame; each chunk is a method that unboxes the frame into JVM slots, runs its
+    // slice, then writes the next chunk's index into the frame's PC slot and
+    // returns. The driver in the entry method reads the PC and calls the next
+    // chunk. A back-edge is then just another PC value, so loops stop mattering
+    // entirely -- and because a chunk sets PC=DONE on entry, a real Wasm `return`
+    // stays an ordinary areturn and every existing opcode emitter is untouched.
+    private static final boolean TRAMPOLINE_SPLIT_ENABLED =
+            !"false".equalsIgnoreCase(System.getProperty("endive.trampolineSplit", "true"));
+
+    // Dispatch-loop functions inherently produce roughly one chunk per switch case
+    // (every case body is a branch target from the dispatch chunk, so it has to be
+    // its own chunk entry). That is fine and even desirable -- it is what a
+    // hand-written Java interpreter looks like -- but cap it so a pathological
+    // function can't emit an unbounded number of methods into one class.
+    private static final int TRAMPOLINE_MAX_CHUNKS =
+            Integer.getInteger("endive.trampolineMaxChunks", 4096);
+
+    // Diagnostic only: skip linear chunking so every splittable function exercises
+    // the trampoline path. Real workloads reach it rarely (only when linear
+    // chunking fails), so this is how the spec suite gets to cover it broadly.
+    private static final boolean TRAMPOLINE_SPLIT_FORCED =
+            Boolean.getBoolean("endive.forceTrampolineSplit");
+
+    // PC value meaning "this chunk returned normally; the value it returned is the
+    // function's real result". Chunks store it on entry, so only an explicit
+    // cross-chunk transition ever overwrites it.
+    private static final int TRAMPOLINE_PC_DONE = -1;
+
     private final String className;
     private final WasmModule module;
     private final WasmAnalyzer analyzer;
@@ -158,6 +264,14 @@ public final class Compiler {
     private ClassCollector collector;
     private int maxFunctionsPerClass;
     private final HashSet<Integer> interpretedFunctions;
+    private final boolean hasFixedInterpretedFunctionSet;
+    private final Map<Integer, int[]> functionChunkBoundaries = new HashMap<>();
+
+    // funcId -> chunk *start* positions (starts[0] is always 0). Distinct from
+    // functionChunkBoundaries, which holds inclusive end positions for the linear
+    // splitter; keeping the two representations separate avoids any chance of one
+    // path reading the other's indices with the wrong convention.
+    private final Map<Integer, int[]> trampolineChunkStarts = new HashMap<>();
     private final Set<Integer> callRefTypeIds;
     private final boolean[] tailCallFunctions;
     private final boolean[] tailCallTypes;
@@ -182,7 +296,9 @@ public final class Compiler {
         this.classCollectorFactory = classCollectorFactory;
         this.collector = classCollectorFactory.get();
 
-        if (interpretedFunctions == null || interpretedFunctions.isEmpty()) {
+        this.hasFixedInterpretedFunctionSet =
+                interpretedFunctions != null && !interpretedFunctions.isEmpty();
+        if (!hasFixedInterpretedFunctionSet) {
             this.interpretedFunctions = new HashSet<>();
             this.interpreterFallback =
                     requireNonNullElse(interpreterFallback, InterpreterFallback.WARN);
@@ -196,6 +312,7 @@ public final class Compiler {
             this.interpretedFunctions = new HashSet<>(interpretedFunctions);
             this.interpreterFallback = InterpreterFallback.FAIL;
         }
+        routeHandlerDenseFunctionsToInterpreter();
 
         this.functionTypes = analyzer.functionTypes();
         this.callRefTypeIds = collectCallRefTypeIds();
@@ -213,6 +330,9 @@ public final class Compiler {
         for (int funcId = 0; funcId < this.methodNames.length; funcId++) {
             this.methodNames[funcId] = methodNameForFunc(funcId, prefixer, module);
         }
+        // Last: the split planner names its chunk methods after the resolved
+        // method names, so every other field has to be in place first.
+        planOversizedFunctionSplits();
     }
 
     private String methodName(int funcId) {
@@ -244,6 +364,742 @@ public final class Compiler {
             }
         }
         return result;
+    }
+
+    private void routeHandlerDenseFunctionsToInterpreter() {
+        if (hasFixedInterpretedFunctionSet) {
+            // caller supplied a fixed interpreted-function set; treat it as
+            // authoritative instead of second-guessing it here.
+            return;
+        }
+        int funcCount = module.functionSection().functionCount();
+        for (int i = 0; i < funcCount; i++) {
+            var body = module.codeSection().getFunctionBody(i);
+            int handlerCount = 0;
+            for (var ins : body.instructions()) {
+                if (ins.opcode() == OpCode.TRY_TABLE && ins.catches() != null) {
+                    handlerCount += ins.catches().size();
+                }
+            }
+            if (handlerCount > MAX_TRY_TABLE_HANDLERS_PER_FUNCTION) {
+                int funcId = functionImports + i;
+                String functionDescription = describeFunction(funcId);
+                markInterpreted(
+                        funcId,
+                        "Warning: using interpreted mode for "
+                                + functionDescription
+                                + " ("
+                                + handlerCount
+                                + " exception-handler blocks would overwhelm the JVM bytecode"
+                                + " compiler's exception-table handling)",
+                        "WASM function has too many exception-handler blocks ("
+                                + handlerCount
+                                + ") to compile to Java bytecode safely. It can only be run in"
+                                + " the interpreter. Either reduce the number of try_table blocks"
+                                + " (e.g. less aggressive inlining) or enable the interpreter"
+                                + " fallback mode: "
+                                + functionDescription,
+                        null);
+            }
+        }
+    }
+
+    // For each function too large to be individually JIT-eligible (see
+    // JIT_ELIGIBILITY_SIZE_BYTES above), attempts to find a set of safe cut points
+    // and split it into several smaller JVM methods that stay under the budget. A
+    // cut point is only used if ALL of the following hold, so the split is provably
+    // behavior-preserving:
+    //   - it sits exactly at a Wasm-level LABEL (a real control-flow merge point,
+    //     not mid-expression);
+    //   - the JVM operand stack is verified empty there via ASM's own data-flow
+    //     analyzer (not guessed) -- so no values need to be threaded across the cut;
+    //   - it is not the target of any backward jump (a loop header) -- cutting there
+    //     would add a cross-chunk call on every loop iteration instead of once;
+    //   - no branch anywhere in the function has a start/target pair that straddles
+    //     it -- otherwise a jump would need to cross between two separate JVM
+    //     methods, which bytecode cannot express.
+    // If no such split gets every resulting chunk under budget, the function falls
+    // back to the existing, already-proven interpreter delegation -- exactly like
+    // the handler-density case above, so this can only ever match or improve on
+    // today's behavior, never regress it.
+    private void planOversizedFunctionSplits() {
+        if (hasFixedInterpretedFunctionSet) {
+            return;
+        }
+        int funcCount = module.functionSection().functionCount();
+        for (int i = 0; i < funcCount; i++) {
+            int funcId = functionImports + i;
+            if (interpretedFunctions.contains(funcId)) {
+                continue;
+            }
+            var analysis = analyzer.analyze(funcId);
+            List<CompilerInstruction> instructions = analysis.instructions();
+            if (instructions.size() <= LARGE_FUNCTION_INSTRUCTION_THRESHOLD) {
+                continue;
+            }
+
+            var type = functionTypes.get(funcId);
+            var body = module.codeSection().getFunctionBody(i);
+            var measureCtx = newContext(funcId, type, body, analysis, "measure");
+
+            boolean splitEligible =
+                    !hasTooManyParameters(type)
+                            && !type.hasObjectRefParams()
+                            && !type.hasObjectRefReturns()
+                            && body.localTypes().stream().noneMatch(ValType::isObjectRef)
+                            && instructions.stream()
+                                    .noneMatch(
+                                            ins -> ins.opcode() == CompilerOpCode.TRY_CATCH_BLOCK);
+
+            var result = analyzeAndPlanSplit(measureCtx, type, body, instructions, splitEligible);
+            if (result.totalSize <= JIT_ELIGIBILITY_SIZE_BYTES) {
+                continue;
+            }
+            if (result.cutIndices != null && !TRAMPOLINE_SPLIT_FORCED) {
+                functionChunkBoundaries.put(funcId, result.cutIndices);
+                if (interpreterFallback != InterpreterFallback.SILENT) {
+                    System.err.println(
+                            "Info: "
+                                    + describeFunction(funcId)
+                                    + " compiled to "
+                                    + result.totalSize
+                                    + " bytes of JVM bytecode, over the ~"
+                                    + JIT_ELIGIBILITY_SIZE_BYTES
+                                    + "-byte JIT-eligibility threshold -- split into "
+                                    + (result.cutIndices.length + 1)
+                                    + " chunks to stay JIT-eligible.");
+                }
+                continue;
+            }
+
+            // Linear chunking couldn't place a cut -- almost always because the body
+            // is dominated by a loop. Try the trampoline, which isn't subject to
+            // that restriction.
+            if (TRAMPOLINE_SPLIT_ENABLED && splitEligible) {
+                int[] starts = planTrampolineSplit(measureCtx, type, body, instructions);
+                if (starts != null) {
+                    trampolineChunkStarts.put(funcId, starts);
+                    if (interpreterFallback != InterpreterFallback.SILENT) {
+                        System.err.println(
+                                "Info: "
+                                        + describeFunction(funcId)
+                                        + " compiled to "
+                                        + result.totalSize
+                                        + " bytes of JVM bytecode, over the ~"
+                                        + JIT_ELIGIBILITY_SIZE_BYTES
+                                        + "-byte JIT-eligibility threshold -- split into "
+                                        + starts.length
+                                        + " trampolined chunks to stay JIT-eligible.");
+                    }
+                    continue;
+                }
+            }
+
+            // No safe plan was found. That is a missed optimisation, not a failure:
+            // the function still compiles to a single method exactly as it did
+            // before this pass existed. It stays too large for HotSpot to JIT,
+            // which is the status quo rather than a regression -- so it must not
+            // be pushed to the interpreter, and must not fail a build running
+            // with InterpreterFallback.FAIL.
+            // Deliberately silent. Reporting it would add output where there was
+            // none before, for a case that is neither new nor actionable, and would
+            // reorder diagnostics that callers already parse.
+            if (Boolean.getBoolean("endive.debugTrampoline")) {
+                System.err.println(
+                        "DEBUG split: "
+                                + describeFunction(funcId)
+                                + " is "
+                                + result.totalSize
+                                + " bytes and found no safe split point; it still compiles, but"
+                                + " HotSpot will not JIT it.");
+            }
+        }
+    }
+
+    private static final class SplitResult {
+        final int totalSize;
+        final int[] cutIndices; // null if the function isn't safely splittable
+
+        SplitResult(int totalSize, int[] cutIndices) {
+            this.totalSize = totalSize;
+            this.cutIndices = cutIndices;
+        }
+    }
+
+    // True if the JVM operand stack is verified (via ASM's own data-flow analysis,
+    // not guessed) to be empty at the given label's position -- the precondition
+    // for it to be safe as a chunk boundary, since chunk transitions don't spill
+    // any pending stack values.
+    private static boolean isStackEmptyAtLabel(
+            long labelId,
+            Map<Long, Label> labels,
+            MethodNode methodNode,
+            Frame<BasicValue>[] frames) {
+        Label label = labels.get(labelId);
+        if (label == null || !(label.info instanceof LabelNode)) {
+            return false;
+        }
+        int nodePos = methodNode.instructions.indexOf((LabelNode) label.info);
+        if (nodePos < 0 || nodePos >= frames.length || frames[nodePos] == null) {
+            return false;
+        }
+        return frames[nodePos].getStackSize() == 0;
+    }
+
+    // Which chunk a flattened-instruction-list position ends up in, given the final
+    // list of cut points (each cuts[k] is the last instruction index of chunk k,
+    // inclusive). Shared between the post-packing switch-alignment safety gate above
+    // and the actual chunk-aware emission below, so both agree on the same mapping.
+    private static int chunkIndexOf(int pos, List<Integer> cuts) {
+        int idx = 0;
+        for (int c : cuts) {
+            if (pos > c) {
+                idx++;
+            } else {
+                break;
+            }
+        }
+        return idx;
+    }
+
+    private static int chunkIndexOf(int pos, int[] cuts) {
+        int idx = 0;
+        for (int c : cuts) {
+            if (pos > c) {
+                idx++;
+            } else {
+                break;
+            }
+        }
+        return idx;
+    }
+
+    // Chooses chunk start positions for a trampoline split, or null if the function
+    // can't be split this way. The governing rule is simple: a branch may leave its
+    // chunk only by landing exactly on another chunk's first instruction, because
+    // that is the only position the driver can dispatch to. Everything else here is
+    // in service of finding a start set that satisfies it.
+    private int[] planTrampolineSplit(
+            Context ctx,
+            FunctionType type,
+            FunctionBody body,
+            List<CompilerInstruction> instructions) {
+
+        Map<Long, Label> labels = new HashMap<>();
+        for (var ins : instructions) {
+            for (long target : ins.labelTargets()) {
+                labels.putIfAbsent(target, new Label());
+            }
+        }
+        Map<Long, Integer> labelDefPosition = new HashMap<>();
+        for (int idx = 0; idx < instructions.size(); idx++) {
+            var ins = instructions.get(idx);
+            if (ins.opcode() == CompilerOpCode.LABEL && labels.containsKey(ins.operand(0))) {
+                labelDefPosition.put(ins.operand(0), idx);
+            }
+        }
+
+        // Same measurement approach as the linear planner: replay real emission into
+        // a throwaway MethodNode so sizes are actual bytecode sizes and the operand
+        // stack can be analyzed by ASM rather than guessed at.
+        var methodNode =
+                new MethodNode(
+                        Opcodes.ASM9,
+                        Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                        "measure",
+                        methodTypeFor(type).toMethodDescriptorString(),
+                        null,
+                        null);
+        var sizeCounter = new CodeSizeCounter(methodNode);
+        var measureAsm = new InstructionAdapter(sizeCounter);
+        Map<Integer, Integer> cumulativeSizeAtIndex = new HashMap<>();
+        Set<Long> visitedTargets = new HashSet<>();
+        emitLocalsDefaultInit(ctx, type, body, measureAsm);
+        for (int idx = 0; idx < instructions.size(); idx++) {
+            emitInstruction(ctx, labels, visitedTargets, instructions.get(idx), measureAsm);
+            cumulativeSizeAtIndex.put(idx, sizeCounter.size);
+        }
+        methodNode.visitMaxs(512, ctx.trySaveBaseSlot() + 256);
+        methodNode.visitEnd();
+
+        Frame<BasicValue>[] frames;
+        try {
+            frames =
+                    new Analyzer<>(new BasicInterpreter())
+                            .analyze(ctx.internalClassName(), methodNode);
+        } catch (AnalyzerException | RuntimeException e) {
+            if (Boolean.getBoolean("endive.debugTrampoline")) {
+                System.err.println("DEBUG trampoline bail: analyzer failed: " + e);
+            }
+            return null;
+        }
+
+        // Only a position where the operand stack is empty can start a chunk: a
+        // chunk boundary is a method boundary, and pending stack values can't be
+        // carried across one (locals can -- that's what the frame array is for).
+        TreeSet<Integer> candidateStarts = new TreeSet<>();
+        candidateStarts.add(0);
+        for (Map.Entry<Long, Integer> e : labelDefPosition.entrySet()) {
+            if (isStackEmptyAtLabel(e.getKey(), labels, methodNode, frames)) {
+                candidateStarts.add(e.getValue());
+            }
+        }
+
+        // every branch, as (source position, target position)
+        List<int[]> edges = new ArrayList<>();
+        for (int idx = 0; idx < instructions.size(); idx++) {
+            var ins = instructions.get(idx);
+            switch (ins.opcode()) {
+                case GOTO:
+                case IFEQ:
+                case IFNE:
+                case SWITCH:
+                    for (long target : ins.labelTargets()) {
+                        Integer defPos = labelDefPosition.get(target);
+                        if (defPos == null) {
+                            if (Boolean.getBoolean("endive.debugTrampoline")) {
+                                System.err.println(
+                                        "DEBUG trampoline bail: branch at "
+                                                + idx
+                                                + " targets undefined label "
+                                                + target);
+                            }
+                            return null; // branch to a label we can't place -- don't risk it
+                        }
+                        edges.add(new int[] {idx, defPos});
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // Per-chunk prologue/epilogue cost: every local is unboxed from the frame on
+        // entry and boxed back on exit, so reserve room for it before spending the
+        // budget on actual instructions.
+        int totalLocals = type.params().size() + body.localTypes().size();
+        int perChunkOverhead = 64 + totalLocals * 24;
+        int budget = JIT_ELIGIBILITY_SIZE_BYTES - perChunkOverhead;
+        if (budget < 512) {
+            if (Boolean.getBoolean("endive.debugTrampoline")) {
+                System.err.println("DEBUG trampoline bail: budget=" + budget);
+            }
+            return null; // so many locals that the sync alone would blow the budget
+        }
+
+        // Seed with a purely size-driven partition, then repair it: any branch that
+        // lands somewhere other than a chunk start forces that landing position to
+        // become one. Adding starts only ever subdivides chunks, so this terminates
+        // (worst case: every candidate becomes a start).
+        TreeSet<Integer> starts = new TreeSet<>();
+        starts.add(0);
+        int chunkBase = 0; // cumulative size immediately before the current chunk
+        int prev = -1; // last candidate that still fit inside the current chunk
+        for (int c : candidateStarts) {
+            if (c == 0) {
+                continue;
+            }
+            if (cumulativeSizeAtIndex.get(c - 1) - chunkBase > budget) {
+                // close the chunk at the last candidate that fit, not at the one
+                // that overflowed
+                if (prev > starts.last()) {
+                    starts.add(prev);
+                    chunkBase = cumulativeSizeAtIndex.get(prev - 1);
+                }
+                // the overflowing candidate may still not fit in the fresh chunk
+                if (cumulativeSizeAtIndex.get(c - 1) - chunkBase > budget) {
+                    starts.add(c);
+                    chunkBase = cumulativeSizeAtIndex.get(c - 1);
+                }
+            }
+            prev = c;
+        }
+
+        for (int pass = 0; ; pass++) {
+            List<Integer> forced = new ArrayList<>();
+            for (int[] edge : edges) {
+                int srcChunk = starts.floor(edge[0]);
+                int dstChunk = starts.floor(edge[1]);
+                if (srcChunk != dstChunk && dstChunk != edge[1]) {
+                    forced.add(edge[1]);
+                }
+            }
+            if (forced.isEmpty()) {
+                break;
+            }
+            for (int f : forced) {
+                if (!candidateStarts.contains(f)) {
+                    // A branch crosses into a position that can never begin a chunk
+                    // (non-empty operand stack there). Not splittable this way.
+                    if (Boolean.getBoolean("endive.debugTrampoline")) {
+                        System.err.println(
+                                "DEBUG trampoline bail: forced start "
+                                        + f
+                                        + " is not a valid candidate (stack not empty there)");
+                    }
+                    return null;
+                }
+                starts.add(f);
+            }
+            if (starts.size() > TRAMPOLINE_MAX_CHUNKS || pass > 64) {
+                if (Boolean.getBoolean("endive.debugTrampoline")) {
+                    System.err.println(
+                            "DEBUG trampoline bail: starts=" + starts.size() + " pass=" + pass);
+                }
+                return null;
+            }
+        }
+
+        if (starts.size() < 2 || starts.size() > TRAMPOLINE_MAX_CHUNKS) {
+            if (Boolean.getBoolean("endive.debugTrampoline")) {
+                System.err.println(
+                        "DEBUG trampoline bail: final starts="
+                                + starts.size()
+                                + " candidates="
+                                + candidateStarts.size());
+            }
+            return null;
+        }
+
+        // Final size check: no individual chunk may exceed the budget on its own.
+        List<Integer> startList = new ArrayList<>(starts);
+        for (int k = 0; k < startList.size(); k++) {
+            int from = startList.get(k);
+            int to = (k + 1 < startList.size()) ? startList.get(k + 1) : instructions.size();
+            int sizeFrom = from == 0 ? 0 : cumulativeSizeAtIndex.get(from - 1);
+            int sizeTo = cumulativeSizeAtIndex.get(to - 1);
+            if (sizeTo - sizeFrom > budget) {
+                if (Boolean.getBoolean("endive.debugTrampoline")) {
+                    System.err.println(
+                            "DEBUG trampoline bail: chunk "
+                                    + k
+                                    + " size "
+                                    + (sizeTo - sizeFrom)
+                                    + " > budget "
+                                    + budget);
+                }
+                return null;
+            }
+        }
+
+        int[] result = new int[startList.size()];
+        for (int i = 0; i < result.length; i++) {
+            result[i] = startList.get(i);
+        }
+        return result;
+    }
+
+    private SplitResult analyzeAndPlanSplit(
+            Context ctx,
+            FunctionType type,
+            FunctionBody body,
+            List<CompilerInstruction> instructions,
+            boolean splitEligible) {
+
+        // labels referenced by at least one branch/try-catch operand (matches exactly
+        // what real emission marks -- see emitFunctionBody/emitInstruction above).
+        Map<Long, Label> labels = new HashMap<>();
+        for (var ins : instructions) {
+            for (long target : ins.labelTargets()) {
+                labels.putIfAbsent(target, new Label());
+            }
+        }
+
+        // where each such label is actually defined in the flat instruction stream.
+        Map<Long, Integer> labelDefPosition = new HashMap<>();
+        for (int idx = 0; idx < instructions.size(); idx++) {
+            var ins = instructions.get(idx);
+            if (ins.opcode() == CompilerOpCode.LABEL && labels.containsKey(ins.operand(0))) {
+                labelDefPosition.put(ins.operand(0), idx);
+            }
+        }
+
+        // loop headers (targets of a backward branch) and the [min,max] index span of
+        // every real branch -- a cut point must not fall strictly inside any span.
+        Set<Long> loopHeaders = new HashSet<>();
+        List<int[]> spans = new ArrayList<>();
+        for (int idx = 0; idx < instructions.size(); idx++) {
+            var ins = instructions.get(idx);
+            switch (ins.opcode()) {
+                case GOTO:
+                case IFEQ:
+                case IFNE:
+                case SWITCH:
+                    for (long target : ins.labelTargets()) {
+                        Integer defPos = labelDefPosition.get(target);
+                        if (defPos == null) {
+                            continue;
+                        }
+                        spans.add(new int[] {Math.min(idx, defPos), Math.max(idx, defPos)});
+                        if (defPos <= idx) {
+                            loopHeaders.add(target);
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // buffer the exact same emission into a MethodNode while measuring cumulative
+        // size, so we get both a precise byte count and a structure ASM can analyze.
+        var methodNode =
+                new MethodNode(
+                        Opcodes.ASM9,
+                        Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                        "measure",
+                        methodTypeFor(type).toMethodDescriptorString(),
+                        null,
+                        null);
+        var sizeCounter = new CodeSizeCounter(methodNode);
+        var measureAsm = new InstructionAdapter(sizeCounter);
+
+        Map<Integer, Integer> cumulativeSizeAtIndex = new HashMap<>();
+        Set<Long> visitedTargets = new HashSet<>();
+        emitLocalsDefaultInit(ctx, type, body, measureAsm);
+        for (int idx = 0; idx < instructions.size(); idx++) {
+            emitInstruction(ctx, labels, visitedTargets, instructions.get(idx), measureAsm);
+            cumulativeSizeAtIndex.put(idx, sizeCounter.size);
+        }
+        int totalSize = sizeCounter.size;
+
+        if (totalSize <= JIT_ELIGIBILITY_SIZE_BYTES || !splitEligible) {
+            return new SplitResult(totalSize, null);
+        }
+
+        // Unlike ClassWriter's COMPUTE_MAXS, MethodNode never computes these on its
+        // own -- Analyzer.computeInitialFrame sizes its frames directly off whatever
+        // is here, so it must be set explicitly (and generously; this MethodNode is
+        // discarded after analysis, so over-provisioning costs nothing).
+        methodNode.visitMaxs(512, ctx.trySaveBaseSlot() + 256);
+        methodNode.visitEnd();
+
+        Frame<BasicValue>[] frames;
+        try {
+            frames =
+                    new Analyzer<>(new BasicInterpreter())
+                            .analyze(ctx.internalClassName(), methodNode);
+        } catch (AnalyzerException | RuntimeException e) {
+            return new SplitResult(totalSize, null);
+        }
+
+        // Positions listed here MUST become an actual cuts[] entry, not merely an
+        // option the size-driven packer below may or may not take -- populated only
+        // by the switch-eligibility loop further down. Everything else in
+        // `candidates` remains purely opportunistic, exactly as before.
+        Set<Integer> mandatoryCuts = new HashSet<>();
+
+        List<Integer> candidates = new ArrayList<>();
+        for (Map.Entry<Long, Integer> e : labelDefPosition.entrySet()) {
+            if (loopHeaders.contains(e.getKey())) {
+                continue;
+            }
+            int idx = e.getValue();
+
+            // A cut at idx puts instructions[0,idx] (inclusive of idx) in the earlier
+            // chunk and instructions[idx+1,...) in the later one -- so a LABEL
+            // instruction chosen as idx lands in the *earlier* chunk together with
+            // whatever forward branch targets it, rather than being severed from it.
+            // A span [s,e] is severed by that cut iff s <= idx < e.
+            boolean insideSpan = false;
+            for (int[] span : spans) {
+                if (span[0] <= idx && idx < span[1]) {
+                    insideSpan = true;
+                    break;
+                }
+            }
+            if (insideSpan) {
+                continue;
+            }
+
+            if (!isStackEmptyAtLabel(e.getKey(), labels, methodNode, frames)) {
+                continue;
+            }
+
+            candidates.add(idx);
+        }
+
+        // A br_table's targets all share one source position (the switch itself),
+        // so the ordinary span check above pessimistically blocks almost every
+        // candidate once a switch has more than a handful of targets scattered
+        // through the function -- confirmed against real code: a 1,366-target
+        // switch was the reason a 47KB BoxedWine function had zero viable
+        // candidates. For switches at or above SWITCH_SPLIT_MIN_TARGETS, check
+        // each distinct target independently against the same requirements as any
+        // other candidate, exempting only this one switch's own spans -- never any
+        // other branch's. Unlike a regular candidate, an eligible target is added
+        // as a MANDATORY cut, not just an option for the packer: a far tableswitch
+        // target is only reachable by calling straight into another chunk's start
+        // (see emitChunkAwareSwitch), which requires that target's position to
+        // actually BE a chunk boundary -- leaving it to chance, size-driven packing
+        // would almost never land on more than one or two of potentially hundreds
+        // of targets.
+        //
+        // Targets are judged individually rather than all-or-nothing: real
+        // dispatch-loop-shaped code (the classic `for(;;) { switch(op) { ... } }`
+        // interpreter-loop pattern -- confirmed in QuickJS's JS_CallInternal,
+        // printf_core, resolve_labels, and BoxedWine's funcId 770) has most targets
+        // sitting inside the enclosing loop's span, which can never be a cut point
+        // no matter how eligibility is computed -- splitting a loop body across JVM
+        // methods would need threading the loop's state through the call, which
+        // this doesn't attempt. Requiring every target to qualify would throw away
+        // the (sometimes substantial) minority of targets -- e.g. `break` cases
+        // whose code sits after the loop's own back-edge -- that genuinely don't
+        // have this problem. The post-packing safety gate below still independently
+        // verifies every switch's actual outcome, so leaving some targets
+        // ineligible here can only ever result in a safe bail, never wrong bytecode.
+        for (int switchIdx = 0; switchIdx < instructions.size(); switchIdx++) {
+            var ins = instructions.get(switchIdx);
+            if (ins.opcode() != CompilerOpCode.SWITCH) {
+                continue;
+            }
+            Set<Long> distinctTargets = new LinkedHashSet<>();
+            ins.operands().forEach(distinctTargets::add);
+            if (distinctTargets.size() < SWITCH_SPLIT_MIN_TARGETS) {
+                continue;
+            }
+
+            for (long targetId : distinctTargets) {
+                if (loopHeaders.contains(targetId)) {
+                    continue;
+                }
+                Integer defPos = labelDefPosition.get(targetId);
+                if (defPos == null) {
+                    continue;
+                }
+                boolean blockedByOtherSpan = false;
+                for (int[] span : spans) {
+                    if (span[0] == switchIdx) {
+                        continue; // this switch's own span -- deliberately exempted
+                    }
+                    if (span[0] <= defPos && defPos < span[1]) {
+                        blockedByOtherSpan = true;
+                        break;
+                    }
+                }
+                if (blockedByOtherSpan
+                        || !isStackEmptyAtLabel(targetId, labels, methodNode, frames)) {
+                    continue;
+                }
+                candidates.add(defPos);
+                mandatoryCuts.add(defPos);
+            }
+        }
+
+        // Sorted, de-duplicated -- the same position can arrive twice (e.g. one
+        // label targeted by two different eligible switches), and the packer below
+        // needs a strictly increasing sequence to reason about "the cut right
+        // before this one".
+        TreeSet<Integer> sortedCandidates = new TreeSet<>(candidates);
+
+        List<Integer> cuts = new ArrayList<>();
+        int chunkStart = 0;
+        int chunkStartSize = 0;
+        int lastCandidate = -1;
+        for (int idx : sortedCandidates) {
+            int sizeAtIdx = cumulativeSizeAtIndex.get(idx);
+            if (sizeAtIdx - chunkStartSize > JIT_ELIGIBILITY_SIZE_BYTES) {
+                if (lastCandidate <= chunkStart) {
+                    return new SplitResult(totalSize, null);
+                }
+                cuts.add(lastCandidate);
+                chunkStart = lastCandidate;
+                chunkStartSize = cumulativeSizeAtIndex.get(lastCandidate);
+                if (sizeAtIdx - chunkStartSize > JIT_ELIGIBILITY_SIZE_BYTES) {
+                    return new SplitResult(totalSize, null);
+                }
+            }
+            if (mandatoryCuts.contains(idx)) {
+                // A switch target must become an actual chunk boundary regardless
+                // of whether it was strictly needed to stay under budget -- see
+                // emitChunkAwareSwitch, which relies on every far target being
+                // exactly reachable as another chunk's start.
+                if (idx > chunkStart) {
+                    cuts.add(idx);
+                    chunkStart = idx;
+                    chunkStartSize = sizeAtIdx;
+                }
+            } else {
+                lastCandidate = idx;
+            }
+        }
+        if (totalSize - chunkStartSize > JIT_ELIGIBILITY_SIZE_BYTES) {
+            if (lastCandidate <= chunkStart) {
+                return new SplitResult(totalSize, null);
+            }
+            cuts.add(lastCandidate);
+            chunkStartSize = cumulativeSizeAtIndex.get(lastCandidate);
+            if (totalSize - chunkStartSize > JIT_ELIGIBILITY_SIZE_BYTES) {
+                return new SplitResult(totalSize, null);
+            }
+        }
+
+        if (cuts.isEmpty()) {
+            return new SplitResult(totalSize, null);
+        }
+
+        // Safety gate for switch splitting: a far switch target can only be reached
+        // from another chunk by calling into that chunk's start, so it's only safe
+        // to leave a target in a different chunk than its switch when that target's
+        // position is EXACTLY where the greedy packer chose to start a chunk. The
+        // packer above picks cuts purely by size, with no knowledge of switches, so
+        // that alignment isn't guaranteed -- e.g. with 3 targets and only the first
+        // chosen as a cut, the second could land mid-chunk, unreachable as a call
+        // target. Rather than special-case the packer, verify the outcome here and
+        // bail to no-split (same fallback as any other unsplittable function) if any
+        // switch ends up with a target stranded away from a chunk boundary.
+        for (int switchIdx = 0; switchIdx < instructions.size(); switchIdx++) {
+            var ins = instructions.get(switchIdx);
+            if (ins.opcode() != CompilerOpCode.SWITCH) {
+                continue;
+            }
+            int switchChunk = chunkIndexOf(switchIdx, cuts);
+            Set<Long> distinctTargets = new LinkedHashSet<>();
+            ins.operands().forEach(distinctTargets::add);
+            for (long targetId : distinctTargets) {
+                Integer defPos = labelDefPosition.get(targetId);
+                if (defPos == null) {
+                    return new SplitResult(totalSize, null);
+                }
+                int targetChunk = chunkIndexOf(defPos, cuts);
+                // A label's own position is the LAST instruction of the chunk that
+                // contains it (chunks are [start, cuts[k]] inclusive), so the code
+                // that actually follows the label -- what a jump to it must reach --
+                // only starts at the very beginning of the NEXT chunk. That's only
+                // reachable via a cross-chunk call when this label's position is
+                // itself exactly a chosen cut, i.e. the last instruction of its chunk.
+                if (targetChunk != switchChunk && !cuts.contains(defPos)) {
+                    return new SplitResult(totalSize, null);
+                }
+            }
+        }
+
+        return new SplitResult(totalSize, cuts.stream().mapToInt(Integer::intValue).toArray());
+    }
+
+    private String describeFunction(int funcId) {
+        String functionDescription = "WASM function index: " + funcId;
+        if (module.nameSection() != null) {
+            String name = module.nameSection().nameOfFunction(funcId);
+            if (name != null) {
+                functionDescription += String.format(" (name: %s)", name);
+            }
+        }
+        return functionDescription;
+    }
+
+    private void markInterpreted(
+            int funcId, String warnMessage, String failMessage, Throwable cause) {
+        switch (interpreterFallback) {
+            case SILENT:
+                break;
+            case WARN:
+                System.err.println(warnMessage);
+                break;
+            case FAIL:
+                throw new WasmEngineException(failMessage, cause);
+        }
+        interpretedFunctions.add(funcId);
     }
 
     public static Builder builder(WasmModule module) {
@@ -388,32 +1244,18 @@ public final class Compiler {
                 String methodName = e.getMethodName();
                 int funcId = funcIdForMethodName(methodName);
                 if (funcId >= 0) {
-                    String functionDescription = "WASM function index: " + funcId;
-                    if (module.nameSection() != null) {
-                        String name = module.nameSection().nameOfFunction(funcId);
-                        if (name != null) {
-                            functionDescription += String.format(" (name: %s)", name);
-                        }
-                    }
+                    String functionDescription = describeFunction(funcId);
 
-                    switch (interpreterFallback) {
-                        case SILENT:
-                            break;
-                        case WARN:
-                            System.err.println(
-                                    "Warning: using interpreted mode for " + functionDescription);
-                            break;
-                        case FAIL:
-                            throw new WasmEngineException(
-                                    "WASM function size exceeds the Java method size limits and"
-                                        + " cannot be compiled to Java bytecode. It can only be run"
-                                        + " in the interpreter. Either reduce the size of the"
-                                        + " function or enable the interpreter fallback mode: "
-                                            + functionDescription,
-                                    e);
-                    }
+                    markInterpreted(
+                            funcId,
+                            "Warning: using interpreted mode for " + functionDescription,
+                            "WASM function size exceeds the Java method size limits and cannot be"
+                                + " compiled to Java bytecode. It can only be run in the"
+                                + " interpreter. Either reduce the size of the function or enable"
+                                + " the interpreter fallback mode: "
+                                    + functionDescription,
+                            e);
 
-                    interpretedFunctions.add(funcId);
                     maxFunctionsPerClass = originalMaxFunctionsPerClass;
                 } else {
                     throw e;
@@ -545,7 +1387,12 @@ public final class Compiler {
                                 true,
                                 asm ->
                                         compileFunction(
-                                                internalClassName, funcId, type, bodyCopy, asm));
+                                                classWriter,
+                                                internalClassName,
+                                                funcId,
+                                                type,
+                                                bodyCopy,
+                                                asm));
 
                         // call_xxx() bridges for boxed to native
                         emitFunction(
@@ -2091,6 +2938,7 @@ public final class Compiler {
     // implements the body of:
     // public static <TypeR> func_xxx(<TypeN> ArgN..., Memory memory, Instance instance)
     private void compileFunction(
+            ClassVisitor classWriter,
             String internalClassName,
             int funcId,
             FunctionType type,
@@ -2135,22 +2983,185 @@ public final class Compiler {
 
         var analysis = analyzer.analyze(funcId);
         List<CompilerInstruction> instructions = analysis.instructions();
+        var ctx = newContext(funcId, type, body, analysis, internalClassName);
 
-        var ctx =
-                new Context(
-                        module,
-                        internalClassName,
-                        maxFunctionsPerClass,
-                        analyzer.globalTypes(),
-                        functionTypes,
-                        funcId,
-                        type,
-                        body,
-                        tailCallFunctions,
-                        tailCallTypes,
-                        useBridgeClasses ? callIndirectClassResolver : typeId -> internalClassName,
-                        analysis.maxTempSlots(),
-                        this::methodName);
+        int[] trampolineStarts = trampolineChunkStarts.get(funcId);
+        if (trampolineStarts != null) {
+            emitTrampolineFunction(
+                    classWriter,
+                    internalClassName,
+                    funcId,
+                    type,
+                    body,
+                    instructions,
+                    analysis,
+                    ctx,
+                    trampolineStarts,
+                    asm);
+            return;
+        }
+
+        int[] cuts = functionChunkBoundaries.get(funcId);
+        if (cuts != null) {
+            emitChunkedFunction(
+                    classWriter,
+                    internalClassName,
+                    funcId,
+                    type,
+                    body,
+                    instructions,
+                    ctx,
+                    cuts,
+                    asm);
+            return;
+        }
+
+        emitFunctionBody(ctx, type, body, instructions, asm);
+    }
+
+    private Context newContext(
+            int funcId,
+            FunctionType type,
+            FunctionBody body,
+            WasmAnalyzer.AnalysisResult analysis,
+            String internalClassName) {
+        return newContext(funcId, type, body, analysis, internalClassName, false);
+    }
+
+    private Context newContext(
+            int funcId,
+            FunctionType type,
+            FunctionBody body,
+            WasmAnalyzer.AnalysisResult analysis,
+            String internalClassName,
+            boolean forceFrameLayout) {
+        return new Context(
+                module,
+                internalClassName,
+                maxFunctionsPerClass,
+                analyzer.globalTypes(),
+                functionTypes,
+                funcId,
+                type,
+                body,
+                tailCallFunctions,
+                tailCallTypes,
+                useBridgeClasses ? callIndirectClassResolver : typeId -> internalClassName,
+                analysis.maxTempSlots(),
+                this::methodName,
+                forceFrameLayout);
+    }
+
+    // Estimates JVM Code-attribute size by counting per-instruction encoding lengths
+    // per the class file spec. Approximate (e.g. always assumes the wider constant-pool
+    // index / offset form where an instruction has a narrow and wide encoding), which
+    // is fine here: this only ever feeds a diagnostic warning, never a compile decision.
+    // Standalone rather than asm-util's CodeSizeEvaluator because this build's asm-util
+    // artifact has been minimized and no longer includes it.
+    private static class CodeSizeCounter extends MethodVisitor {
+        int size;
+
+        CodeSizeCounter() {
+            this(null);
+        }
+
+        // Chains to a delegate (typically a MethodNode) so the same emission pass can
+        // simultaneously measure size and build a buffered, analyzable method.
+        CodeSizeCounter(MethodVisitor delegate) {
+            super(Opcodes.ASM9, delegate);
+        }
+
+        @Override
+        public void visitInsn(int opcode) {
+            size += 1;
+            super.visitInsn(opcode);
+        }
+
+        @Override
+        public void visitIntInsn(int opcode, int operand) {
+            size += (opcode == Opcodes.SIPUSH) ? 3 : 2;
+            super.visitIntInsn(opcode, operand);
+        }
+
+        @Override
+        public void visitVarInsn(int opcode, int var) {
+            size += (var > 255) ? 4 : 2;
+            super.visitVarInsn(opcode, var);
+        }
+
+        @Override
+        public void visitTypeInsn(int opcode, String type) {
+            size += 3;
+            super.visitTypeInsn(opcode, type);
+        }
+
+        @Override
+        public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
+            size += 3;
+            super.visitFieldInsn(opcode, owner, name, descriptor);
+        }
+
+        @Override
+        public void visitMethodInsn(
+                int opcode, String owner, String name, String descriptor, boolean isInterface) {
+            size += isInterface ? 5 : 3;
+            super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+        }
+
+        @Override
+        public void visitInvokeDynamicInsn(
+                String name, String descriptor, Handle bootstrapMethod, Object... args) {
+            size += 5;
+            super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethod, args);
+        }
+
+        @Override
+        public void visitJumpInsn(int opcode, Label label) {
+            size += 3;
+            super.visitJumpInsn(opcode, label);
+        }
+
+        @Override
+        public void visitLdcInsn(Object value) {
+            size += (value instanceof Long || value instanceof Double) ? 3 : 2;
+            super.visitLdcInsn(value);
+        }
+
+        @Override
+        public void visitIincInsn(int var, int increment) {
+            size += (var > 255 || increment > 127 || increment < -128) ? 6 : 3;
+            super.visitIincInsn(var, increment);
+        }
+
+        @Override
+        public void visitTableSwitchInsn(int min, int max, Label dflt, Label... labels) {
+            // opcode + up to 3 padding bytes + default + low + high + N * 4-byte offsets
+            size += 1 + 3 + 4 + 4 + 4 + (labels.length * 4);
+            super.visitTableSwitchInsn(min, max, dflt, labels);
+        }
+
+        @Override
+        public void visitLookupSwitchInsn(Label dflt, int[] keys, Label[] labels) {
+            // opcode + up to 3 padding bytes + default + npairs + N * (4-byte key + 4-byte offset)
+            size += 1 + 3 + 4 + 4 + (labels.length * 8);
+            super.visitLookupSwitchInsn(dflt, keys, labels);
+        }
+
+        @Override
+        public void visitMultiANewArrayInsn(String descriptor, int numDimensions) {
+            size += 4;
+            super.visitMultiANewArrayInsn(descriptor, numDimensions);
+        }
+    }
+
+    // implements one compiled Wasm function's body: initializes locals, then
+    // translates the flattened, already-lowered instruction stream to JVM bytecode.
+    private void emitFunctionBody(
+            Context ctx,
+            FunctionType type,
+            FunctionBody body,
+            List<CompilerInstruction> instructions,
+            InstructionAdapter asm) {
 
         int localsCount = type.params().size();
         if (hasTooManyParameters(type)) {
@@ -2173,18 +3184,7 @@ public final class Compiler {
         }
 
         // initialize local variables to their default values
-        localsCount += body.localTypes().size();
-        for (int i = type.params().size(); i < localsCount; i++) {
-            var localType = localType(type, body, i);
-            var defVal = defaultValue(localType);
-            if (defVal == null) {
-                // GC ref types: default to null (Object)
-                asm.aconst(null);
-            } else {
-                asm.visitLdcInsn(defVal);
-            }
-            asm.store(ctx.localSlotIndex(i), asmType(localType));
-        }
+        emitLocalsDefaultInit(ctx, type, body, asm);
 
         // allocate labels for all label targets
         Map<Long, Label> labels = new HashMap<>();
@@ -2199,64 +3199,812 @@ public final class Compiler {
 
         // compile the function body
         for (CompilerInstruction ins : instructions) {
-            switch (ins.opcode()) {
-                case LABEL:
-                    Label label = labels.get(ins.operand(0));
-                    if (label != null) {
-                        asm.mark(label);
-                        visitedTargets.add(ins.operand(0));
-                    }
-                    break;
-                case GOTO:
-                    if (visitedTargets.contains(ins.operand(0))) {
-                        emitInvokeStatic(asm, CHECK_INTERRUPTION);
-                    }
-                    asm.goTo(labels.get(ins.operand(0)));
-                    break;
-                case IFEQ:
-                    if (visitedTargets.contains(ins.operand(0))) {
-                        throw new WasmEngineException("Unexpected backward jump");
-                    }
-                    asm.ifeq(labels.get(ins.operand(0)));
-                    break;
-                case IFNE:
-                    if (visitedTargets.contains(ins.operand(0))) {
-                        Label skip = new Label();
-                        asm.ifeq(skip);
-                        emitInvokeStatic(asm, CHECK_INTERRUPTION);
-                        asm.goTo(labels.get(ins.operand(0)));
-                        asm.mark(skip);
+            emitInstruction(ctx, labels, visitedTargets, ins, asm);
+        }
+    }
 
-                    } else {
-                        asm.ifne(labels.get(ins.operand(0)));
-                    }
-                    break;
-                case SWITCH:
-                    if (ins.operands().anyMatch(visitedTargets::contains)) {
-                        emitInvokeStatic(asm, CHECK_INTERRUPTION);
-                    }
-                    // table switch using the last entry of the table as the default
-                    Label[] table = new Label[ins.operandCount() - 1];
-                    for (int i = 0; i < table.length; i++) {
-                        table[i] = labels.get(ins.operand(i));
-                    }
-                    Label defaultLabel = labels.get(ins.operand(table.length));
-                    asm.tableswitch(0, table.length - 1, defaultLabel, table);
-                    break;
-                case TRY_CATCH_BLOCK:
-                    asm.visitTryCatchBlock(
-                            labels.get(ins.operand(0)),
-                            labels.get(ins.operand(1)),
-                            labels.get(ins.operand(2)),
-                            getInternalName(WasmException.class));
-                    break;
-                default:
-                    var emitter = EMITTERS.get(ins.opcode());
-                    if (emitter == null) {
-                        throw new WasmEngineException("Unhandled opcode: " + ins.opcode());
-                    }
-                    emitter.emit(ctx, ins, asm);
+    // Initializes declared (non-parameter) Wasm locals to their default values. Used
+    // both by normal function emission and by chunk 0 of a split function -- chunks
+    // 1..N-1 never run this, since their locals arrive as incoming call arguments.
+    private void emitLocalsDefaultInit(
+            Context ctx, FunctionType type, FunctionBody body, InstructionAdapter asm) {
+        int totalLocals = type.params().size() + body.localTypes().size();
+        for (int i = type.params().size(); i < totalLocals; i++) {
+            var localType = localType(type, body, i);
+            var defVal = defaultValue(localType);
+            if (defVal == null) {
+                // GC ref types: default to null (Object)
+                asm.aconst(null);
+            } else {
+                asm.visitLdcInsn(defVal);
+            }
+            asm.store(ctx.localSlotIndex(i), asmType(localType));
+        }
+    }
+
+    // Emits the JVM bytecode for a single already-lowered instruction. Factored out
+    // of emitFunctionBody so the oversized-function split planner (below) can drive
+    // the exact same emission logic through a throwaway buffer to measure sizes and
+    // analyze operand-stack depth, without duplicating the opcode dispatch.
+    private void emitInstruction(
+            Context ctx,
+            Map<Long, Label> labels,
+            Set<Long> visitedTargets,
+            CompilerInstruction ins,
+            InstructionAdapter asm) {
+        switch (ins.opcode()) {
+            case LABEL:
+                Label label = labels.get(ins.operand(0));
+                if (label != null) {
+                    asm.mark(label);
+                    visitedTargets.add(ins.operand(0));
+                }
+                break;
+            case GOTO:
+                if (visitedTargets.contains(ins.operand(0))) {
+                    emitInvokeStatic(asm, CHECK_INTERRUPTION);
+                }
+                asm.goTo(labels.get(ins.operand(0)));
+                break;
+            case IFEQ:
+                if (visitedTargets.contains(ins.operand(0))) {
+                    throw new WasmEngineException("Unexpected backward jump");
+                }
+                asm.ifeq(labels.get(ins.operand(0)));
+                break;
+            case IFNE:
+                if (visitedTargets.contains(ins.operand(0))) {
+                    Label skip = new Label();
+                    asm.ifeq(skip);
+                    emitInvokeStatic(asm, CHECK_INTERRUPTION);
+                    asm.goTo(labels.get(ins.operand(0)));
+                    asm.mark(skip);
+
+                } else {
+                    asm.ifne(labels.get(ins.operand(0)));
+                }
+                break;
+            case SWITCH:
+                if (ins.operands().anyMatch(visitedTargets::contains)) {
+                    emitInvokeStatic(asm, CHECK_INTERRUPTION);
+                }
+                // table switch using the last entry of the table as the default
+                Label[] table = new Label[ins.operandCount() - 1];
+                for (int i = 0; i < table.length; i++) {
+                    table[i] = labels.get(ins.operand(i));
+                }
+                Label defaultLabel = labels.get(ins.operand(table.length));
+                asm.tableswitch(0, table.length - 1, defaultLabel, table);
+                break;
+            case TRY_CATCH_BLOCK:
+                asm.visitTryCatchBlock(
+                        labels.get(ins.operand(0)),
+                        labels.get(ins.operand(1)),
+                        labels.get(ins.operand(2)),
+                        getInternalName(WasmException.class));
+                break;
+            default:
+                var emitter = EMITTERS.get(ins.opcode());
+                if (emitter == null) {
+                    throw new WasmEngineException("Unhandled opcode: " + ins.opcode());
+                }
+                emitter.emit(ctx, ins, asm);
+        }
+    }
+
+    // Emits an oversized function as several JVM methods, per the cut plan chosen by
+    // analyzeAndPlanSplit above. Chunk 0 is emitted into the function's real, external
+    // entry point (func_xxx) with its normal signature unchanged -- nothing outside
+    // this one function's own emission needs to know it was split. Chunks 1..N-1 are
+    // private helper methods (func_xxx_chunk_N), never called from anywhere else, that
+    // additionally take Memory/Instance and every Wasm local as explicit parameters --
+    // reusing Context's existing slot layout unmodified, since the extended signature
+    // is built to match it exactly (params, Memory, Instance, then locals in order).
+    // Chunks are chained with a plain call-then-return at each cut point; this only
+    // ever happens once per static split point per invocation (never per loop
+    // iteration -- the planner guarantees no cut sits inside a loop's own span), so it
+    // adds a small, bounded number of extra calls rather than per-iteration overhead.
+    private void emitChunkedFunction(
+            ClassVisitor classWriter,
+            String internalClassName,
+            int funcId,
+            FunctionType type,
+            FunctionBody body,
+            List<CompilerInstruction> instructions,
+            Context ctx,
+            int[] cuts,
+            InstructionAdapter asm) {
+
+        // shared across all chunks: a jump never crosses a chunk boundary except at
+        // the boundary itself, so one label/backward-jump-tracking state is correct
+        // for the whole (conceptually single) function, split or not.
+        Map<Long, Label> labels = new HashMap<>();
+        for (var ins : instructions) {
+            for (long target : ins.labelTargets()) {
+                labels.putIfAbsent(target, new Label());
             }
         }
+        // needed to resolve which chunk a far switch target lands in -- rebuilt here
+        // rather than threaded through from analyzeAndPlanSplit's own copy, since
+        // position indices are only meaningful relative to this same instructions list.
+        Map<Long, Integer> labelDefPosition = new HashMap<>();
+        for (int idx = 0; idx < instructions.size(); idx++) {
+            var ins = instructions.get(idx);
+            if (ins.opcode() == CompilerOpCode.LABEL && labels.containsKey(ins.operand(0))) {
+                labelDefPosition.put(ins.operand(0), idx);
+            }
+        }
+        Set<Long> visitedTargets = new HashSet<>();
+
+        MethodType chunkType = chunkMethodType(type, body);
+        String funcName = methodName(funcId);
+        int numChunks = cuts.length + 1;
+        // internalClassName is a naming *prefix*, not itself the class chunk methods
+        // actually live in -- they're emitted into the same FuncGroup class as this
+        // function itself, exactly like an ordinary cross-function CALL resolves its
+        // target class (see Emitters.CALL).
+        String chunkClassName = ctx.classNameForFuncGroup(internalClassName, funcId);
+
+        int start = 0;
+        for (int chunkIdx = 0; chunkIdx < numChunks; chunkIdx++) {
+            // cuts[chunkIdx] is the last instruction index included in this chunk
+            // (inclusive), matching the span-safety check in analyzeAndPlanSplit.
+            int end = (chunkIdx < cuts.length) ? cuts[chunkIdx] + 1 : instructions.size();
+            List<CompilerInstruction> slice = instructions.subList(start, end);
+            boolean isFirst = chunkIdx == 0;
+            boolean isLast = chunkIdx == numChunks - 1;
+            String nextChunkName = isLast ? null : funcName + "_chunk_" + (chunkIdx + 1);
+
+            int thisChunkIdx = chunkIdx;
+            // stub Labels are scoped per chunk: a far switch target gets one stub per
+            // chunk that jumps to it (never shared across chunks, since a Label can't
+            // be marked in more than one method), but a target referenced by several
+            // switches within the SAME chunk shares one stub, tracked via stubBodyEmitted.
+            Map<Long, Label> stubLabels = new HashMap<>();
+            Set<Long> stubBodyEmitted = new HashSet<>();
+            if (isFirst) {
+                emitLocalsDefaultInit(ctx, type, body, asm);
+                emitChunkAwareInstructions(
+                        ctx,
+                        type,
+                        body,
+                        slice,
+                        labels,
+                        labelDefPosition,
+                        visitedTargets,
+                        cuts,
+                        thisChunkIdx,
+                        chunkClassName,
+                        funcName,
+                        chunkType,
+                        stubLabels,
+                        stubBodyEmitted,
+                        asm);
+                if (!isLast) {
+                    emitChunkCall(ctx, type, body, chunkClassName, nextChunkName, chunkType, asm);
+                }
+            } else {
+                String chunkName = funcName + "_chunk_" + chunkIdx;
+                emitFunction(
+                        classWriter,
+                        chunkName,
+                        chunkType,
+                        true,
+                        chunkAsm -> {
+                            emitChunkAwareInstructions(
+                                    ctx,
+                                    type,
+                                    body,
+                                    slice,
+                                    labels,
+                                    labelDefPosition,
+                                    visitedTargets,
+                                    cuts,
+                                    thisChunkIdx,
+                                    chunkClassName,
+                                    funcName,
+                                    chunkType,
+                                    stubLabels,
+                                    stubBodyEmitted,
+                                    chunkAsm);
+                            if (!isLast) {
+                                emitChunkCall(
+                                        ctx,
+                                        type,
+                                        body,
+                                        chunkClassName,
+                                        nextChunkName,
+                                        chunkType,
+                                        chunkAsm);
+                            }
+                        });
+            }
+            start = end;
+        }
+    }
+
+    // Emits one chunk's slice of instructions. Every opcode goes through the plain,
+    // unmodified emitInstruction EXCEPT a SWITCH with at least one target outside
+    // this chunk -- analyzeAndPlanSplit's post-packing safety gate guarantees any
+    // such target sits exactly at another chunk's start, so it's resolved to a small
+    // stub that calls straight into that chunk instead of a local Label.
+    private void emitChunkAwareInstructions(
+            Context ctx,
+            FunctionType type,
+            FunctionBody body,
+            List<CompilerInstruction> slice,
+            Map<Long, Label> labels,
+            Map<Long, Integer> labelDefPosition,
+            Set<Long> visitedTargets,
+            int[] cuts,
+            int currentChunkIdx,
+            String chunkClassName,
+            String funcName,
+            MethodType chunkType,
+            Map<Long, Label> stubLabels,
+            Set<Long> stubBodyEmitted,
+            InstructionAdapter asm) {
+        for (var ins : slice) {
+            if (ins.opcode() == CompilerOpCode.SWITCH
+                    && hasFarTarget(ins, labelDefPosition, cuts, currentChunkIdx)) {
+                emitChunkAwareSwitch(
+                        ctx,
+                        type,
+                        body,
+                        ins,
+                        labels,
+                        labelDefPosition,
+                        cuts,
+                        currentChunkIdx,
+                        chunkClassName,
+                        funcName,
+                        chunkType,
+                        stubLabels,
+                        stubBodyEmitted,
+                        asm);
+            } else {
+                emitInstruction(ctx, labels, visitedTargets, ins, asm);
+            }
+        }
+    }
+
+    private static boolean hasFarTarget(
+            CompilerInstruction ins,
+            Map<Long, Integer> labelDefPosition,
+            int[] cuts,
+            int currentChunkIdx) {
+        return ins.operands()
+                .anyMatch(
+                        target ->
+                                chunkIndexOf(labelDefPosition.get(target), cuts)
+                                        != currentChunkIdx);
+    }
+
+    // A far-target SWITCH never has a backward (loop-header) target -- that's a
+    // precondition of switch-split eligibility in analyzeAndPlanSplit, since a loop
+    // header target disqualifies ALL of that switch's targets from the candidate
+    // pool, so none of them could ever have driven a cut. That means the
+    // CHECK_INTERRUPTION-before-backward-jump handling in the plain SWITCH case
+    // (emitInstruction) never applies here and is safely omitted.
+    private void emitChunkAwareSwitch(
+            Context ctx,
+            FunctionType type,
+            FunctionBody body,
+            CompilerInstruction ins,
+            Map<Long, Label> labels,
+            Map<Long, Integer> labelDefPosition,
+            int[] cuts,
+            int currentChunkIdx,
+            String chunkClassName,
+            String funcName,
+            MethodType chunkType,
+            Map<Long, Label> stubLabels,
+            Set<Long> stubBodyEmitted,
+            InstructionAdapter asm) {
+        int n = ins.operandCount() - 1;
+        Label[] table = new Label[n];
+        for (int i = 0; i < n; i++) {
+            table[i] =
+                    resolveSwitchTarget(
+                            ins.operand(i),
+                            labels,
+                            labelDefPosition,
+                            cuts,
+                            currentChunkIdx,
+                            stubLabels);
+        }
+        Label defaultLabel =
+                resolveSwitchTarget(
+                        ins.operand(n),
+                        labels,
+                        labelDefPosition,
+                        cuts,
+                        currentChunkIdx,
+                        stubLabels);
+        asm.tableswitch(0, n - 1, defaultLabel, table);
+
+        Set<Long> distinctTargets = new LinkedHashSet<>();
+        ins.operands().forEach(distinctTargets::add);
+        for (long targetId : distinctTargets) {
+            int labelChunk = chunkIndexOf(labelDefPosition.get(targetId), cuts);
+            if (labelChunk == currentChunkIdx || !stubBodyEmitted.add(targetId)) {
+                continue;
+            }
+            // The label's own position is the LAST instruction of labelChunk (see
+            // chunkIndexOf), so the code it actually names -- what the stub must
+            // reach -- is the very start of the chunk right after it, not labelChunk
+            // itself. The plan-time safety gate guarantees this alignment holds.
+            int targetChunk = labelChunk + 1;
+            asm.mark(stubLabels.get(targetId));
+            emitChunkCall(
+                    ctx,
+                    type,
+                    body,
+                    chunkClassName,
+                    funcName + "_chunk_" + targetChunk,
+                    chunkType,
+                    asm);
+        }
+    }
+
+    // A local target resolves to its real, shared Label exactly as before. A far
+    // target gets one stub Label per chunk (reused across every switch in this
+    // chunk that shares the target); the stub body (a call into the target's own
+    // chunk) is emitted once, right after the tableswitch, by the caller.
+    private static Label resolveSwitchTarget(
+            long targetId,
+            Map<Long, Label> labels,
+            Map<Long, Integer> labelDefPosition,
+            int[] cuts,
+            int currentChunkIdx,
+            Map<Long, Label> stubLabels) {
+        int targetChunk = chunkIndexOf(labelDefPosition.get(targetId), cuts);
+        if (targetChunk == currentChunkIdx) {
+            return labels.get(targetId);
+        }
+        return stubLabels.computeIfAbsent(targetId, id -> new Label());
+    }
+
+    // Emits a trampoline-split function: the real entry point keeps its normal
+    // signature and becomes a driver loop over chunk methods, each of which
+    // communicates "where to go next" through the frame's PC slot rather than by
+    // jumping. See TRAMPOLINE_SPLIT_ENABLED for why this exists.
+    private void emitTrampolineFunction(
+            ClassVisitor classWriter,
+            String internalClassName,
+            int funcId,
+            FunctionType type,
+            FunctionBody body,
+            List<CompilerInstruction> instructions,
+            WasmAnalyzer.AnalysisResult analysis,
+            Context entryCtx,
+            int[] starts,
+            InstructionAdapter asm) {
+
+        int totalLocals = type.params().size() + body.localTypes().size();
+        int pcIndex = totalLocals; // the frame slot after all locals holds the PC
+        int frameLength = totalLocals + 1;
+        int numChunks = starts.length;
+        String funcName = methodName(funcId);
+        String chunkClassName = entryCtx.classNameForFuncGroup(internalClassName, funcId);
+        MethodType chunkType =
+                methodType(jvmReturnType(type), long[].class, Memory.class, Instance.class);
+        Type returnAsmType = getType(jvmReturnType(type));
+
+        // ---- entry method: build the frame, then run the driver ----
+        // Nothing but driver code is emitted into this method, so slots past the
+        // ones Context reserved for the function's own body are free to use.
+        int frameSlot = entryCtx.trySaveBaseSlot() + 8;
+        asm.iconst(frameLength);
+        asm.newarray(LONG_TYPE);
+        asm.store(frameSlot, LONG_ARRAY_TYPE);
+
+        // Params seed the frame; declared locals correctly default to 0, which the
+        // freshly allocated array already provides.
+        for (int i = 0; i < type.params().size(); i++) {
+            var localType = localType(type, body, i);
+            asm.load(frameSlot, LONG_ARRAY_TYPE);
+            asm.iconst(i);
+            asm.load(entryCtx.localSlotIndex(i), asmType(localType));
+            emitJvmToLong(asm, localType);
+            asm.astore(LONG_TYPE);
+        }
+
+        Label driverLoop = new Label();
+        Label[] caseLabels = new Label[numChunks];
+        for (int k = 0; k < numChunks; k++) {
+            caseLabels[k] = new Label();
+        }
+        Label driverDefault = new Label();
+
+        asm.mark(driverLoop);
+        // One interruption check per dispatch. A Wasm loop whose back-edge became a
+        // chunk transition no longer passes through the emitter's own backward-jump
+        // check, so this is what preserves interruptibility for those loops.
+        emitInvokeStatic(asm, CHECK_INTERRUPTION);
+        asm.load(frameSlot, LONG_ARRAY_TYPE);
+        asm.iconst(pcIndex);
+        asm.aload(LONG_TYPE);
+        asm.visitInsn(Opcodes.L2I);
+        asm.tableswitch(0, numChunks - 1, driverDefault, caseLabels);
+
+        for (int k = 0; k < numChunks; k++) {
+            asm.mark(caseLabels[k]);
+            asm.load(frameSlot, LONG_ARRAY_TYPE);
+            asm.load(entryCtx.memorySlot(), OBJECT_TYPE);
+            asm.load(entryCtx.instanceSlot(), OBJECT_TYPE);
+            asm.invokestatic(
+                    chunkClassName,
+                    trampolineChunkName(funcName, k),
+                    chunkType.toMethodDescriptorString(),
+                    false);
+            // The chunk's return value is live on the stack here; whether it is the
+            // function's real result depends entirely on the PC it left behind.
+            asm.load(frameSlot, LONG_ARRAY_TYPE);
+            asm.iconst(pcIndex);
+            asm.aload(LONG_TYPE);
+            asm.visitInsn(Opcodes.L2I);
+            asm.iconst(TRAMPOLINE_PC_DONE);
+            Label keepGoing = new Label();
+            asm.visitJumpInsn(Opcodes.IF_ICMPNE, keepGoing);
+            asm.areturn(returnAsmType);
+            asm.mark(keepGoing);
+            if (returnAsmType.getSize() == 2) {
+                asm.pop2();
+            } else if (returnAsmType.getSize() == 1) {
+                asm.pop();
+            }
+            asm.goTo(driverLoop);
+        }
+
+        // Unreachable: the PC is only ever set by transitions this compiler emits.
+        // Returning the default value keeps it well-formed without a throw.
+        asm.mark(driverDefault);
+        emitDefaultReturnValue(asm, returnAsmType);
+        asm.areturn(returnAsmType);
+
+        // ---- chunk methods ----
+        Context chunkCtx = newContext(funcId, type, body, analysis, internalClassName, true);
+
+        Map<Long, Label> labels = new HashMap<>();
+        for (var ins : instructions) {
+            for (long target : ins.labelTargets()) {
+                labels.putIfAbsent(target, new Label());
+            }
+        }
+        Map<Long, Integer> labelDefPosition = new HashMap<>();
+        for (int idx = 0; idx < instructions.size(); idx++) {
+            var ins = instructions.get(idx);
+            if (ins.opcode() == CompilerOpCode.LABEL && labels.containsKey(ins.operand(0))) {
+                labelDefPosition.put(ins.operand(0), idx);
+            }
+        }
+        Set<Long> visitedTargets = new HashSet<>();
+
+        for (int k = 0; k < numChunks; k++) {
+            int from = starts[k];
+            int to = (k + 1 < numChunks) ? starts[k + 1] : instructions.size();
+            List<CompilerInstruction> slice = instructions.subList(from, to);
+            int chunkIdx = k;
+            emitFunction(
+                    classWriter,
+                    trampolineChunkName(funcName, k),
+                    chunkType,
+                    true,
+                    chunkAsm ->
+                            emitTrampolineChunk(
+                                    chunkCtx,
+                                    type,
+                                    body,
+                                    slice,
+                                    labels,
+                                    labelDefPosition,
+                                    visitedTargets,
+                                    starts,
+                                    chunkIdx,
+                                    numChunks,
+                                    pcIndex,
+                                    totalLocals,
+                                    returnAsmType,
+                                    chunkAsm));
+        }
+    }
+
+    private static String trampolineChunkName(String funcName, int chunkIdx) {
+        return funcName + "_tc_" + chunkIdx;
+    }
+
+    // Which chunk a position belongs to, given chunk *start* positions.
+    private static int trampolineChunkOf(int pos, int[] starts) {
+        int lo = 0;
+        int hi = starts.length - 1;
+        while (lo < hi) {
+            int mid = (lo + hi + 1) >>> 1;
+            if (starts[mid] <= pos) {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        return lo;
+    }
+
+    private void emitTrampolineChunk(
+            Context ctx,
+            FunctionType type,
+            FunctionBody body,
+            List<CompilerInstruction> slice,
+            Map<Long, Label> labels,
+            Map<Long, Integer> labelDefPosition,
+            Set<Long> visitedTargets,
+            int[] starts,
+            int chunkIdx,
+            int numChunks,
+            int pcIndex,
+            int totalLocals,
+            Type returnAsmType,
+            InstructionAdapter asm) {
+
+        // Default the PC to DONE, so an ordinary `return` inside this slice needs no
+        // special handling at all -- it just areturns, and the driver sees DONE.
+        asm.load(0, LONG_ARRAY_TYPE);
+        asm.iconst(pcIndex);
+        asm.lconst(TRAMPOLINE_PC_DONE);
+        asm.astore(LONG_TYPE);
+
+        // unbox every local out of the frame into the JVM slots Context assigned
+        for (int i = 0; i < totalLocals; i++) {
+            var localType = localType(type, body, i);
+            asm.load(0, LONG_ARRAY_TYPE);
+            asm.iconst(i);
+            asm.aload(LONG_TYPE);
+            emitLongToJvm(asm, localType);
+            asm.store(ctx.localSlotIndex(i), asmType(localType));
+        }
+
+        // Every cross-chunk exit funnels through one shared epilogue, so the cost of
+        // boxing all the locals back is paid once per chunk rather than once per
+        // transition -- which matters a lot for a dispatch chunk with hundreds of
+        // outgoing switch targets.
+        Label sharedExit = new Label();
+        int pcTempSlot = ctx.trySaveBaseSlot() + 8;
+        Map<Integer, Label> switchStubs = new HashMap<>();
+
+        for (var ins : slice) {
+            emitTrampolineInstruction(
+                    ctx,
+                    labels,
+                    labelDefPosition,
+                    visitedTargets,
+                    starts,
+                    chunkIdx,
+                    sharedExit,
+                    pcTempSlot,
+                    switchStubs,
+                    ins,
+                    asm);
+        }
+
+        // Falling off the end of a chunk continues into the next one. For the last
+        // chunk this is unreachable (the body ends in a return), but emitting a
+        // well-formed DONE keeps the method verifiable either way.
+        asm.iconst(chunkIdx + 1 < numChunks ? chunkIdx + 1 : TRAMPOLINE_PC_DONE);
+        asm.store(pcTempSlot, INT_TYPE);
+        asm.goTo(sharedExit);
+
+        for (Map.Entry<Integer, Label> stub : switchStubs.entrySet()) {
+            asm.mark(stub.getValue());
+            asm.iconst(stub.getKey());
+            asm.store(pcTempSlot, INT_TYPE);
+            asm.goTo(sharedExit);
+        }
+
+        asm.mark(sharedExit);
+        for (int i = 0; i < totalLocals; i++) {
+            var localType = localType(type, body, i);
+            asm.load(0, LONG_ARRAY_TYPE);
+            asm.iconst(i);
+            asm.load(ctx.localSlotIndex(i), asmType(localType));
+            emitJvmToLong(asm, localType);
+            asm.astore(LONG_TYPE);
+        }
+        asm.load(0, LONG_ARRAY_TYPE);
+        asm.iconst(pcIndex);
+        asm.load(pcTempSlot, INT_TYPE);
+        asm.visitInsn(Opcodes.I2L);
+        asm.astore(LONG_TYPE);
+        emitDefaultReturnValue(asm, returnAsmType);
+        asm.areturn(returnAsmType);
+    }
+
+    // Like emitInstruction, but any branch leaving this chunk becomes a transition
+    // through the shared epilogue instead of a jump. Non-branching opcodes are
+    // emitted by the ordinary path, unchanged.
+    private void emitTrampolineInstruction(
+            Context ctx,
+            Map<Long, Label> labels,
+            Map<Long, Integer> labelDefPosition,
+            Set<Long> visitedTargets,
+            int[] starts,
+            int chunkIdx,
+            Label sharedExit,
+            int pcTempSlot,
+            Map<Integer, Label> switchStubs,
+            CompilerInstruction ins,
+            InstructionAdapter asm) {
+
+        switch (ins.opcode()) {
+            case GOTO:
+                {
+                    int target = trampolineTargetChunk(ins.operand(0), labelDefPosition, starts);
+                    if (target == chunkIdx) {
+                        break; // handled by the ordinary emitter below
+                    }
+                    emitTrampolineTransition(target, pcTempSlot, sharedExit, asm);
+                    return;
+                }
+            case IFEQ:
+                {
+                    int target = trampolineTargetChunk(ins.operand(0), labelDefPosition, starts);
+                    if (target == chunkIdx) {
+                        break;
+                    }
+                    Label notTaken = new Label();
+                    asm.ifne(notTaken);
+                    emitTrampolineTransition(target, pcTempSlot, sharedExit, asm);
+                    asm.mark(notTaken);
+                    return;
+                }
+            case IFNE:
+                {
+                    int target = trampolineTargetChunk(ins.operand(0), labelDefPosition, starts);
+                    if (target == chunkIdx) {
+                        break;
+                    }
+                    Label notTaken = new Label();
+                    asm.ifeq(notTaken);
+                    emitTrampolineTransition(target, pcTempSlot, sharedExit, asm);
+                    asm.mark(notTaken);
+                    return;
+                }
+            case SWITCH:
+                {
+                    boolean anyFar =
+                            ins.operands()
+                                    .anyMatch(
+                                            t ->
+                                                    trampolineTargetChunk(
+                                                                    t, labelDefPosition, starts)
+                                                            != chunkIdx);
+                    if (!anyFar) {
+                        break;
+                    }
+                    int n = ins.operandCount() - 1;
+                    Label[] table = new Label[n];
+                    for (int i = 0; i < n; i++) {
+                        table[i] =
+                                trampolineSwitchLabel(
+                                        ins.operand(i),
+                                        labels,
+                                        labelDefPosition,
+                                        starts,
+                                        chunkIdx,
+                                        switchStubs);
+                    }
+                    Label defaultLabel =
+                            trampolineSwitchLabel(
+                                    ins.operand(n),
+                                    labels,
+                                    labelDefPosition,
+                                    starts,
+                                    chunkIdx,
+                                    switchStubs);
+                    asm.tableswitch(0, n - 1, defaultLabel, table);
+                    return;
+                }
+            default:
+                break;
+        }
+        emitInstruction(ctx, labels, visitedTargets, ins, asm);
+    }
+
+    private static int trampolineTargetChunk(
+            long labelId, Map<Long, Integer> labelDefPosition, int[] starts) {
+        Integer defPos = labelDefPosition.get(labelId);
+        if (defPos == null) {
+            return -1;
+        }
+        return trampolineChunkOf(defPos, starts);
+    }
+
+    private static Label trampolineSwitchLabel(
+            long labelId,
+            Map<Long, Label> labels,
+            Map<Long, Integer> labelDefPosition,
+            int[] starts,
+            int chunkIdx,
+            Map<Integer, Label> switchStubs) {
+        int target = trampolineTargetChunk(labelId, labelDefPosition, starts);
+        if (target == chunkIdx) {
+            return labels.get(labelId);
+        }
+        // One stub per destination chunk, shared by every switch entry heading there.
+        return switchStubs.computeIfAbsent(target, k -> new Label());
+    }
+
+    private static void emitTrampolineTransition(
+            int targetChunk, int pcTempSlot, Label sharedExit, InstructionAdapter asm) {
+        asm.iconst(targetChunk);
+        asm.store(pcTempSlot, INT_TYPE);
+        asm.goTo(sharedExit);
+    }
+
+    private static void emitDefaultReturnValue(InstructionAdapter asm, Type returnAsmType) {
+        switch (returnAsmType.getSort()) {
+            case Type.VOID:
+                return;
+            case Type.LONG:
+                asm.lconst(0L);
+                return;
+            case Type.FLOAT:
+                asm.fconst(0f);
+                return;
+            case Type.DOUBLE:
+                asm.dconst(0d);
+                return;
+            case Type.OBJECT:
+            case Type.ARRAY:
+                asm.aconst(null);
+                return;
+            default:
+                asm.iconst(0);
+        }
+    }
+
+    // The JVM method type shared by every chunk after the first: the function's own
+    // params, then Memory and Instance (matching Context's memorySlot/instanceSlot),
+    // then every declared local in order (matching Context's local slot layout for
+    // indices >= params.size()). Chunk 0 keeps the function's normal, unextended
+    // signature -- it's the real entry point and receives locals via initialization,
+    // not as arguments.
+    private static MethodType chunkMethodType(FunctionType type, FunctionBody body) {
+        var params = new ArrayList<Class<?>>();
+        params.addAll(List.of(jvmParameterTypes(type)));
+        params.add(Memory.class);
+        params.add(Instance.class);
+        for (ValType local : body.localTypes()) {
+            params.add(jvmType(local));
+        }
+        return methodType(jvmReturnType(type), params.toArray(new Class<?>[0]));
+    }
+
+    // Loads every param and local from this chunk's own JVM slots (via the shared
+    // Context, so slot numbers line up identically in every chunk), calls the next
+    // chunk, and returns its result directly.
+    private void emitChunkCall(
+            Context ctx,
+            FunctionType type,
+            FunctionBody body,
+            String internalClassName,
+            String nextChunkName,
+            MethodType chunkType,
+            InstructionAdapter asm) {
+        // Argument order must match chunkMethodType exactly: params, then Memory,
+        // then Instance, then declared locals.
+        int paramCount = type.params().size();
+        int totalLocals = paramCount + body.localTypes().size();
+        for (int i = 0; i < paramCount; i++) {
+            var localType = localType(type, body, i);
+            asm.load(ctx.localSlotIndex(i), asmType(localType));
+        }
+        asm.load(ctx.memorySlot(), OBJECT_TYPE);
+        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+        for (int i = paramCount; i < totalLocals; i++) {
+            var localType = localType(type, body, i);
+            asm.load(ctx.localSlotIndex(i), asmType(localType));
+        }
+        asm.invokestatic(
+                internalClassName, nextChunkName, chunkType.toMethodDescriptorString(), false);
+        asm.areturn(getType(jvmReturnType(type)));
     }
 }

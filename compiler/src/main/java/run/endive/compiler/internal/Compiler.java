@@ -263,6 +263,18 @@ public final class Compiler {
     // over-estimated: the widest of those forms is about 10 bytes.
     private static final int TRAMPOLINE_LOCAL_SYNC_COST = 10;
 
+    // How many pending operand-stack values a chunk boundary may carry. A boundary
+    // is a method boundary, so anything on the stack has to be spilled into the
+    // frame and reloaded on the other side; the cap keeps that bounded. Depths at
+    // real branch targets are small (0-3), so this is generous.
+    private static final int TRAMPOLINE_MAX_SPILL =
+            Integer.getInteger("endive.trampolineMaxSpill", 8);
+
+    // funcId -> chunk start position -> the operand-stack types live at that start.
+    // Empty arrays are the common case; a non-empty one means the chunk reloads
+    // that many values before running its first instruction.
+    private final Map<Integer, Map<Integer, Type[]>> trampolineEntryStacks = new HashMap<>();
+
     private final String className;
     private final WasmModule module;
     private final WasmAnalyzer analyzer;
@@ -485,7 +497,7 @@ public final class Compiler {
             // is dominated by a loop. Try the trampoline, which isn't subject to
             // that restriction.
             if (TRAMPOLINE_SPLIT_ENABLED && splitEligible) {
-                int[] starts = planTrampolineSplit(measureCtx, type, body, instructions);
+                int[] starts = planTrampolineSplit(funcId, measureCtx, type, body, instructions);
                 if (starts != null) {
                     trampolineChunkStarts.put(funcId, starts);
                     if (interpreterFallback != InterpreterFallback.SILENT) {
@@ -555,6 +567,85 @@ public final class Compiler {
         return frames[nodePos].getStackSize() == 0;
     }
 
+    // The operand stack live at a label, as JVM types, or null if this label cannot
+    // begin a chunk. A chunk boundary is a method boundary, so pending stack values
+    // have to travel through the long[] frame -- which rules out references, and is
+    // capped in depth. An empty array (stack already empty) is the easy case and
+    // needs no spilling at all.
+    private static Type[] spillableStackAtLabel(
+            long labelId,
+            Map<Long, Label> labels,
+            MethodNode methodNode,
+            Frame<BasicValue>[] frames) {
+        Label label = labels.get(labelId);
+        if (label == null || !(label.info instanceof LabelNode)) {
+            return null;
+        }
+        int nodePos = methodNode.instructions.indexOf((LabelNode) label.info);
+        if (nodePos < 0 || nodePos >= frames.length || frames[nodePos] == null) {
+            return null;
+        }
+        Frame<BasicValue> frame = frames[nodePos];
+        int depth = frame.getStackSize();
+        if (depth > TRAMPOLINE_MAX_SPILL) {
+            return null;
+        }
+        Type[] types = new Type[depth];
+        for (int i = 0; i < depth; i++) {
+            BasicValue value = frame.getStack(i);
+            Type type = value == null ? null : value.getType();
+            if (type == null) {
+                return null;
+            }
+            switch (type.getSort()) {
+                case Type.INT:
+                case Type.LONG:
+                case Type.FLOAT:
+                case Type.DOUBLE:
+                    types[i] = type;
+                    break;
+                default:
+                    return null; // a reference cannot be stored in a long[]
+            }
+        }
+        return types;
+    }
+
+    // Bit-preserving conversions between a stack value and its long[] slot. These
+    // mirror what CompilerUtil does for locals, but work from the JVM types ASM's
+    // analysis reports rather than from Wasm ValTypes.
+    private static void emitStackValueToLong(InstructionAdapter asm, Type type) {
+        switch (type.getSort()) {
+            case Type.INT:
+                asm.visitInsn(Opcodes.I2L);
+                return;
+            case Type.FLOAT:
+                asm.invokestatic("java/lang/Float", "floatToRawIntBits", "(F)I", false);
+                asm.visitInsn(Opcodes.I2L);
+                return;
+            case Type.DOUBLE:
+                asm.invokestatic("java/lang/Double", "doubleToRawLongBits", "(D)J", false);
+                return;
+            default: // LONG needs no conversion
+        }
+    }
+
+    private static void emitLongToStackValue(InstructionAdapter asm, Type type) {
+        switch (type.getSort()) {
+            case Type.INT:
+                asm.visitInsn(Opcodes.L2I);
+                return;
+            case Type.FLOAT:
+                asm.visitInsn(Opcodes.L2I);
+                asm.invokestatic("java/lang/Float", "intBitsToFloat", "(I)F", false);
+                return;
+            case Type.DOUBLE:
+                asm.invokestatic("java/lang/Double", "longBitsToDouble", "(J)D", false);
+                return;
+            default: // LONG needs no conversion
+        }
+    }
+
     // Which chunk a flattened-instruction-list position ends up in, given the final
     // list of cut points (each cuts[k] is the last instruction index of chunk k,
     // inclusive). Shared between the post-packing switch-alignment safety gate above
@@ -589,6 +680,7 @@ public final class Compiler {
     // that is the only position the driver can dispatch to. Everything else here is
     // in service of finding a start set that satisfies it.
     private int[] planTrampolineSplit(
+            int funcId,
             Context ctx,
             FunctionType type,
             FunctionBody body,
@@ -643,14 +735,20 @@ public final class Compiler {
             return null;
         }
 
-        // Only a position where the operand stack is empty can start a chunk: a
-        // chunk boundary is a method boundary, and pending stack values can't be
-        // carried across one (locals can -- that's what the frame array is for).
+        // A chunk boundary is a method boundary, so anything pending on the operand
+        // stack has to travel through the frame. Labels where the stack is already
+        // empty are free; the rest are still usable as long as their stack can be
+        // spilled (no references, bounded depth), which is what lets a branch into
+        // the middle of an expression still begin a chunk.
         TreeSet<Integer> candidateStarts = new TreeSet<>();
         candidateStarts.add(0);
+        Map<Integer, Type[]> entryStacks = new HashMap<>();
+        entryStacks.put(0, new Type[0]);
         for (Map.Entry<Long, Integer> e : labelDefPosition.entrySet()) {
-            if (isStackEmptyAtLabel(e.getKey(), labels, methodNode, frames)) {
+            Type[] stack = spillableStackAtLabel(e.getKey(), labels, methodNode, frames);
+            if (stack != null) {
                 candidateStarts.add(e.getValue());
+                entryStacks.put(e.getValue(), stack);
             }
         }
 
@@ -721,6 +819,11 @@ public final class Compiler {
                             instructions,
                             totalLocals);
             if (planned != null) {
+                Map<Integer, Type[]> chosen = new HashMap<>();
+                for (int startPos : planned) {
+                    chosen.put(startPos, entryStacks.getOrDefault(startPos, new Type[0]));
+                }
+                trampolineEntryStacks.put(funcId, chosen);
                 return planned;
             }
         }
@@ -3689,7 +3792,14 @@ public final class Compiler {
 
         int totalLocals = type.params().size() + body.localTypes().size();
         int pcIndex = totalLocals; // the frame slot after all locals holds the PC
-        int frameLength = totalLocals + 1;
+        // slots after the PC carry any operand-stack values a boundary has to spill
+        Map<Integer, Type[]> entryStacks = trampolineEntryStacks.getOrDefault(funcId, Map.of());
+        int maxSpill = 0;
+        for (Type[] st : entryStacks.values()) {
+            maxSpill = Math.max(maxSpill, st.length);
+        }
+        int spillBase = pcIndex + 1;
+        int frameLength = spillBase + maxSpill;
         int numChunks = starts.length;
         String funcName = methodName(funcId);
         String chunkClassName = entryCtx.classNameForFuncGroup(internalClassName, funcId);
@@ -3810,6 +3920,9 @@ public final class Compiler {
                                     chunkIdx,
                                     numChunks,
                                     pcIndex,
+                                    spillBase,
+                                    entryStacks,
+                                    starts,
                                     totalLocals,
                                     returnAsmType,
                                     chunkAsm));
@@ -3882,6 +3995,9 @@ public final class Compiler {
             int chunkIdx,
             int numChunks,
             int pcIndex,
+            int spillBase,
+            Map<Integer, Type[]> entryStacks,
+            int[] startPositions,
             int totalLocals,
             Type returnAsmType,
             InstructionAdapter asm) {
@@ -3940,6 +4056,17 @@ public final class Compiler {
             asm.store(ctx.localSlotIndex(i), asmType(localType));
         }
 
+        // Reload whatever operand-stack values this chunk was entered with. They
+        // were spilled by whichever transition jumped here, and must be pushed back
+        // in the same bottom-to-top order before the first instruction runs.
+        Type[] entryStack = entryStacks.getOrDefault(startPositions[chunkIdx], EMPTY_TYPES);
+        for (int i = 0; i < entryStack.length; i++) {
+            asm.load(0, LONG_ARRAY_TYPE);
+            asm.iconst(spillBase + i);
+            asm.aload(LONG_TYPE);
+            emitLongToStackValue(asm, entryStack[i]);
+        }
+
         // Every cross-chunk exit funnels through one shared epilogue, so the cost of
         // boxing all the locals back is paid once per chunk rather than once per
         // transition -- which matters a lot for a dispatch chunk with hundreds of
@@ -3959,6 +4086,8 @@ public final class Compiler {
                     sharedExit,
                     pcTempSlot,
                     switchStubs,
+                    entryStacks,
+                    spillBase,
                     ins,
                     asm);
         }
@@ -3966,15 +4095,27 @@ public final class Compiler {
         // Falling off the end of a chunk continues into the next one. For the last
         // chunk this is unreachable (the body ends in a return), but emitting a
         // well-formed DONE keeps the method verifiable either way.
-        asm.iconst(chunkIdx + 1 < numChunks ? chunkIdx + 1 : TRAMPOLINE_PC_DONE);
-        asm.store(pcTempSlot, INT_TYPE);
-        asm.goTo(sharedExit);
+        emitTrampolineTransition(
+                ctx,
+                chunkIdx + 1 < numChunks ? chunkIdx + 1 : TRAMPOLINE_PC_DONE,
+                startPositions,
+                entryStacks,
+                spillBase,
+                pcTempSlot,
+                sharedExit,
+                asm);
 
         for (Map.Entry<Integer, Label> stub : switchStubs.entrySet()) {
             asm.mark(stub.getValue());
-            asm.iconst(stub.getKey());
-            asm.store(pcTempSlot, INT_TYPE);
-            asm.goTo(sharedExit);
+            emitTrampolineTransition(
+                    ctx,
+                    stub.getKey(),
+                    startPositions,
+                    entryStacks,
+                    spillBase,
+                    pcTempSlot,
+                    sharedExit,
+                    asm);
         }
 
         asm.mark(sharedExit);
@@ -4011,6 +4152,8 @@ public final class Compiler {
             Label sharedExit,
             int pcTempSlot,
             Map<Integer, Label> switchStubs,
+            Map<Integer, Type[]> entryStacks,
+            int spillBase,
             CompilerInstruction ins,
             InstructionAdapter asm) {
 
@@ -4021,7 +4164,15 @@ public final class Compiler {
                     if (target == chunkIdx) {
                         break; // handled by the ordinary emitter below
                     }
-                    emitTrampolineTransition(target, pcTempSlot, sharedExit, asm);
+                    emitTrampolineTransition(
+                            ctx,
+                            target,
+                            starts,
+                            entryStacks,
+                            spillBase,
+                            pcTempSlot,
+                            sharedExit,
+                            asm);
                     return;
                 }
             case IFEQ:
@@ -4032,7 +4183,15 @@ public final class Compiler {
                     }
                     Label notTaken = new Label();
                     asm.ifne(notTaken);
-                    emitTrampolineTransition(target, pcTempSlot, sharedExit, asm);
+                    emitTrampolineTransition(
+                            ctx,
+                            target,
+                            starts,
+                            entryStacks,
+                            spillBase,
+                            pcTempSlot,
+                            sharedExit,
+                            asm);
                     asm.mark(notTaken);
                     return;
                 }
@@ -4044,7 +4203,15 @@ public final class Compiler {
                     }
                     Label notTaken = new Label();
                     asm.ifeq(notTaken);
-                    emitTrampolineTransition(target, pcTempSlot, sharedExit, asm);
+                    emitTrampolineTransition(
+                            ctx,
+                            target,
+                            starts,
+                            entryStacks,
+                            spillBase,
+                            pcTempSlot,
+                            sharedExit,
+                            asm);
                     asm.mark(notTaken);
                     return;
                 }
@@ -4113,12 +4280,42 @@ public final class Compiler {
         return switchStubs.computeIfAbsent(target, k -> new Label());
     }
 
+    // Leaves for another chunk. Any operand-stack values pending here belong to the
+    // destination (the verifier guarantees the stack at a branch matches its target),
+    // so they are spilled into the frame and the stack left empty -- which is also
+    // what lets every transition share one epilogue, since they all arrive there
+    // with the same empty stack.
     private static void emitTrampolineTransition(
-            int targetChunk, int pcTempSlot, Label sharedExit, InstructionAdapter asm) {
+            Context ctx,
+            int targetChunk,
+            int[] startPositions,
+            Map<Integer, Type[]> entryStacks,
+            int spillBase,
+            int pcTempSlot,
+            Label sharedExit,
+            InstructionAdapter asm) {
+        Type[] stack =
+                (targetChunk >= 0 && targetChunk < startPositions.length)
+                        ? entryStacks.getOrDefault(startPositions[targetChunk], EMPTY_TYPES)
+                        : EMPTY_TYPES;
+        // pop top-down into scratch slots, then store bottom-up into the frame
+        int tempBase = ctx.trySaveBaseSlot() + 16;
+        for (int i = stack.length - 1; i >= 0; i--) {
+            emitStackValueToLong(asm, stack[i]);
+            asm.store(tempBase + i * 2, LONG_TYPE);
+        }
+        for (int i = 0; i < stack.length; i++) {
+            asm.load(0, LONG_ARRAY_TYPE);
+            asm.iconst(spillBase + i);
+            asm.load(tempBase + i * 2, LONG_TYPE);
+            asm.astore(LONG_TYPE);
+        }
         asm.iconst(targetChunk);
         asm.store(pcTempSlot, INT_TYPE);
         asm.goTo(sharedExit);
     }
+
+    private static final Type[] EMPTY_TYPES = new Type[0];
 
     private static void emitDefaultReturnValue(InstructionAdapter asm, Type returnAsmType) {
         switch (returnAsmType.getSort()) {

@@ -3752,8 +3752,45 @@ public final class Compiler {
         asm.lconst(TRAMPOLINE_PC_DONE);
         asm.astore(LONG_TYPE);
 
-        // unbox every local out of the frame into the JVM slots Context assigned
+        // The frame is the single source of truth for locals; the JVM slots are
+        // only this chunk's cache of it. So a chunk needs to load just the locals
+        // it actually touches, and store back just the ones it writes -- a local
+        // this chunk never mentions keeps its value in the frame untouched.
+        //
+        // Written locals must also be *loaded*, not just stored: a write that only
+        // happens on one path through the chunk would otherwise leave the slot
+        // undefined, and the shared epilogue stores unconditionally. Loading first
+        // means the worst case is storing back the value that was already there.
+        //
+        // This matters most exactly where the trampoline is most valuable: a
+        // dispatch-loop case body typically touches a handful of the function's
+        // locals (JS_CallInternal has 48), and without this every one of them was
+        // boxed and unboxed on every transition, per loop iteration.
+        boolean[] readsLocal = new boolean[totalLocals];
+        boolean[] writesLocal = new boolean[totalLocals];
+        for (var ins : slice) {
+            switch (ins.opcode()) {
+                // an out-of-range index is a malformed module that would already
+                // have failed validation, and would blow up in LOCAL_GET's own
+                // emitter too -- so index directly rather than hiding it
+                case LOCAL_GET:
+                    readsLocal[(int) ins.operand(0)] = true;
+                    break;
+                case LOCAL_SET:
+                case LOCAL_TEE:
+                    // LOCAL_TEE dups the stack value and delegates to LOCAL_SET,
+                    // so it writes the local without reading it
+                    writesLocal[(int) ins.operand(0)] = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+
         for (int i = 0; i < totalLocals; i++) {
+            if (!readsLocal[i] && !writesLocal[i]) {
+                continue;
+            }
             var localType = localType(type, body, i);
             asm.load(0, LONG_ARRAY_TYPE);
             asm.iconst(i);
@@ -3801,6 +3838,9 @@ public final class Compiler {
 
         asm.mark(sharedExit);
         for (int i = 0; i < totalLocals; i++) {
+            if (!writesLocal[i]) {
+                continue; // this chunk never changed it, so the frame is still right
+            }
             var localType = localType(type, body, i);
             asm.load(0, LONG_ARRAY_TYPE);
             asm.iconst(i);

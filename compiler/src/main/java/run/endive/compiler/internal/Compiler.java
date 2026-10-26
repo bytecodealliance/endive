@@ -254,6 +254,15 @@ public final class Compiler {
     // cross-chunk transition ever overwrites it.
     private static final int TRAMPOLINE_PC_DONE = -1;
 
+    // Fixed per-chunk cost: setting the PC on entry, the shared epilogue's PC
+    // store, and the dummy return. Over-estimated on purpose.
+    private static final int TRAMPOLINE_CHUNK_BASE_COST = 64;
+
+    // Cost of syncing one local in one direction (aload frame, push index, array
+    // load/store, the long<->JVM-type conversion, and the slot load/store). Also
+    // over-estimated: the widest of those forms is about 10 bytes.
+    private static final int TRAMPOLINE_LOCAL_SYNC_COST = 10;
+
     private final String className;
     private final WasmModule module;
     private final WasmAnalyzer analyzer;
@@ -674,12 +683,18 @@ public final class Compiler {
             }
         }
 
-        // Per-chunk prologue/epilogue cost: every local is unboxed from the frame on
-        // entry and boxed back on exit, so reserve room for it before spending the
-        // budget on actual instructions.
+        // Reserve for the prologue/epilogue while seeding. A chunk only syncs the
+        // locals it actually touches (see emitTrampolineChunk), so reserving for
+        // every local in the function -- as this used to -- shrinks the budget far
+        // below what chunks really cost and splits functions more finely than
+        // needed. Seed optimistically instead; the exact per-chunk cost is checked
+        // afterwards, and a chunk that turns out too big is subdivided rather than
+        // costing the whole function its split.
         int totalLocals = type.params().size() + body.localTypes().size();
-        int perChunkOverhead = 64 + totalLocals * 24;
-        int budget = JIT_ELIGIBILITY_SIZE_BYTES - perChunkOverhead;
+        int budget =
+                JIT_ELIGIBILITY_SIZE_BYTES
+                        - (TRAMPOLINE_CHUNK_BASE_COST
+                                + Math.min(totalLocals, 16) * TRAMPOLINE_LOCAL_SYNC_COST * 2);
         if (budget < 512) {
             if (Boolean.getBoolean("endive.debugTrampoline")) {
                 System.err.println("DEBUG trampoline bail: budget=" + budget);
@@ -687,6 +702,41 @@ public final class Compiler {
             return null; // so many locals that the sync alone would blow the budget
         }
 
+        // A bail can depend on exactly where the boundaries landed: different cuts
+        // make different branches cross chunks, and one of those may target a
+        // position with a non-empty operand stack, which can never start a chunk.
+        // So a failure at one budget is not proof the function is unsplittable --
+        // retry with tighter budgets, which lands the cuts differently.
+        for (int attempt = 0; attempt < 3; attempt++) {
+            int attemptBudget = budget - (budget / 4) * attempt;
+            if (attemptBudget < 512) {
+                break;
+            }
+            int[] planned =
+                    planTrampolineStarts(
+                            attemptBudget,
+                            candidateStarts,
+                            edges,
+                            cumulativeSizeAtIndex,
+                            instructions,
+                            totalLocals);
+            if (planned != null) {
+                return planned;
+            }
+        }
+        return null;
+    }
+
+    // Chooses chunk starts for one budget, or null if this budget cannot produce a
+    // valid plan. Split out of planTrampolineSplit so a failed plan can simply be
+    // retried at a different budget.
+    private int[] planTrampolineStarts(
+            int budget,
+            TreeSet<Integer> candidateStarts,
+            List<int[]> edges,
+            Map<Integer, Integer> cumulativeSizeAtIndex,
+            List<CompilerInstruction> instructions,
+            int totalLocals) {
         // Seed with a purely size-driven partition, then repair it: any branch that
         // lands somewhere other than a chunk start forces that landing position to
         // become one. Adding starts only ever subdivides chunks, so this terminates
@@ -715,39 +765,115 @@ public final class Compiler {
             prev = c;
         }
 
-        for (int pass = 0; ; pass++) {
-            List<Integer> forced = new ArrayList<>();
-            for (int[] edge : edges) {
-                int srcChunk = starts.floor(edge[0]);
-                int dstChunk = starts.floor(edge[1]);
-                if (srcChunk != dstChunk && dstChunk != edge[1]) {
-                    forced.add(edge[1]);
+        // Two invariants have to hold together, and fixing either can break the
+        // other: every branch must land exactly on a chunk start, and every chunk
+        // must fit the size limit once its real sync cost is counted. Subdividing an
+        // oversized chunk can strand a branch that used to be internal to it, so the
+        // branch repair is re-run after every subdivision rather than once up front.
+        for (int round = 0; ; round++) {
+            for (int pass = 0; ; pass++) {
+                List<Integer> forced = new ArrayList<>();
+                for (int[] edge : edges) {
+                    int srcChunk = starts.floor(edge[0]);
+                    int dstChunk = starts.floor(edge[1]);
+                    if (srcChunk != dstChunk && dstChunk != edge[1]) {
+                        forced.add(edge[1]);
+                    }
                 }
-            }
-            if (forced.isEmpty()) {
-                break;
-            }
-            for (int f : forced) {
-                if (!candidateStarts.contains(f)) {
-                    // A branch crosses into a position that can never begin a chunk
-                    // (non-empty operand stack there). Not splittable this way.
+                if (forced.isEmpty()) {
+                    break;
+                }
+                for (int f : forced) {
+                    if (!candidateStarts.contains(f)) {
+                        // A branch crosses into a position that can never begin a
+                        // chunk (non-empty operand stack there). Not splittable.
+                        if (Boolean.getBoolean("endive.debugTrampoline")) {
+                            System.err.println(
+                                    "DEBUG trampoline bail: forced start "
+                                            + f
+                                            + " is not a valid candidate (stack not empty there)");
+                        }
+                        return null;
+                    }
+                    starts.add(f);
+                }
+                if (starts.size() > TRAMPOLINE_MAX_CHUNKS || pass > 64) {
                     if (Boolean.getBoolean("endive.debugTrampoline")) {
                         System.err.println(
-                                "DEBUG trampoline bail: forced start "
-                                        + f
-                                        + " is not a valid candidate (stack not empty there)");
+                                "DEBUG trampoline bail: starts=" + starts.size() + " pass=" + pass);
                     }
                     return null;
                 }
-                starts.add(f);
             }
-            if (starts.size() > TRAMPOLINE_MAX_CHUNKS || pass > 64) {
+
+            // Now that the chunks are settled, cost each one exactly.
+            List<Integer> startList = new ArrayList<>(starts);
+            int oversized = -1;
+            for (int k = 0; k < startList.size(); k++) {
+                int from = startList.get(k);
+                int to = (k + 1 < startList.size()) ? startList.get(k + 1) : instructions.size();
+                int bodyBytes =
+                        cumulativeSizeAtIndex.get(to - 1)
+                                - (from == 0 ? 0 : cumulativeSizeAtIndex.get(from - 1));
+                int cost =
+                        bodyBytes
+                                + trampolineChunkOverhead(
+                                        instructions.subList(from, to), totalLocals);
+                if (cost > JIT_ELIGIBILITY_SIZE_BYTES) {
+                    oversized = k;
+                    break;
+                }
+            }
+            if (oversized < 0) {
+                break;
+            }
+            if (round > 64 || starts.size() > TRAMPOLINE_MAX_CHUNKS) {
+                return null;
+            }
+
+            // Subdivide the offending chunk at the LAST candidate that still fits,
+            // so the leading piece is packed as full as the limit allows. Splitting
+            // down the middle instead would leave both halves half-empty and end up
+            // producing more, smaller chunks than necessary.
+            int from = startList.get(oversized);
+            int to =
+                    (oversized + 1 < startList.size())
+                            ? startList.get(oversized + 1)
+                            : instructions.size();
+            Integer split = null;
+            int baseBytes = from == 0 ? 0 : cumulativeSizeAtIndex.get(from - 1);
+            for (int c : candidateStarts.subSet(from + 1, to)) {
+                int cost =
+                        cumulativeSizeAtIndex.get(c - 1)
+                                - baseBytes
+                                + trampolineChunkOverhead(
+                                        instructions.subList(from, c), totalLocals);
+                if (cost > JIT_ELIGIBILITY_SIZE_BYTES) {
+                    break;
+                }
+                split = c;
+            }
+            if (split == null) {
+                // not even the first candidate fits; take it anyway so the loop
+                // still makes progress, and let the next round subdivide further
+                var tail = candidateStarts.subSet(from + 1, to);
+                if (!tail.isEmpty()) {
+                    split = tail.first();
+                }
+            }
+            if (split == null) {
+                // nothing inside it can legally begin a chunk
                 if (Boolean.getBoolean("endive.debugTrampoline")) {
                     System.err.println(
-                            "DEBUG trampoline bail: starts=" + starts.size() + " pass=" + pass);
+                            "DEBUG trampoline bail: chunk ["
+                                    + from
+                                    + ","
+                                    + to
+                                    + ") is oversized and has no interior candidate");
                 }
                 return null;
             }
+            starts.add(split);
         }
 
         if (starts.size() < 2 || starts.size() > TRAMPOLINE_MAX_CHUNKS) {
@@ -761,27 +887,7 @@ public final class Compiler {
             return null;
         }
 
-        // Final size check: no individual chunk may exceed the budget on its own.
         List<Integer> startList = new ArrayList<>(starts);
-        for (int k = 0; k < startList.size(); k++) {
-            int from = startList.get(k);
-            int to = (k + 1 < startList.size()) ? startList.get(k + 1) : instructions.size();
-            int sizeFrom = from == 0 ? 0 : cumulativeSizeAtIndex.get(from - 1);
-            int sizeTo = cumulativeSizeAtIndex.get(to - 1);
-            if (sizeTo - sizeFrom > budget) {
-                if (Boolean.getBoolean("endive.debugTrampoline")) {
-                    System.err.println(
-                            "DEBUG trampoline bail: chunk "
-                                    + k
-                                    + " size "
-                                    + (sizeTo - sizeFrom)
-                                    + " > budget "
-                                    + budget);
-                }
-                return null;
-            }
-        }
-
         int[] result = new int[startList.size()];
         for (int i = 0; i < result.length; i++) {
             result[i] = startList.get(i);
@@ -3708,6 +3814,41 @@ public final class Compiler {
                                     returnAsmType,
                                     chunkAsm));
         }
+    }
+
+    // What one chunk's prologue and epilogue actually cost, from the locals it
+    // really touches rather than the function's whole local count. Deliberately an
+    // over-estimate of the emitted aload/iconst/laload/convert/store sequences, so
+    // a plan that fits here fits for real.
+    private static int trampolineChunkOverhead(List<CompilerInstruction> slice, int totalLocals) {
+        boolean[] touched = new boolean[totalLocals];
+        boolean[] written = new boolean[totalLocals];
+        for (var ins : slice) {
+            switch (ins.opcode()) {
+                case LOCAL_GET:
+                    touched[(int) ins.operand(0)] = true;
+                    break;
+                case LOCAL_SET:
+                case LOCAL_TEE:
+                    // written locals are loaded too -- see emitTrampolineChunk
+                    touched[(int) ins.operand(0)] = true;
+                    written[(int) ins.operand(0)] = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+        int loads = 0;
+        int stores = 0;
+        for (int i = 0; i < totalLocals; i++) {
+            if (touched[i]) {
+                loads++;
+            }
+            if (written[i]) {
+                stores++;
+            }
+        }
+        return TRAMPOLINE_CHUNK_BASE_COST + (loads + stores) * TRAMPOLINE_LOCAL_SYNC_COST;
     }
 
     private static String trampolineChunkName(String funcName, int chunkIdx) {

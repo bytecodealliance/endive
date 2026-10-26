@@ -463,14 +463,20 @@ public final class Compiler {
             var body = module.codeSection().getFunctionBody(i);
             var measureCtx = newContext(funcId, type, body, analysis, "measure");
 
-            boolean splitEligible =
+            boolean baseEligible =
                     !hasTooManyParameters(type)
                             && !type.hasObjectRefParams()
                             && !type.hasObjectRefReturns()
-                            && body.localTypes().stream().noneMatch(ValType::isObjectRef)
+                            && body.localTypes().stream().noneMatch(ValType::isObjectRef);
+            // Linear and switch chunking still decline try_table outright. The
+            // trampoline can take it, because it treats each protected range as a
+            // region no boundary may fall inside -- see planTrampolineSplit.
+            boolean splitEligible =
+                    baseEligible
                             && instructions.stream()
                                     .noneMatch(
                                             ins -> ins.opcode() == CompilerOpCode.TRY_CATCH_BLOCK);
+            boolean trampolineEligible = baseEligible;
 
             var result = analyzeAndPlanSplit(measureCtx, type, body, instructions, splitEligible);
             if (result.totalSize <= JIT_ELIGIBILITY_SIZE_BYTES) {
@@ -496,7 +502,7 @@ public final class Compiler {
             // Linear chunking couldn't place a cut -- almost always because the body
             // is dominated by a loop. Try the trampoline, which isn't subject to
             // that restriction.
-            if (TRAMPOLINE_SPLIT_ENABLED && splitEligible) {
+            if (TRAMPOLINE_SPLIT_ENABLED && trampolineEligible) {
                 int[] starts = planTrampolineSplit(funcId, measureCtx, type, body, instructions);
                 if (starts != null) {
                     trampolineChunkStarts.put(funcId, starts);
@@ -750,6 +756,32 @@ public final class Compiler {
                 candidateStarts.add(e.getValue());
                 entryStacks.put(e.getValue(), stack);
             }
+        }
+
+        // A JVM exception-table entry names a protected range and its handler, and
+        // all of them must live in the method that declares it. So a try_table's
+        // range, its handler, and the visitTryCatchBlock that declares it have to
+        // end up in one chunk: no boundary may fall inside the region spanning all
+        // four positions. Functions whose protected ranges blanket the body simply
+        // run out of legal boundaries and fall back, which is the correct outcome.
+        for (int idx = 0; idx < instructions.size(); idx++) {
+            var ins = instructions.get(idx);
+            if (ins.opcode() != CompilerOpCode.TRY_CATCH_BLOCK) {
+                continue;
+            }
+            Integer rangeStart = labelDefPosition.get(ins.operand(0));
+            Integer rangeEnd = labelDefPosition.get(ins.operand(1));
+            Integer handler = labelDefPosition.get(ins.operand(2));
+            if (rangeStart == null || rangeEnd == null || handler == null) {
+                return null; // cannot place it safely, so do not split at all
+            }
+            int lo = Math.min(idx, Math.min(rangeStart, Math.min(rangeEnd, handler)));
+            int hi = Math.max(idx, Math.max(rangeStart, Math.max(rangeEnd, handler)));
+            // a start at p cuts before p, so p == lo is fine but lo < p <= hi is not
+            candidateStarts.subSet(lo + 1, hi + 1).clear();
+        }
+        if (!candidateStarts.contains(0)) {
+            candidateStarts.add(0); // chunk 0 always starts at the top
         }
 
         // every branch, as (source position, target position)

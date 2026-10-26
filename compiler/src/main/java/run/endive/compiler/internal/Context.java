@@ -49,6 +49,46 @@ final class Context {
             IntFunction<String> callIndirectClassResolver,
             int maxTempSlots,
             IntFunction<String> methodNames) {
+        this(
+                module,
+                internalClassName,
+                maxFunctionsPerClass,
+                globalTypes,
+                functionTypes,
+                funcId,
+                type,
+                body,
+                tailCallFunctions,
+                tailCallTypes,
+                callIndirectClassResolver,
+                maxTempSlots,
+                methodNames,
+                false);
+    }
+
+    // forceFrameLayout lays the JVM slots out as if the function had too many
+    // parameters -- slot 0 holds a long[], Memory and Instance follow, and every
+    // local (params first, then declared) lives in a slot after those. Trampoline
+    // -split functions (see Compiler) use that layout for their chunk methods even
+    // though their real signature is small, so their locals can round-trip through
+    // the frame array between chunks. Nothing else about compilation changes: the
+    // hasTooManyParameters checks in Emitters all concern the *callee's* type, not
+    // the layout of the function currently being emitted.
+    public Context(
+            WasmModule module,
+            String internalClassName,
+            int maxFunctionsPerClass,
+            List<ValType> globalTypes,
+            List<FunctionType> functionTypes,
+            int funcId,
+            FunctionType type,
+            FunctionBody body,
+            boolean[] tailCallFunctions,
+            boolean[] tailCallTypes,
+            IntFunction<String> callIndirectClassResolver,
+            int maxTempSlots,
+            IntFunction<String> methodNames,
+            boolean forceFrameLayout) {
         this.module = module;
         this.internalClassName = internalClassName;
         this.maxFunctionsPerClass = maxFunctionsPerClass;
@@ -65,9 +105,10 @@ final class Context {
         // compute JVM slot indices for WASM locals
         List<Integer> slots = new ArrayList<>(type.params().size() + body.localTypes().size());
         int slot = 0;
+        boolean longArrayParams = hasTooManyParameters(type) || forceFrameLayout;
 
         // WASM arguments
-        if (hasTooManyParameters(type)) {
+        if (longArrayParams) {
             slot += 1; // long[]
         } else {
             for (ValType param : type.params()) {
@@ -83,7 +124,7 @@ final class Context {
         slot++;
 
         // the long[] gets unboxed
-        if (hasTooManyParameters(type)) {
+        if (longArrayParams) {
             for (ValType param : type.params()) {
                 slots.add(slot);
                 slot += slotCount(param);

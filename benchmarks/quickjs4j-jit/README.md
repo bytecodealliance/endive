@@ -29,8 +29,43 @@ endive compiler produced the precompiled bytecode inside the jar:
 | **before** | this branch's merge-base with `main` |
 | **after** | this branch |
 
+So "before" is endive `main`, not a release: the comparison is against the
+commit this branch is actually based on.
+
 That quickjs4j itself needs no changes is the point: this is an endive-side
 improvement that existing consumers get by rebuilding.
+
+### The optional third configuration: Redline
+
+Endive's experimental Redline backend compiles a module to native code through
+Cranelift instead of to JVM bytecode. Measuring it alongside answers a fair
+question about this change — whether bytecode-level work is the right place to
+optimise at all, or whether the native path already wins.
+
+It runs automatically when the quickjs4j checkout has a `redline/` module,
+which arrived in [roastedroot/quickjs4j#209](https://github.com/roastedroot/quickjs4j/pull/209)
+(still a draft at the time of writing, so point `run.sh` at that branch):
+
+```bash
+git fetch origin refs/pull/209/head:pr209 && git checkout pr209   # in quickjs4j
+./run.sh /path/to/quickjs4j                                       # in this directory
+```
+
+Without it the configuration is skipped and the run still produces the
+before/after comparison.
+
+Two things to know when reading its numbers:
+
+- Redline is built against a **released** endive (`REDLINE_ENDIVE_VERSION`,
+  default `1.1.0`), because its Panama runner targets Java 25 and cannot be
+  compiled by an older JDK. This branch does not touch the Redline path, so
+  pinning it is harmless.
+- **Below Java 25 the native path runs on jffi, not Panama**, and jffi's
+  per-call overhead is much higher. This benchmark builds a fresh engine per
+  iteration, so it crosses the FFI boundary constantly — close to a worst case
+  for jffi. Numbers from a pre-25 JDK are a floor for Redline, not its best
+  showing. The run reports which runner it selected, so the output says which
+  case you are looking at.
 
 ## Running it
 
@@ -102,16 +137,38 @@ nothing, because the unsplit method is never compiled at all. Column 3 of
 
 ## Reference results
 
-`results/` holds a committed run so the numbers can be read without running
-anything. It measured **269.8 ms/iter before, 31.7 ms/iter after — 8.5x**, with
-both builds producing the same checksum.
+`results/` holds a committed run (the JDK 27 one) so the numbers can be read
+without running anything. Both JDKs measured, on an Apple M2 / macOS 26.7.1,
+comparing endive `bce75ae6` against this branch:
 
-A second run on an idle machine reproduced it within 0.8% on the baseline and
-0.3% on the patched build, with the same 14 functions split.
+| steady state | JDK 27 (Panama) | GraalVM CE 22 (jffi) |
+|---|---|---|
+| before (unsplit) | 274.0 ms | 281.5 ms |
+| **after (split)** | **36.6 ms** | **31.6 ms** |
+| before → after | **7.5x** | **8.9x** |
+| redline (native) | **17.5 ms** | 135.3 ms |
 
-That run was on an Apple M2, macOS 26.7.1, GraalVM CE 22.0.2 (JVMCI), comparing
-endive `bce75ae6` against this branch. Your absolute numbers will differ; the
-ratio should not, much.
+Every configuration computed the same checksum, and the split build reached the
+same 14 functions throughout. Across four runs the before/after ratio came out
+7.5x, 8.5x, 8.5x and 8.9x; best-window against best-window is steadier. Call it
+**7.5–8.9x depending on JDK**.
+
+Two things to read carefully:
+
+- **Redline is faster than the split bytecode path** — 17.5 ms against 36.6 ms,
+  so about 2.1x, with the bytecode path closing roughly 93% of the distance from
+  the unsplit baseline to native. Redline needs natively compiled code per
+  target and an FFI runner; the bytecode path is the portable pure-JVM one. They
+  are not substitutes, and the native figure is the useful ceiling to measure
+  against.
+- **The jffi column is not a fair reading of Redline.** Below Java 25 the Panama
+  runner cannot be built, and jffi's per-call overhead dominates a benchmark
+  that builds a fresh engine every iteration. It is kept only to show how much
+  the runner matters.
+
+The two JDK columns are each internally consistent but are not a controlled
+comparison *with each other* — 22 and 27 differ in more than the FFI path, so
+read down a column, not across.
 
 ## Caveats
 

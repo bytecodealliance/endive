@@ -63,6 +63,20 @@ HEAD_REV="${HEAD_REV:-$(git -C "$ENDIVE_REPO" rev-parse HEAD)}"
 ENDIVE_VERSION="$(cd "$ENDIVE_REPO" && ./mvnw -q -Dexec.executable=echo \
   -Dexec.args='${project.version}' --non-recursive exec:exec 2>/dev/null | tail -1)"
 
+# Redline's Panama runner targets Java 25, so an older JDK cannot build it and
+# has to fall back to a released endive that ships it prebuilt. From 25 up,
+# build Redline from this very checkout instead, so all three configurations
+# share one endive and the comparison is like-for-like.
+JDK_FEATURE="$(java -XshowSettings:properties -version 2>&1 \
+  | awk -F'= *' '/java.specification.version/{print $2}' | cut -d. -f1)"
+if [[ -z "${REDLINE_ENDIVE_VERSION:-}" ]]; then
+  if [[ "${JDK_FEATURE:-0}" -ge 25 ]]; then
+    REDLINE_ENDIVE_VERSION="$ENDIVE_VERSION"
+  else
+    REDLINE_ENDIVE_VERSION="1.1.0"
+  fi
+fi
+
 mkdir -p "$OUT_DIR" "$WORK_DIR/jars"
 
 echo "=============================================================="
@@ -104,7 +118,7 @@ build_quickjs4j() {
 
   local jar
   jar="$(find "$QUICKJS4J/core/target" -maxdepth 1 -name 'quickjs4j-*.jar' \
-        ! -name '*-sources.jar' ! -name '*-javadoc.jar' | head -1)"
+        ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-tests.jar' | head -1)"
   [[ -n "$jar" ]] || { echo "    no quickjs4j jar produced"; exit 1; }
   cp "$jar" "$WORK_DIR/jars/quickjs4j-$name.jar"
 
@@ -145,8 +159,72 @@ build_endive "$HEAD_REV" after
 build_quickjs4j after
 measure after "after (split)"
 
+# ---- redline (optional third point of comparison) ----
+# Endive's experimental Redline backend compiles the module to native code via
+# Cranelift instead of to JVM bytecode, so it is a useful upper reference: it
+# shows how much of the gap to native the bytecode path closes. It needs
+# quickjs4j's own redline module, which arrived in roastedroot/quickjs4j#209 --
+# absent from a checkout without it, so the configuration is skipped rather
+# than failing the run.
+REDLINE_STATUS="not run"
+if [[ -d "$QUICKJS4J/redline" ]]; then
+  if [[ "$REDLINE_ENDIVE_VERSION" == "$ENDIVE_VERSION" ]]; then
+    echo "==> [redline] building endive's redline modules from this checkout"
+    (cd "$ENDIVE_REPO" && ./mvnw -q install -DskipTests -Ddev \
+        -pl redline/api,redline/compiler,redline/build-time-compiler,redline/runner-jffi,redline/runner -am) \
+      > "$WORK_DIR/endive-redline-build.log" 2>&1 \
+      || { echo "    endive redline build FAILED -- see $WORK_DIR/endive-redline-build.log"; }
+  fi
+  echo "==> [redline] building quickjs4j redline module against endive $REDLINE_ENDIVE_VERSION"
+  # Pinned to a released endive: the Panama runner it depends on targets Java 25
+  # and so cannot be built by an older JDK, while this branch is not involved in
+  # the Redline path at all.
+  if (cd "$QUICKJS4J" && "$QJ_MVN" -q install -pl redline -am -DskipTests \
+        -Dendive.version="$REDLINE_ENDIVE_VERSION" \
+        -Dspotless.check.skip=true -Dcheckstyle.skip=true -Dgpg.skip=true) \
+      > "$WORK_DIR/quickjs4j-redline-build.log" 2>&1; then
+    RJAR="$(find "$QUICKJS4J/redline/target" -maxdepth 1 -name 'quickjs4j-redline-experimental-*.jar' \
+          ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-tests.jar' | head -1)"
+    CJAR="$(find "$QUICKJS4J/core/target" -maxdepth 1 -name 'quickjs4j-*.jar' \
+          ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-tests.jar' | head -1)"
+    (cd "$QUICKJS4J/redline" && "$QJ_MVN" -q dependency:build-classpath \
+        -Dmdep.outputFile="$WORK_DIR/cp-redline.txt" \
+        -Dendive.version="$REDLINE_ENDIVE_VERSION" >/dev/null 2>&1) || true
+    if [[ -n "$RJAR" && -n "$CJAR" && -s "$WORK_DIR/cp-redline.txt" ]]; then
+      cp "$RJAR" "$WORK_DIR/jars/quickjs4j-redline.jar"
+      cp "$CJAR" "$WORK_DIR/jars/quickjs4j-redline-core.jar"
+      echo "==> [redline] measuring"
+      java -cp "$WORK_DIR/jars/quickjs4j-redline.jar:$WORK_DIR/jars/quickjs4j-redline-core.jar:$(cat "$WORK_DIR/cp-redline.txt"):$WORK_DIR/classes" \
+        JitBenchmark "redline (native)" "$WINDOWS" "$ITERS" "$OUT_DIR/redline.csv" \
+        | tee "$OUT_DIR/redline.log"
+      # The provider returns empty when it finds no native code for the platform,
+      # which leaves the default backend in place; only count it as measured when
+      # the run itself reports a native backend.
+      if grep -q "native)" "$OUT_DIR/redline.log"; then
+        REDLINE_STATUS="ok"
+      else
+        REDLINE_STATUS="fell back to the default backend -- not a native measurement"
+        rm -f "$OUT_DIR/redline.csv"
+      fi
+    else
+      REDLINE_STATUS="build produced no usable jar/classpath"
+    fi
+  else
+    REDLINE_STATUS="build failed -- see $WORK_DIR/quickjs4j-redline-build.log"
+  fi
+else
+  REDLINE_STATUS="skipped: no redline module in $QUICKJS4J (see roastedroot/quickjs4j#209)"
+fi
+echo "    redline: $REDLINE_STATUS"
+
 # ---- report ----
 echo "==> writing report"
+REDLINE_ARGS=()
+if [[ -f "$OUT_DIR/redline.csv" ]]; then
+  REDLINE_ARGS=(--redline "$OUT_DIR/redline.csv"
+                --redline-endive "$REDLINE_ENDIVE_VERSION"
+                --redline-runner "$(grep -m1 '^backend:' "$OUT_DIR/redline.log" | sed 's/^backend: *//')")
+fi
 python3 report.py \
   --before "$OUT_DIR/before.csv" \
   --after "$OUT_DIR/after.csv" \
@@ -156,6 +234,8 @@ python3 report.py \
   --after-interp "$(cat "$WORK_DIR/jars/after.interp")" \
   --base-rev "$(git -C "$ENDIVE_REPO" log --oneline -1 "$BASE_REV")" \
   --head-rev "$(git -C "$ENDIVE_REPO" log -1 --format=%s "$HEAD_REV")" \
+  --jdk "$(java -version 2>&1 | head -1)" \
+  "${REDLINE_ARGS[@]}" \
   --out-md "$OUT_DIR/results.md" \
   --out-svg "$OUT_DIR/results.svg"
 

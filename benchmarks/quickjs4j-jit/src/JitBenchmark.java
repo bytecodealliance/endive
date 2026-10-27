@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.ServiceConfigurationError;
 import java.util.Set;
 
 /**
@@ -62,6 +63,13 @@ public final class JitBenchmark {
         List<Integer> results = new ArrayList<>();
         var builtins = Builtins.builder("from_java").addIntToVoid("sink", results::add).build();
 
+        // State which backend actually ran, rather than inferring it from the
+        // classpath. quickjs4j can swap the plugin instance for a native one via an
+        // InstanceBuilderProvider, and a provider that finds no native code for the
+        // platform returns empty and silently leaves the default in place -- which
+        // would otherwise look like a redline measurement that is really the default.
+        System.out.println("backend:  " + describeBackend());
+
         // One untimed pass: a perf number is meaningless if the two builds disagree
         // about what the script computes, so establish the checksum first.
         runOnce(builtins);
@@ -113,6 +121,66 @@ public final class JitBenchmark {
                 }
             }
             System.out.println("wrote " + csv.toAbsolutePath());
+        }
+    }
+
+    /**
+     * Which plugin backend this classpath will actually use, found reflectively so the harness
+     * still compiles against a quickjs4j that has no such SPI at all.
+     */
+    private static String describeBackend() {
+        final String dflt = "default (endive-compiled JVM bytecode)";
+        try {
+            Class<?> spi = Class.forName("io.roastedroot.quickjs4j.core.InstanceBuilderProvider");
+            for (Object provider : java.util.ServiceLoader.load(spi)) {
+                Object maybe = spi.getMethod("builder").invoke(provider);
+                boolean present =
+                        (Boolean) maybe.getClass().getMethod("isPresent").invoke(maybe);
+                if (present) {
+                    return provider.getClass().getSimpleName() + " (native, " + nativeRunner() + ")";
+                }
+                return dflt + " -- " + provider.getClass().getSimpleName() + " found no native code";
+            }
+            return dflt;
+        } catch (ClassNotFoundException e) {
+            return dflt + ", no provider SPI in this build";
+        } catch (Throwable t) {
+            return dflt + " -- provider lookup failed: " + t;
+        }
+    }
+
+    /**
+     * Which endive native runner the Redline path picked -- jffi or Panama. Reported rather than
+     * inferred from the JDK version, because that difference dominates how the native numbers
+     * should be read.
+     */
+    private static String nativeRunner() {
+        try {
+            Class<?> spi =
+                    Class.forName("run.endive.redline.experimental.api.NativeMachineFactoryProvider");
+            String best = null;
+            int bestPriority = Integer.MIN_VALUE;
+            var it = java.util.ServiceLoader.load(spi).iterator();
+            while (true) {
+                Object provider;
+                try {
+                    if (!it.hasNext()) {
+                        break;
+                    }
+                    provider = it.next();
+                } catch (ServiceConfigurationError | LinkageError e) {
+                    // a runner compiled for a newer JDK than this one; skip it
+                    continue;
+                }
+                int priority = (Integer) spi.getMethod("priority").invoke(provider);
+                if (priority > bestPriority) {
+                    bestPriority = priority;
+                    best = provider.getClass().getSimpleName();
+                }
+            }
+            return best == null ? "runner unknown" : best;
+        } catch (Throwable t) {
+            return "runner unknown";
         }
     }
 

@@ -92,6 +92,34 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <dependencies>
+          <!--
+            exec-maven-plugin brings its own asm and asm-tree, which sit nearer the
+            root of the plugin's dependency graph than ours and therefore win, while
+            asm-analysis only arrives transitively from the compiler. Without these
+            pins the plugin classpath can mix two ASM versions (analysis from one,
+            core from the other) and then fail to resolve classes that exist only in
+            the newer. Pin them all to the version the compiler was built against.
+          -->
+          <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+            <version>${asm.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-analysis</artifactId>
+            <version>${asm.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-commons</artifactId>
+            <version>${asm.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-tree</artifactId>
+            <version>${asm.version}</version>
+          </dependency>
           <dependency>
             <groupId>run.endive</groupId>
             <artifactId>build-time-compiler</artifactId>

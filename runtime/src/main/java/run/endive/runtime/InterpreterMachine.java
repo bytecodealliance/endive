@@ -3278,6 +3278,7 @@ public class InterpreterMachine implements Machine {
         if (Thread.currentThread().isInterrupted()) {
             throw new WasmInterruptedException("Thread interrupted");
         }
+        Fuel.consume();
     }
 
     // ===== GC opcode implementations =====

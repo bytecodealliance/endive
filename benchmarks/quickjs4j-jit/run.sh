@@ -156,12 +156,16 @@ classpath_without_core() {
   cat "$WORK_DIR/cp.txt"
 }
 
-measure() {
-  local name="$1" label="$2"
-  local cp="$WORK_DIR/jars/quickjs4j-$name.jar:$(cat "$WORK_DIR/cp.txt"):$WORK_DIR/classes"
-  echo "==> [$name] measuring"
-  java -cp "$cp" JitBenchmark "$label" "$WINDOWS" "$ITERS" "$OUT_DIR/$name.csv" \
-    | tee "$OUT_DIR/$name.log"
+measure() { # $1=name $2=label $3=compile|sustained $4=classpath
+  local name="$1"
+  local label="$2"
+  local workload="$3"
+  local cp="$4"
+  local suffix=""
+  [[ "$workload" == "sustained" ]] && suffix="-sustained"
+  echo "==> [$name] measuring ($workload)"
+  java -cp "$cp" JitBenchmark "$label" "$WINDOWS" "$ITERS" \
+    "$OUT_DIR/$name$suffix.csv" "$workload" | tee "$OUT_DIR/$name$suffix.log"
 }
 
 # ---- before ----
@@ -170,7 +174,9 @@ build_quickjs4j before
 DEPS="$(classpath_without_core)"
 mkdir -p "$WORK_DIR/classes"
 javac -cp "$WORK_DIR/jars/quickjs4j-before.jar:$DEPS" -d "$WORK_DIR/classes" src/JitBenchmark.java
-measure before "before (unsplit)"
+CP_BEFORE="$WORK_DIR/jars/quickjs4j-before.jar:$DEPS:$WORK_DIR/classes"
+measure before "before (unsplit)" compile "$CP_BEFORE"
+measure before "before (unsplit)" sustained "$CP_BEFORE"
 
 # ---- redline (optional third point of comparison) ----
 # Endive's experimental Redline backend compiles the module to native code via
@@ -199,10 +205,9 @@ if [[ -d "$QUICKJS4J/redline" ]]; then
     if [[ -n "$RJAR" && -n "$CJAR" && -s "$WORK_DIR/cp-redline.txt" ]]; then
       cp "$RJAR" "$WORK_DIR/jars/quickjs4j-redline.jar"
       cp "$CJAR" "$WORK_DIR/jars/quickjs4j-redline-core.jar"
-      echo "==> [redline] measuring"
-      java -cp "$WORK_DIR/jars/quickjs4j-redline.jar:$WORK_DIR/jars/quickjs4j-redline-core.jar:$(cat "$WORK_DIR/cp-redline.txt"):$WORK_DIR/classes" \
-        JitBenchmark "redline (native)" "$WINDOWS" "$ITERS" "$OUT_DIR/redline.csv" \
-        | tee "$OUT_DIR/redline.log"
+      CP_REDLINE="$WORK_DIR/jars/quickjs4j-redline.jar:$WORK_DIR/jars/quickjs4j-redline-core.jar:$(cat "$WORK_DIR/cp-redline.txt"):$WORK_DIR/classes"
+      measure redline "redline (native)" compile "$CP_REDLINE"
+      measure redline "redline (native)" sustained "$CP_REDLINE"
       # The provider returns empty when it finds no native code for the platform,
       # leaving the default backend in place; only count it when the run itself
       # reports a native backend.
@@ -210,7 +215,7 @@ if [[ -d "$QUICKJS4J/redline" ]]; then
         REDLINE_STATUS="ok"
       else
         REDLINE_STATUS="fell back to the default backend -- not a native measurement"
-        rm -f "$OUT_DIR/redline.csv"
+        rm -f "$OUT_DIR/redline.csv" "$OUT_DIR/redline-sustained.csv"
       fi
     else
       REDLINE_STATUS="build produced no usable jar/classpath"
@@ -226,7 +231,9 @@ echo "    redline: $REDLINE_STATUS"
 # ---- after ----
 build_endive "$HEAD_REV" after
 build_quickjs4j after
-measure after "after (split)"
+CP_AFTER="$WORK_DIR/jars/quickjs4j-after.jar:$(cat "$WORK_DIR/cp.txt"):$WORK_DIR/classes"
+measure after "after (split)" compile "$CP_AFTER"
+measure after "after (split)" sustained "$CP_AFTER"
 
 # ---- report ----
 echo "==> writing report"
@@ -237,21 +244,37 @@ if [[ -f "$OUT_DIR/redline.csv" ]]; then
                 --redline-rev "$(git -C "$ENDIVE_REPO" log --oneline -1 "$BASE_REV")"
                 --redline-runner "$(grep -m1 '^backend:' "$OUT_DIR/redline.log" | sed 's/^backend: *//')")
 fi
-python3 report.py \
-  --before "$OUT_DIR/before.csv" \
-  --after "$OUT_DIR/after.csv" \
-  --before-split "$(cat "$WORK_DIR/jars/before.split")" \
-  --after-split "$(cat "$WORK_DIR/jars/after.split")" \
-  --before-interp "$(cat "$WORK_DIR/jars/before.interp")" \
-  --after-interp "$(cat "$WORK_DIR/jars/after.interp")" \
-  --base-rev "$(git -C "$ENDIVE_REPO" log --oneline -1 "$BASE_REV")" \
-  --head-rev "$(git -C "$ENDIVE_REPO" log -1 --format=%s "$HEAD_REV")" \
-  --jdk "$(java -version 2>&1 | head -1)" \
-  "${REDLINE_ARGS[@]}" \
-  --out-md "$OUT_DIR/results.md" \
-  --out-svg "$OUT_DIR/results.svg"
+report_for() { # $1=suffix $2=out-basename $3=title-note
+  local sfx="$1"
+  local out="$2"
+  local rl=()
+  if [[ -f "$OUT_DIR/redline$sfx.csv" ]]; then
+    rl=(--redline "$OUT_DIR/redline$sfx.csv"
+        --redline-endive "$REDLINE_ENDIVE_VERSION"
+        --redline-rev "$(git -C "$ENDIVE_REPO" log --oneline -1 "$BASE_REV")"
+        --redline-runner "$(grep -m1 '^backend:' "$OUT_DIR/redline$sfx.log" | sed 's/^backend: *//')")
+  fi
+  python3 report.py \
+    --before "$OUT_DIR/before$sfx.csv" \
+    --after "$OUT_DIR/after$sfx.csv" \
+    --before-split "$(cat "$WORK_DIR/jars/before.split")" \
+    --after-split "$(cat "$WORK_DIR/jars/after.split")" \
+    --before-interp "$(cat "$WORK_DIR/jars/before.interp")" \
+    --after-interp "$(cat "$WORK_DIR/jars/after.interp")" \
+    --base-rev "$(git -C "$ENDIVE_REPO" log --oneline -1 "$BASE_REV")" \
+    --head-rev "$(git -C "$ENDIVE_REPO" log -1 --format=%s "$HEAD_REV")" \
+    --jdk "$(java -version 2>&1 | head -1)" \
+    --workload "$3" \
+    "${rl[@]}" \
+    --out-md "$OUT_DIR/$out.md" \
+    --out-svg "$OUT_DIR/$out.svg"
+}
+
+report_for "" results "compile+exec, a fresh engine per iteration"
+report_for "-sustained" results-sustained "sustained execution, one engine, script precompiled"
 
 echo
 cat "$OUT_DIR/results.md"
 echo
-echo "chart: $OUT_DIR/results.svg"
+echo "charts: $OUT_DIR/results.svg  $OUT_DIR/results-sustained.svg"
+echo "second workload: $OUT_DIR/results-sustained.md"

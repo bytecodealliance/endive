@@ -152,6 +152,7 @@ def main():
     ap.add_argument("--redline-runner", default="")
     ap.add_argument("--redline-rev", default="")
     ap.add_argument("--jdk", default="")
+    ap.add_argument("--workload", default="")
     ap.add_argument("--out-md", required=True)
     ap.add_argument("--out-svg", required=True)
     a = ap.parse_args()
@@ -163,6 +164,8 @@ def main():
     sb, sa = steady(before), steady(after)
     md = []
     md.append("# QuickJS throughput: splitting oversized functions for the JIT\n")
+    if a.workload:
+        md.append(f"Workload: **{a.workload}**.\n")
     md.append(
         "Same quickjs4j source and JVM throughout. `before` and `after` differ only "
         "in which build of the endive compiler precompiled the Javy plugin bytecode "

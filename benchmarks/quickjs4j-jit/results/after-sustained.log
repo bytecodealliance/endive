@@ -1,0 +1,21 @@
+backend:  default (endive-compiled JVM bytecode)
+workload: sustained (one engine, precompiled)
+label:    after (split)
+checksum: 1440299393
+window  0:    137.7 ms/iter
+window  1:    113.3 ms/iter
+window  2:    114.1 ms/iter
+window  3:    113.4 ms/iter
+window  4:    115.3 ms/iter
+window  5:    113.1 ms/iter
+window  6:    114.5 ms/iter
+window  7:    114.1 ms/iter
+window  8:    114.6 ms/iter
+window  9:    114.9 ms/iter
+window 10:    114.6 ms/iter
+window 11:    113.7 ms/iter
+window 12:    114.3 ms/iter
+window 13:    115.1 ms/iter
+first=137.7 steady=114.4 best=113.1 ms/iter
+consistent: true (71 iterations)
+wrote /Users/ai/Desktop/repos/endive-cloned/benchmarks/quickjs4j-jit/results/after-sustained.csv

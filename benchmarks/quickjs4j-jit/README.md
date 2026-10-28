@@ -88,12 +88,21 @@ WINDOWS=20 ITERS=10 ./run.sh /path/to/quickjs4j   # longer, steadier numbers
 BASE_REV=v1.1.0 ./run.sh /path/to/quickjs4j       # compare against a release
 ```
 
+Two workloads run per configuration:
+
+- **compile+exec** — a fresh engine per iteration, so JavaScript compilation is
+  included. This is what a host that evaluates short scripts repeatedly does.
+- **sustained** — one long-lived engine with the script compiled once, so the
+  timed loop is execution alone. This separates the dispatch loop from the
+  parser, and removes the advantage native code gets from having no warm-up to
+  amortise.
+
 Output lands in `results/`:
 
-- `results.md` — summary table plus per-window timings
-- `results.svg` — chart of both warm-up curves
-- `before.csv`, `after.csv` — raw per-window data
-- `before.log`, `after.log` — full console output of each run
+- `results.md`, `results.svg` — compile+exec summary, per-window table, chart
+- `results-sustained.md`, `results-sustained.svg` — the same for sustained
+- `*.csv` — raw per-window data (`-sustained` suffix for the second workload)
+- `*.log` — full console output of each run, including the backend it used
 
 ## Reading the result
 
@@ -139,38 +148,39 @@ nothing, because the unsplit method is never compiled at all. Column 3 of
 
 ## Reference results
 
-`results/` holds a committed run (the JDK 27 one) so the numbers can be read
-without running anything. Both JDKs measured, on an Apple M2 / macOS 26.7.1,
-comparing endive `bce75ae6` against this branch:
+`results/` holds a committed run so the numbers can be read without running
+anything. Two workloads, both on JDK 27 with Panama, on an Apple M2 /
+macOS 26.7.1, comparing endive `main` against this branch:
 
-| steady state | JDK 27 (Panama) | GraalVM CE 22 (jffi) |
+| steady state | compile+exec | sustained execution |
 |---|---|---|
-| before (unsplit) | 266.5 ms | 281.5 ms |
-| **after (split)** | **36.6 ms** | **31.6 ms** |
-| before → after | **7.3x** | **8.9x** |
-| redline (native) | **19.1 ms** | 135.3 ms |
+| before (unsplit) | 271.8 ms | 829.4 ms |
+| **after (split)** | **36.7 ms** | **114.4 ms** |
+| before → after | **7.4x** | **7.2x** |
+| redline (native) | 17.5 ms | 40.4 ms |
+| redline vs after | 2.1x | 2.8x |
 
-Every configuration computed the same checksum, and the split build reached the
-same 14 functions throughout. Across five runs the before/after ratio came out
-7.3x, 7.5x, 8.5x, 8.5x and 8.9x; best-window against best-window is steadier.
-Call it **7.3–8.9x depending on JDK**.
+`compile+exec` builds a fresh engine every iteration, so it includes JavaScript
+compilation. `sustained` uses one long-lived engine with the script precompiled,
+so it is execution and nothing else. Every configuration computed the same
+checksum within its workload, and the split build reached the same 14 functions
+throughout.
 
-Two things to read carefully:
+Two things the second workload settles:
 
-- **Redline is faster than the split bytecode path** — 19.1 ms against 36.6 ms,
-  so about 1.9x, with the bytecode path closing roughly 93% of the distance from
-  the unsplit baseline to native. Redline needs natively compiled code per
-  target and an FFI runner; the bytecode path is the portable pure-JVM one. They
-  are not substitutes, and the native figure is the useful ceiling to measure
-  against.
-- **The jffi column is not a fair reading of Redline.** Below Java 25 the Panama
-  runner cannot be built, and jffi's per-call overhead dominates a benchmark
-  that builds a fresh engine every iteration. It is kept only to show how much
-  the runner matters.
+- **The speedup is not an artefact of parser-heavy work.** 7.4x and 7.2x across
+  two quite different shapes, so the gain is in the dispatch loop itself rather
+  than in QuickJS's parser functions.
+- **Redline's lead widens under sustained execution**, 2.1x to 2.8x. The
+  compile+exec figure was, if anything, flattering to the bytecode path: both
+  paths spend part of that workload compiling JavaScript, which narrows the gap.
+  Pure execution is where native code shows best.
 
-The two JDK columns are each internally consistent but are not a controlled
-comparison *with each other* — 22 and 27 differ in more than the FFI path, so
-read down a column, not across.
+Earlier runs on GraalVM CE 22 gave 8.9x for before → after on the compile+exec
+workload, and a much worse Redline figure (135.3 ms) because that JDK cannot
+build the Panama runner and falls back to jffi. Across five runs the
+before/after ratio has come out between 7.2x and 8.9x depending on JDK and
+workload; the JDKs are not a controlled comparison with each other.
 
 ## Caveats
 

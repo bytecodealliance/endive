@@ -54,11 +54,29 @@ public final class JitBenchmark {
                     + "for (var n2 = 0; n2 < str.length; n2++) { h = (h * 31 + str.charCodeAt(n2)) | 0; }\n"
                     + "from_java.sink(((acc + s + t + h) | 0));\n";
 
+    /**
+     * Execution-heavy counterpart to WORKLOAD, run on one long-lived engine from bytecode
+     * compiled once. WORKLOAD measures compile-and-execute with a fresh engine per iteration,
+     * which weights QuickJS's parser heavily and gives natively compiled code the advantage of
+     * having no warm-up to amortise. This one isolates sustained execution instead: recursion and
+     * loop arithmetic, which is what the dispatch loop actually spends its time on.
+     */
+    private static final String SUSTAINED_WORKLOAD =
+            "function fib(n){ return n < 2 ? n : fib(n-1) + fib(n-2); }\n"
+                    + "function collatz(n){ var s = 0; while (n !== 1) { n = (n % 2) ? 3*n+1 : n/2; s++; } return s; }\n"
+                    + "var acc = 0;\n"
+                    + "for (var i = 0; i < 6; i++) { acc += fib(19); }\n"
+                    + "for (var j = 1; j < 1500; j++) { acc += collatz(j); }\n"
+                    + "var s = 0;\n"
+                    + "for (var k = 0; k < 150000; k++) { s = (s + k * 7 + (s % 13)) | 0; }\n"
+                    + "from_java.sink(((acc + s) | 0));\n";
+
     public static void main(String[] args) throws IOException {
         String label = args.length > 0 ? args[0] : "run";
         int windows = args.length > 1 ? Integer.parseInt(args[1]) : 12;
         int perWindow = args.length > 2 ? Integer.parseInt(args[2]) : 5;
         Path csv = args.length > 3 ? Path.of(args[3]) : null;
+        boolean sustained = args.length > 4 && "sustained".equals(args[4]);
 
         List<Integer> results = new ArrayList<>();
         var builtins = Builtins.builder("from_java").addIntToVoid("sink", results::add).build();
@@ -70,9 +88,26 @@ public final class JitBenchmark {
         // would otherwise look like a redline measurement that is really the default.
         System.out.println("backend:  " + describeBackend());
 
+        System.out.println("workload: " + (sustained ? "sustained (one engine, precompiled)" : "compile+exec (fresh engine)"));
+
+        // A long-lived engine for the sustained workload, with the script compiled
+        // once, so the timed loop is execution and nothing else.
+        Engine sustainedEngine = null;
+        Runner sustainedRunner = null;
+        byte[] sustainedCode = null;
+        if (sustained) {
+            sustainedEngine = Engine.builder().addBuiltins(builtins).build();
+            sustainedRunner = Runner.builder().withEngine(sustainedEngine).build();
+            sustainedCode = sustainedRunner.compile(SUSTAINED_WORKLOAD);
+        }
+
         // One untimed pass: a perf number is meaningless if the two builds disagree
         // about what the script computes, so establish the checksum first.
-        runOnce(builtins);
+        if (sustained) {
+            sustainedRunner.exec(sustainedCode);
+        } else {
+            runOnce(builtins);
+        }
         int checksum = results.get(0);
         System.out.println("label:    " + label);
         System.out.println("checksum: " + checksum);
@@ -81,7 +116,11 @@ public final class JitBenchmark {
         for (int w = 0; w < windows; w++) {
             long started = System.nanoTime();
             for (int i = 0; i < perWindow; i++) {
-                runOnce(builtins);
+                if (sustained) {
+                    sustainedRunner.exec(sustainedCode);
+                } else {
+                    runOnce(builtins);
+                }
             }
             double msPerIter = (System.nanoTime() - started) / 1e6 / perWindow;
             perWindowMs.add(msPerIter);
@@ -109,6 +148,10 @@ public final class JitBenchmark {
         if (!consistent) {
             System.out.println("FAILED: iterations disagreed: " + distinct);
             System.exit(1);
+        }
+
+        if (sustainedRunner != null) {
+            sustainedRunner.close();
         }
 
         if (csv != null) {

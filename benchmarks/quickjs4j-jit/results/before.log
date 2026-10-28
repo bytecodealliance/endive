@@ -1,20 +1,21 @@
 backend:  default (endive-compiled JVM bytecode)
+workload: compile+exec (fresh engine)
 label:    before (unsplit)
 checksum: 741297138
-window  0:    294.4 ms/iter
-window  1:    275.2 ms/iter
-window  2:    275.0 ms/iter
-window  3:    268.9 ms/iter
-window  4:    267.9 ms/iter
-window  5:    267.0 ms/iter
-window  6:    268.8 ms/iter
-window  7:    267.4 ms/iter
-window  8:    265.8 ms/iter
-window  9:    266.9 ms/iter
-window 10:    268.1 ms/iter
-window 11:    265.9 ms/iter
-window 12:    266.3 ms/iter
-window 13:    265.8 ms/iter
-first=294.4 steady=266.5 best=265.8 ms/iter
+window  0:    296.4 ms/iter
+window  1:    280.6 ms/iter
+window  2:    277.7 ms/iter
+window  3:    274.7 ms/iter
+window  4:    272.9 ms/iter
+window  5:    274.6 ms/iter
+window  6:    272.2 ms/iter
+window  7:    273.3 ms/iter
+window  8:    271.6 ms/iter
+window  9:    273.2 ms/iter
+window 10:    271.8 ms/iter
+window 11:    271.2 ms/iter
+window 12:    272.3 ms/iter
+window 13:    271.6 ms/iter
+first=296.4 steady=271.8 best=271.2 ms/iter
 consistent: true (71 iterations)
 wrote /Users/ai/Desktop/repos/endive-cloned/benchmarks/quickjs4j-jit/results/before.csv

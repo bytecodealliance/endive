@@ -56,10 +56,12 @@ before/after comparison.
 
 Two things to know when reading its numbers:
 
-- Redline is built against a **released** endive (`REDLINE_ENDIVE_VERSION`,
-  default `1.1.0`), because its Panama runner targets Java 25 and cannot be
-  compiled by an older JDK. This branch does not touch the Redline path, so
-  pinning it is harmless.
+- Redline is built **from `main`** — the same revision as the `before` row —
+  since post-release fixes matter to its performance and this branch does not
+  touch the Redline path. On a JDK below 25 that is impossible, because its
+  Panama runner targets Java 25 and cannot be compiled there; the script then
+  falls back to released endive (`REDLINE_ENDIVE_VERSION`, default `1.1.0`) and
+  the numbers are correspondingly weaker.
 - **Below Java 25 the native path runs on jffi, not Panama**, and jffi's
   per-call overhead is much higher. This benchmark builds a fresh engine per
   iteration, so it crosses the FFI boundary constantly — close to a worst case
@@ -143,20 +145,20 @@ comparing endive `bce75ae6` against this branch:
 
 | steady state | JDK 27 (Panama) | GraalVM CE 22 (jffi) |
 |---|---|---|
-| before (unsplit) | 274.0 ms | 281.5 ms |
+| before (unsplit) | 266.5 ms | 281.5 ms |
 | **after (split)** | **36.6 ms** | **31.6 ms** |
-| before → after | **7.5x** | **8.9x** |
-| redline (native) | **17.5 ms** | 135.3 ms |
+| before → after | **7.3x** | **8.9x** |
+| redline (native) | **19.1 ms** | 135.3 ms |
 
 Every configuration computed the same checksum, and the split build reached the
-same 14 functions throughout. Across four runs the before/after ratio came out
-7.5x, 8.5x, 8.5x and 8.9x; best-window against best-window is steadier. Call it
-**7.5–8.9x depending on JDK**.
+same 14 functions throughout. Across five runs the before/after ratio came out
+7.3x, 7.5x, 8.5x, 8.5x and 8.9x; best-window against best-window is steadier.
+Call it **7.3–8.9x depending on JDK**.
 
 Two things to read carefully:
 
-- **Redline is faster than the split bytecode path** — 17.5 ms against 36.6 ms,
-  so about 2.1x, with the bytecode path closing roughly 93% of the distance from
+- **Redline is faster than the split bytecode path** — 19.1 ms against 36.6 ms,
+  so about 1.9x, with the bytecode path closing roughly 93% of the distance from
   the unsplit baseline to native. Redline needs natively compiled code per
   target and an FFI runner; the bytecode path is the portable pure-JVM one. They
   are not substitutes, and the native figure is the useful ceiling to measure

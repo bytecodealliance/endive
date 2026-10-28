@@ -1,20 +1,20 @@
 backend:  RedlineInstanceBuilderProvider (native, PanamaMachineFactoryProvider)
 label:    redline (native)
 checksum: 741297138
-window  0:     29.3 ms/iter
-window  1:     24.5 ms/iter
-window  2:     21.8 ms/iter
-window  3:     21.9 ms/iter
-window  4:     18.2 ms/iter
-window  5:     18.4 ms/iter
-window  6:     18.9 ms/iter
+window  0:     30.0 ms/iter
+window  1:     26.8 ms/iter
+window  2:     23.9 ms/iter
+window  3:     20.5 ms/iter
+window  4:     18.4 ms/iter
+window  5:     18.6 ms/iter
+window  6:     19.2 ms/iter
 window  7:     17.8 ms/iter
-window  8:     17.8 ms/iter
-window  9:     17.3 ms/iter
-window 10:     17.4 ms/iter
-window 11:     18.1 ms/iter
-window 12:     17.3 ms/iter
-window 13:     17.2 ms/iter
-first=29.3 steady=17.5 best=17.2 ms/iter
+window  8:     18.4 ms/iter
+window  9:     18.7 ms/iter
+window 10:     18.8 ms/iter
+window 11:     20.9 ms/iter
+window 12:     18.3 ms/iter
+window 13:     18.3 ms/iter
+first=30.0 steady=19.1 best=17.8 ms/iter
 consistent: true (71 iterations)
 wrote /Users/ai/Desktop/repos/endive-cloned/benchmarks/quickjs4j-jit/results/redline.csv

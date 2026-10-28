@@ -105,6 +105,24 @@ build_endive() {
   git -C "$ENDIVE_REPO" worktree remove --force "$wt" >/dev/null 2>&1 || true
 }
 
+# Build endive's redline modules at $1 into the local repository. Kept separate
+# from build_endive because Redline is measured at main, not at this branch: the
+# branch does not touch the Redline path, and building it from main is both what
+# review asked for and the cleaner attribution.
+build_endive_redline() {
+  local rev="$1"
+  local wt="$WORK_DIR/endive-redline"
+  echo "==> [redline] building endive's redline modules at ${rev:0:12}"
+  rm -rf "$wt"
+  git -C "$ENDIVE_REPO" worktree remove --force "$wt" >/dev/null 2>&1 || true
+  git -C "$ENDIVE_REPO" worktree add -q --detach "$wt" "$rev"
+  (cd "$wt" && ./mvnw -q install -DskipTests -Ddev \
+      -pl redline/api,redline/compiler,redline/build-time-compiler,redline/runner-jffi,redline/runner -am) \
+    > "$WORK_DIR/endive-redline-build.log" 2>&1 \
+    || { echo "    endive redline build FAILED -- see $WORK_DIR/endive-redline-build.log"; }
+  git -C "$ENDIVE_REPO" worktree remove --force "$wt" >/dev/null 2>&1 || true
+}
+
 # Rebuild quickjs4j core against whatever endive is currently installed, and
 # keep the resulting jar.
 build_quickjs4j() {
@@ -154,31 +172,19 @@ mkdir -p "$WORK_DIR/classes"
 javac -cp "$WORK_DIR/jars/quickjs4j-before.jar:$DEPS" -d "$WORK_DIR/classes" src/JitBenchmark.java
 measure before "before (unsplit)"
 
-# ---- after ----
-build_endive "$HEAD_REV" after
-build_quickjs4j after
-measure after "after (split)"
-
 # ---- redline (optional third point of comparison) ----
 # Endive's experimental Redline backend compiles the module to native code via
-# Cranelift instead of to JVM bytecode, so it is a useful upper reference: it
-# shows how much of the gap to native the bytecode path closes. It needs
-# quickjs4j's own redline module, which arrived in roastedroot/quickjs4j#209 --
-# absent from a checkout without it, so the configuration is skipped rather
-# than failing the run.
+# Cranelift instead of to JVM bytecode, so it shows how much of the gap to
+# native the bytecode path closes. Measured here, while main's endive is still
+# the installed snapshot, so Redline comes from main rather than from this
+# branch. Needs quickjs4j's own redline module, which arrived in
+# roastedroot/quickjs4j#209 -- skipped when the checkout does not have it.
 REDLINE_STATUS="not run"
 if [[ -d "$QUICKJS4J/redline" ]]; then
   if [[ "$REDLINE_ENDIVE_VERSION" == "$ENDIVE_VERSION" ]]; then
-    echo "==> [redline] building endive's redline modules from this checkout"
-    (cd "$ENDIVE_REPO" && ./mvnw -q install -DskipTests -Ddev \
-        -pl redline/api,redline/compiler,redline/build-time-compiler,redline/runner-jffi,redline/runner -am) \
-      > "$WORK_DIR/endive-redline-build.log" 2>&1 \
-      || { echo "    endive redline build FAILED -- see $WORK_DIR/endive-redline-build.log"; }
+    build_endive_redline "$BASE_REV"
   fi
   echo "==> [redline] building quickjs4j redline module against endive $REDLINE_ENDIVE_VERSION"
-  # Pinned to a released endive: the Panama runner it depends on targets Java 25
-  # and so cannot be built by an older JDK, while this branch is not involved in
-  # the Redline path at all.
   if (cd "$QUICKJS4J" && "$QJ_MVN" -q install -pl redline -am -DskipTests \
         -Dendive.version="$REDLINE_ENDIVE_VERSION" \
         -Dspotless.check.skip=true -Dcheckstyle.skip=true -Dgpg.skip=true) \
@@ -198,9 +204,9 @@ if [[ -d "$QUICKJS4J/redline" ]]; then
         JitBenchmark "redline (native)" "$WINDOWS" "$ITERS" "$OUT_DIR/redline.csv" \
         | tee "$OUT_DIR/redline.log"
       # The provider returns empty when it finds no native code for the platform,
-      # which leaves the default backend in place; only count it as measured when
-      # the run itself reports a native backend.
-      if grep -q "native)" "$OUT_DIR/redline.log"; then
+      # leaving the default backend in place; only count it when the run itself
+      # reports a native backend.
+      if grep -q "native," "$OUT_DIR/redline.log"; then
         REDLINE_STATUS="ok"
       else
         REDLINE_STATUS="fell back to the default backend -- not a native measurement"
@@ -217,12 +223,18 @@ else
 fi
 echo "    redline: $REDLINE_STATUS"
 
+# ---- after ----
+build_endive "$HEAD_REV" after
+build_quickjs4j after
+measure after "after (split)"
+
 # ---- report ----
 echo "==> writing report"
 REDLINE_ARGS=()
 if [[ -f "$OUT_DIR/redline.csv" ]]; then
   REDLINE_ARGS=(--redline "$OUT_DIR/redline.csv"
                 --redline-endive "$REDLINE_ENDIVE_VERSION"
+                --redline-rev "$(git -C "$ENDIVE_REPO" log --oneline -1 "$BASE_REV")"
                 --redline-runner "$(grep -m1 '^backend:' "$OUT_DIR/redline.log" | sed 's/^backend: *//')")
 fi
 python3 report.py \

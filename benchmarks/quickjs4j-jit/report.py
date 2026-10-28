@@ -150,6 +150,7 @@ def main():
     ap.add_argument("--redline")
     ap.add_argument("--redline-endive", default="")
     ap.add_argument("--redline-runner", default="")
+    ap.add_argument("--redline-rev", default="")
     ap.add_argument("--jdk", default="")
     ap.add_argument("--out-md", required=True)
     ap.add_argument("--out-svg", required=True)
@@ -175,7 +176,11 @@ def main():
     md.append(f"- **before** &mdash; endive at `{a.base_rev}`")
     md.append(f"- **after** &nbsp;&mdash; endive at this branch ({a.head_rev})")
     if redline:
-        md.append(f"- **redline** &mdash; endive `{a.redline_endive}`, native via Cranelift")
+        md.append(
+            f"- **redline** &mdash; endive "
+            f"{'`main`' if (a.redline_endive or '').endswith('SNAPSHOT') else '`' + a.redline_endive + '`'}"
+            f", native via Cranelift"
+        )
     if a.jdk:
         md.append(f"\nMeasured on `{a.jdk}`.")
     md.append("")
@@ -220,17 +225,18 @@ def main():
         panama = "panama" in (a.redline_runner or "").lower()
         from_checkout = (a.redline_endive or "").endswith("SNAPSHOT")
         origin = (
-            "from this same checkout, so all three configurations share one endive"
+            f"from endive `{a.redline_rev}` -- that is `main`, the same revision as the "
+            f"`before` row, since this branch does not touch the Redline path"
             if from_checkout
             else f"against released endive `{a.redline_endive}`, since its Panama runner "
             f"targets Java 25 and cannot be built by an older JDK"
         )
         if panama:
             md.append(
-                f"Redline was built {origin}, and the runner it selected was "
-                f"**{a.redline_runner}** -- the intended one on this JDK. This branch does "
-                f"not touch the Redline path, so it is a reference point for how much of "
-                f"the gap to native the bytecode path closes, not a rival measurement.\n"
+                f"Redline was built {origin}. The runner it selected was "
+                f"**{a.redline_runner}**, the intended one on this JDK. Treat it as a "
+                f"reference point for how much of the gap to native the bytecode path "
+                f"closes, not as a rival measurement.\n"
             )
         else:
             md.append(

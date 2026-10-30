@@ -3,8 +3,11 @@ package run.endive.wasi;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.createDirectory;
 import static java.nio.file.Files.createSymbolicLink;
+import static java.nio.file.Files.getLastModifiedTime;
 import static java.nio.file.Files.writeString;
+import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -256,6 +259,37 @@ public class WasiPreview1Test {
                 int nreadPtr = 300;
                 result = wasi.fdRead(memory, fd, iovs, 1, nreadPtr);
                 assertEquals(WasiErrno.EINVAL.value(), result);
+            }
+        }
+    }
+
+    @Test
+    public void pathFilestatSetTimesHonoursLookupFlags() throws IOException {
+        try (var fs = newZeroFs()) {
+            Path root = fs.getPath("test");
+            createDirectory(root);
+            writeString(root.resolve("file"), "hello");
+            createSymbolicLink(root.resolve("link"), fs.getPath("file"));
+            long fileTime = getLastModifiedTime(root.resolve("file")).toMillis();
+            try (var wasi = wasiWithDirectory(root.toString(), root)) {
+                int result =
+                        wasi.pathFilestatSetTimes(
+                                3, 0, "link", 0, SECONDS.toNanos(1), WasiFstFlags.MTIM);
+                assertEquals(WasiErrno.ESUCCESS.value(), result);
+                assertEquals(
+                        1000, getLastModifiedTime(root.resolve("link"), NOFOLLOW_LINKS).toMillis());
+                assertEquals(fileTime, getLastModifiedTime(root.resolve("file")).toMillis());
+
+                result =
+                        wasi.pathFilestatSetTimes(
+                                3,
+                                WasiLookupFlags.SYMLINK_FOLLOW,
+                                "link",
+                                0,
+                                SECONDS.toNanos(2),
+                                WasiFstFlags.MTIM);
+                assertEquals(WasiErrno.ESUCCESS.value(), result);
+                assertEquals(2000, getLastModifiedTime(root.resolve("file")).toMillis());
             }
         }
     }

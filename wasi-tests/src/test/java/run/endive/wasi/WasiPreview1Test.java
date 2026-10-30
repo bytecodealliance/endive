@@ -17,6 +17,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -103,6 +105,41 @@ public class WasiPreview1Test {
                 assertEquals(3, length);
                 String name = memory.readString(bufPtr, length);
                 assertEquals("xyz", name);
+            }
+        }
+    }
+
+    @Test
+    public void fdReaddirDoesNotFollowSymlinks() throws IOException {
+        try (var fs = newZeroFs()) {
+            Path root = fs.getPath("test");
+            createDirectory(root);
+            writeString(root.resolve("file"), "hello");
+            createDirectory(root.resolve("dir"));
+            createSymbolicLink(root.resolve("link"), fs.getPath("file"));
+            createSymbolicLink(root.resolve("dangling"), fs.getPath("missing"));
+            try (var wasi = wasiWithDirectory(root.toString(), root)) {
+                var memory = new ByteBufferMemory(new MemoryLimits(1));
+                int buf = 0;
+                int bufLen = 1024;
+                int bufUsedPtr = 2048;
+
+                int result = wasi.fdReaddir(memory, 3, buf, bufLen, 0, bufUsedPtr);
+                assertEquals(WasiErrno.ESUCCESS.value(), result);
+
+                Map<String, Integer> types = new HashMap<>();
+                int used = memory.readInt(bufUsedPtr);
+                for (int pos = buf; pos < buf + used; ) {
+                    int nameLen = memory.readInt(pos + 16);
+                    int type = memory.read(pos + 20);
+                    types.put(memory.readString(pos + 24, nameLen), type);
+                    pos += 24 + nameLen;
+                }
+
+                assertEquals(WasiFileType.REGULAR_FILE.value(), types.get("file"));
+                assertEquals(WasiFileType.DIRECTORY.value(), types.get("dir"));
+                assertEquals(WasiFileType.SYMBOLIC_LINK.value(), types.get("link"));
+                assertEquals(WasiFileType.SYMBOLIC_LINK.value(), types.get("dangling"));
             }
         }
     }

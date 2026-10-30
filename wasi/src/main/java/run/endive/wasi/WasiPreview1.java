@@ -778,7 +778,9 @@ public final class WasiPreview1 implements Closeable {
 
                 Map<String, Object> attributes;
                 try {
-                    attributes = Files.readAttributes(entryPath, FILESTAT_ATTRIBUTES);
+                    attributes =
+                            Files.readAttributes(
+                                    entryPath, FILESTAT_ATTRIBUTES, LinkOption.NOFOLLOW_LINKS);
                 } catch (UnsupportedOperationException e) {
                     return wasiResult(WasiErrno.ENOTSUP);
                 } catch (NoSuchFileException e) {

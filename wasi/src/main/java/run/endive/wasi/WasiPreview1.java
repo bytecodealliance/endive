@@ -1070,7 +1070,8 @@ public final class WasiPreview1 implements Closeable {
             return wasiResult(WasiErrno.EACCES);
         }
 
-        return wasiResult(setFileTimes(path, modifiedTime, accessTime, fstFlags));
+        return wasiResult(
+                setFileTimes(path, modifiedTime, accessTime, fstFlags, toLinkOptions(lookupFlags)));
     }
 
     private static final class ResolvedSymlink {
@@ -1793,7 +1794,8 @@ public final class WasiPreview1 implements Closeable {
         }
     }
 
-    private WasiErrno setFileTimes(Path path, long modifiedTime, long accessTime, int flags) {
+    private WasiErrno setFileTimes(
+            Path path, long modifiedTime, long accessTime, int flags, LinkOption... options) {
         boolean modifiedSet = flagSet(flags, WasiFstFlags.MTIM);
         boolean modifiedNow = flagSet(flags, WasiFstFlags.MTIM_NOW);
         boolean accessSet = flagSet(flags, WasiFstFlags.ATIM);
@@ -1807,7 +1809,7 @@ public final class WasiPreview1 implements Closeable {
         FileTime lastAccessTime = toFileTime(accessTime, accessSet, accessNow);
 
         try {
-            Files.getFileAttributeView(path, BasicFileAttributeView.class)
+            Files.getFileAttributeView(path, BasicFileAttributeView.class, options)
                     .setTimes(lastModifiedTime, lastAccessTime, null);
         } catch (IOException e) {
             return WasiErrno.EIO;

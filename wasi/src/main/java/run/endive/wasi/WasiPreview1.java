@@ -71,6 +71,11 @@ import run.endive.wasm.WasmEngineException;
  */
 @HostModule("wasi_snapshot_preview1")
 public final class WasiPreview1 implements Closeable {
+    // Avoid unix:*: owner and group attributes trigger name lookups.
+    private static final String FILESTAT_ATTRIBUTES =
+            "unix:dev,ino,nlink,size,lastAccessTime,lastModifiedTime,ctime,"
+                    + "isSymbolicLink,isDirectory,isRegularFile";
+
     private final Logger logger;
     private final Random random;
     private final Clock clock;
@@ -461,7 +466,7 @@ public final class WasiPreview1 implements Closeable {
 
         Map<String, Object> attributes;
         try {
-            attributes = Files.readAttributes(path, "unix:*");
+            attributes = Files.readAttributes(path, FILESTAT_ATTRIBUTES);
         } catch (UnsupportedOperationException e) {
             return wasiResult(WasiErrno.ENOTSUP);
         } catch (IOException e) {
@@ -773,7 +778,7 @@ public final class WasiPreview1 implements Closeable {
 
                 Map<String, Object> attributes;
                 try {
-                    attributes = Files.readAttributes(entryPath, "unix:*");
+                    attributes = Files.readAttributes(entryPath, FILESTAT_ATTRIBUTES);
                 } catch (UnsupportedOperationException e) {
                     return wasiResult(WasiErrno.ENOTSUP);
                 } catch (NoSuchFileException e) {
@@ -1029,7 +1034,7 @@ public final class WasiPreview1 implements Closeable {
                     path = resolved.resolved();
                 }
             }
-            attributes = Files.readAttributes(path, "unix:*", linkOptions);
+            attributes = Files.readAttributes(path, FILESTAT_ATTRIBUTES, linkOptions);
         } catch (UnsupportedOperationException e) {
             return wasiResult(WasiErrno.ENOTSUP);
         } catch (NoSuchFileException e) {

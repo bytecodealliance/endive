@@ -95,6 +95,7 @@ public final class MachineFactoryCompiler {
         private final WasmModule module;
         private final run.endive.compiler.internal.Compiler.Builder compilerBuilder;
         private Cache cache;
+        private boolean methodSplitting;
 
         private Builder(WasmModule module) {
             this.module = module;
@@ -130,6 +131,16 @@ public final class MachineFactoryCompiler {
             return this;
         }
 
+        /**
+         * Splits functions too large for the JVM to JIT-compile into several smaller methods.
+         * Experimental, disabled by default.
+         */
+        public Builder withMethodSplitting(boolean methodSplitting) {
+            compilerBuilder.withMethodSplitting(methodSplitting);
+            this.methodSplitting = methodSplitting;
+            return this;
+        }
+
         public Builder withCache(Cache cache) {
             this.cache = cache;
             return this;
@@ -154,8 +165,9 @@ public final class MachineFactoryCompiler {
 
                 // Can we load the byte codes from the cache?
                 var useCache = cache != null && module.digest() != null;
+                var cacheKey = methodSplitting ? "split-" + module.digest() : module.digest();
                 if (useCache) {
-                    byte[] cachedData = cache.get(module.digest());
+                    byte[] cachedData = cache.get(cacheKey);
                     if (cachedData != null) {
                         return machineFactory(loadCompilerResult(cachedData), strip);
                     }
@@ -170,7 +182,7 @@ public final class MachineFactoryCompiler {
 
                 if (useCache) {
                     // store results in the cache to speed the next time.
-                    cache.putIfAbsent(module.digest(), storeCompilerResult(result));
+                    cache.putIfAbsent(cacheKey, storeCompilerResult(result));
                 }
 
                 return machineFactory(result, strip);

@@ -177,6 +177,32 @@ public final class MachinesTest {
     }
 
     @Test
+    public void shouldRunQuickJsRuntimeCompiledWithMethodSplitting() {
+        var stderr = new ByteArrayOutputStream();
+
+        var wasi = setupWasi(stderr);
+        var module = loadModule("compiled/quickjs-provider.javy-dynamic.wasm");
+        var quickjs =
+                Instance.builder(module)
+                        .withMachineFactory(
+                                MachineFactoryCompiler.builder(module)
+                                        .withMethodSplitting(true)
+                                        .compile())
+                        .withImportValues(
+                                ImportValues.builder().addFunction(wasi.toHostFunctions()).build())
+                        .build();
+
+        var store = new Store().register("javy_quickjs_provider_v1", quickjs);
+
+        moduleInstanceBuilder()
+                .withMachineFactory(DynamicHelloJS::create)
+                .withImportValues(store.toImportValues())
+                .build();
+
+        assertEquals(expectedOutput, stderr.toString(UTF_8));
+    }
+
+    @Test
     public void shouldUseMachineCallOnlyForExport() throws Exception {
         ByteArrayOutputStream stdoutStream = new ByteArrayOutputStream();
 

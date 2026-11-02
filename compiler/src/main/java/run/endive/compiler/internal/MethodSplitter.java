@@ -51,7 +51,10 @@ import run.endive.wasm.types.FunctionBody;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.ValType;
 
-/** Splits functions too large for HotSpot to JIT into several smaller JVM methods. */
+/**
+ * Splits functions too large for HotSpot to JIT into smaller methods. See
+ * compiler/METHOD_SPLITTING.md.
+ */
 final class MethodSplitter {
 
     private MethodSplitter() {}

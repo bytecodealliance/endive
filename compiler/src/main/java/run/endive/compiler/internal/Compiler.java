@@ -218,6 +218,7 @@ public final class Compiler {
         this.splitPlans = methodSplitting ? planMethodSplits() : Map.of();
     }
 
+    // See compiler/METHOD_SPLITTING.md.
     private Map<Integer, MethodSplitter.Plan> planMethodSplits() {
         var plans = new HashMap<Integer, MethodSplitter.Plan>();
         int funcCount = module.functionSection().functionCount();

@@ -58,6 +58,21 @@ The parameter accepts any `run.endive.compiler.MethodPrefixer` with a public no-
 declared as a dependency of the plugin. See [Method Names](runtime-compiler.md#method-names) for the
 naming contract.
 
+### Method Splitting (experimental)
+
+Set `methodSplitting` to split functions too large for the JVM to JIT-compile into several smaller
+methods:
+
+```xml
+<configuration>
+  <wasmFile>src/main/resources/add.wasm</wasmFile>
+  <name>org.acme.wasm.Add</name>
+  <methodSplitting>true</methodSplitting>
+</configuration>
+```
+
+See [Method Splitting](runtime-compiler.md#method-splitting-experimental) for details.
+
 ## Using Maven
 
 Example configuration of the Maven plug-in:
@@ -214,6 +229,10 @@ endive:compile
       compiled methods. Defaults to naming them func_0, func_1 and so on. Set
       it to run.endive.compiler.NameSectionMethodPrefixer to name them after
       the module's name section.
+
+    methodSplitting (Default: false)
+      Split functions too large for the JVM to JIT-compile into several
+      smaller methods. Experimental.
 
     moduleInterface
       Fully qualified name of the user's class for which to generate

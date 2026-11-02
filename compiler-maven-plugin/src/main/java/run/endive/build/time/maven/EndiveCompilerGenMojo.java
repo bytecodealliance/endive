@@ -80,6 +80,13 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
     String methodPrefixer;
 
     /**
+     * Split functions too large for the JVM to JIT-compile into several smaller methods.
+     * Experimental.
+     */
+    @Parameter(required = false, defaultValue = "false")
+    boolean methodSplitting;
+
+    /**
      * Fully qualified name of the user's class that will use the compiled module.
      * When set, the plugin generates _ModuleExports and _ModuleImports wrapper classes,
      * eliminating the need for @WasmModuleInterface annotation and the annotation processor.
@@ -121,6 +128,7 @@ public class EndiveCompilerGenMojo extends AbstractMojo {
                         .withInterpreterFallback(interpreterFallback)
                         .withInterpretedFunctions(interpretedFunctions)
                         .withMethodPrefixer(methodPrefixer)
+                        .withMethodSplitting(methodSplitting)
                         .withModuleInterface(moduleInterface);
         if (redlineTargetsExperimental != null && !redlineTargetsExperimental.isEmpty()) {
             configBuilder.withRedlineTargets(redlineTargetsExperimental);

@@ -69,7 +69,7 @@ final class Context {
     // forceFrameLayout lays the JVM slots out as if the function had too many
     // parameters -- slot 0 holds a long[], Memory and Instance follow, and every
     // local (params first, then declared) lives in a slot after those. Trampoline
-    // -split functions (see Compiler) use that layout for their chunk methods even
+    // -split functions (see MethodSplitter) use that layout for their chunk methods even
     // though their real signature is small, so their locals can round-trip through
     // the frame array between chunks. Nothing else about compilation changes: the
     // hasTooManyParameters checks in Emitters all concern the *callee's* type, not

@@ -131,10 +131,7 @@ public final class MachineFactoryCompiler {
             return this;
         }
 
-        /**
-         * Splits functions too large for the JVM to JIT-compile into several smaller methods.
-         * Experimental, disabled by default.
-         */
+        /** Splits functions too large for the JVM to JIT into smaller methods. Experimental. */
         public Builder withMethodSplitting(boolean methodSplitting) {
             compilerBuilder.withMethodSplitting(methodSplitting);
             this.methodSplitting = methodSplitting;

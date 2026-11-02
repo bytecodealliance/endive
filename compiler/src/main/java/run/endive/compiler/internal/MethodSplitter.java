@@ -94,80 +94,35 @@ final class MethodSplitter {
     // Functions with fewer instructions than this are never measured.
     private static final int LARGE_FUNCTION_INSTRUCTION_THRESHOLD = 200;
 
-    // A JVM method's Code attribute cannot exceed 65535 bytes, so a chunk above
-    // that is not merely un-JITable but unloadable. Clamp well under it: the
-    // planner's own size figures are estimates, so leave headroom rather than
-    // emitting a method the class writer will reject.
+    // Headroom under the 65535-byte Code attribute limit, since sizes are estimates.
     private static final int JVM_METHOD_SIZE_CEILING = 48000;
 
-    // The size a function body has to stay under to be worth JITing is the same
-    // ceiling HUGE_METHOD_LIMIT already expresses for dispatch methods, so reuse it
-    // rather than introducing a second notion of "too big to JIT" with its own
-    // number and its own knob: endive.hugeMethodLimit now tunes both together.
+    // HotSpot's HugeMethodLimit, as for dispatch methods (endive.hugeMethodLimit).
     private static final int JIT_ELIGIBILITY_SIZE_BYTES =
             Math.min(Compiler.HUGE_METHOD_LIMIT, JVM_METHOD_SIZE_CEILING);
 
-    // A single br_table with targets scattered across a function creates spans that
-    // collectively block almost every candidate (all targets share one source
-    // position -- the switch itself). For switches with at least this many distinct
-    // targets, and where EVERY distinct target is independently safe to become its
-    // own chunk boundary (not a loop header, stack-depth-0, not blocked by any
-    // OTHER branch's span), those targets are added to the regular candidate pool
-    // -- exempted only from this one switch's own spans, nothing else's. The
-    // existing size-driven greedy packer then decides, same as always, whether to
-    // actually cut there. Below this threshold the complexity isn't worth it: a
-    // small switch's whole span is cheap to just keep intact.
+    // br_tables with at least this many targets may cut at each target (direct split).
     private static final int SWITCH_SPLIT_MIN_TARGETS = 8;
 
-    // Linear chunking can never cut inside a loop, because a loop's back-edge is a
-    // JVM `goto` and a goto cannot cross a method boundary. That single restriction
-    // is what leaves the largest real functions interpreted: measured on real code,
-    // 97.5% of QuickJS's JS_CallInternal and 98.2% of printf_core sits inside a
-    // loop, so essentially no position in either is a legal cut.
-    //
-    // Trampoline splitting removes the restriction by replacing goto-based control
-    // flow *between* chunks with a driver loop. Every Wasm local lives in a long[]
-    // frame; each chunk is a method that unboxes the frame into JVM slots, runs its
-    // slice, then writes the next chunk's index into the frame's PC slot and
-    // returns. The driver in the entry method reads the PC and calls the next
-    // chunk. A back-edge is then just another PC value, so loops stop mattering
-    // entirely -- and because a chunk sets PC=DONE on entry, a real Wasm `return`
-    // stays an ordinary areturn and every existing opcode emitter is untouched.
-    //
-    // Dispatch-loop functions inherently produce roughly one chunk per switch case
-    // (every case body is a branch target from the dispatch chunk, so it has to be
-    // its own chunk entry). That is fine and even desirable -- it is what a
-    // hand-written Java interpreter looks like -- but cap it so a pathological
-    // function can't emit an unbounded number of methods into one class.
+    // Caps the trampoline chunk methods emitted for one function.
     private static final int TRAMPOLINE_MAX_CHUNKS = 4096;
 
-    // PC value meaning "this chunk returned normally; the value it returned is the
-    // function's real result". Chunks store it on entry, so only an explicit
-    // cross-chunk transition ever overwrites it.
+    // PC value meaning the chunk returned the function's result.
     private static final int TRAMPOLINE_PC_DONE = -1;
 
-    // Fixed per-chunk cost: setting the PC on entry, the shared epilogue's PC
-    // store, and the dummy return. Over-estimated on purpose.
+    // Per-chunk bytes for the PC stores and the dummy return (over-estimate).
     private static final int TRAMPOLINE_CHUNK_BASE_COST = 64;
 
-    // Cost of syncing one local in one direction (aload frame, push index, array
-    // load/store, the long<->JVM-type conversion, and the slot load/store). Also
-    // over-estimated: the widest of those forms is about 10 bytes.
+    // Bytes to sync one local in one direction (over-estimate).
     private static final int TRAMPOLINE_LOCAL_SYNC_COST = 10;
 
-    // How many pending operand-stack values a chunk boundary may carry. A boundary
-    // is a method boundary, so anything on the stack has to be spilled into the
-    // frame and reloaded on the other side; the cap keeps that bounded. Depths at
-    // real branch targets are small (0-3), so this is generous.
+    // Most operand-stack values a chunk boundary may carry.
     private static final int TRAMPOLINE_MAX_SPILL = 8;
 
     // The JVM limit on argument slots of a static method.
     private static final int JVM_MAX_ARGUMENT_SLOTS = 255;
 
-    /**
-     * Plans how to split the function compiled by {@code ctx}, or returns {@code null} when it
-     * already fits a JIT-eligible method or cannot be split safely.
-     */
+    /** Returns how to split the function compiled by {@code ctx}, or null to keep it whole. */
     static Plan plan(Context ctx, List<CompilerInstruction> instructions) {
         if (instructions.size() <= LARGE_FUNCTION_INSTRUCTION_THRESHOLD) {
             return null;
@@ -182,9 +137,7 @@ final class MethodSplitter {
         if (!eligible) {
             return null;
         }
-        // Linear and switch chunking still decline try_table outright. The
-        // trampoline can take it, because it treats each protected range as a
-        // region no boundary may fall inside -- see planTrampolineSplit.
+        // try_table is only supported by the trampoline.
         boolean directEligible =
                 fitsChunkArguments(type, body)
                         && instructions.stream()
@@ -197,9 +150,6 @@ final class MethodSplitter {
         if (direct.cuts != null) {
             return direct;
         }
-        // Linear chunking couldn't place a cut -- almost always because the body
-        // is dominated by a loop. Try the trampoline, which isn't subject to
-        // that restriction.
         return planTrampolineSplit(ctx, type, body, instructions, direct.totalSize);
     }
 
@@ -230,10 +180,7 @@ final class MethodSplitter {
         return slots <= JVM_MAX_ARGUMENT_SLOTS;
     }
 
-    // True if the JVM operand stack is verified (via ASM's own data-flow analysis,
-    // not guessed) to be empty at the given label's position -- the precondition
-    // for it to be safe as a chunk boundary, since chunk transitions don't spill
-    // any pending stack values.
+    // True if ASM's analysis shows an empty operand stack at the label.
     private static boolean isStackEmptyAtLabel(
             long labelId,
             Map<Long, Label> labels,
@@ -250,11 +197,7 @@ final class MethodSplitter {
         return frames[nodePos].getStackSize() == 0;
     }
 
-    // The operand stack live at a label, as JVM types, or null if this label cannot
-    // begin a chunk. A chunk boundary is a method boundary, so pending stack values
-    // have to travel through the long[] frame -- which rules out references, and is
-    // capped in depth. An empty array (stack already empty) is the easy case and
-    // needs no spilling at all.
+    // Stack types at a label if they can be spilled into the frame, else null.
     private static Type[] spillableStackAtLabel(
             long labelId,
             Map<Long, Label> labels,
@@ -294,9 +237,7 @@ final class MethodSplitter {
         return types;
     }
 
-    // Bit-preserving conversions between a stack value and its long[] slot. These
-    // mirror what CompilerUtil does for locals, but work from the JVM types ASM's
-    // analysis reports rather than from Wasm ValTypes.
+    // Bit-preserving conversions between a stack value and its long[] slot.
     private static void emitStackValueToLong(InstructionAdapter asm, Type type) {
         switch (type.getSort()) {
             case Type.INT:
@@ -329,10 +270,7 @@ final class MethodSplitter {
         }
     }
 
-    // Which chunk a flattened-instruction-list position ends up in, given the final
-    // list of cut points (each cuts[k] is the last instruction index of chunk k,
-    // inclusive). Shared between the post-packing switch-alignment safety gate above
-    // and the actual chunk-aware emission below, so both agree on the same mapping.
+    // Chunk containing pos, where cuts[k] is the last index of chunk k.
     private static int chunkIndexOf(int pos, List<Integer> cuts) {
         int idx = 0;
         for (int c : cuts) {
@@ -357,11 +295,7 @@ final class MethodSplitter {
         return idx;
     }
 
-    // Chooses chunk start positions for a trampoline split, or null if the function
-    // can't be split this way. The governing rule is simple: a branch may leave its
-    // chunk only by landing exactly on another chunk's first instruction, because
-    // that is the only position the driver can dispatch to. Everything else here is
-    // in service of finding a start set that satisfies it.
+    // Chunk starts for a trampoline split, or null.
     private static Plan planTrampolineSplit(
             Context ctx,
             FunctionType type,
@@ -383,9 +317,7 @@ final class MethodSplitter {
             }
         }
 
-        // Same measurement approach as the linear planner: replay real emission into
-        // a throwaway MethodNode so sizes are actual bytecode sizes and the operand
-        // stack can be analyzed by ASM rather than guessed at.
+        // Emit for real to measure sizes and analyze the operand stack.
         var methodNode =
                 new MethodNode(
                         Opcodes.ASM9,
@@ -415,11 +347,7 @@ final class MethodSplitter {
             return null;
         }
 
-        // A chunk boundary is a method boundary, so anything pending on the operand
-        // stack has to travel through the frame. Labels where the stack is already
-        // empty are free; the rest are still usable as long as their stack can be
-        // spilled (no references, bounded depth), which is what lets a branch into
-        // the middle of an expression still begin a chunk.
+        // Labels whose stack can be spilled into the frame may start a chunk.
         TreeSet<Integer> candidateStarts = new TreeSet<>();
         candidateStarts.add(0);
         Map<Integer, Type[]> entryStacks = new HashMap<>();
@@ -432,12 +360,7 @@ final class MethodSplitter {
             }
         }
 
-        // A JVM exception-table entry names a protected range and its handler, and
-        // all of them must live in the method that declares it. So a try_table's
-        // range, its handler, and the visitTryCatchBlock that declares it have to
-        // end up in one chunk: no boundary may fall inside the region spanning all
-        // four positions. Functions whose protected ranges blanket the body simply
-        // run out of legal boundaries and fall back, which is the correct outcome.
+        // A try_table's range, handler and declaration must stay in one chunk.
         for (int idx = 0; idx < instructions.size(); idx++) {
             var ins = instructions.get(idx);
             if (ins.opcode() != CompilerOpCode.TRY_CATCH_BLOCK) {
@@ -480,13 +403,7 @@ final class MethodSplitter {
             }
         }
 
-        // Reserve for the prologue/epilogue while seeding. A chunk only syncs the
-        // locals it actually touches (see emitTrampolineChunk), so reserving for
-        // every local in the function -- as this used to -- shrinks the budget far
-        // below what chunks really cost and splits functions more finely than
-        // needed. Seed optimistically instead; the exact per-chunk cost is checked
-        // afterwards, and a chunk that turns out too big is subdivided rather than
-        // costing the whole function its split.
+        // Optimistic reserve: chunks are costed exactly in planTrampolineStarts.
         int totalLocals = type.params().size() + body.localTypes().size();
         int budget =
                 JIT_ELIGIBILITY_SIZE_BYTES
@@ -496,11 +413,7 @@ final class MethodSplitter {
             return null; // so many locals that the sync alone would blow the budget
         }
 
-        // A bail can depend on exactly where the boundaries landed: different cuts
-        // make different branches cross chunks, and one of those may target a
-        // position with a non-empty operand stack, which can never start a chunk.
-        // So a failure at one budget is not proof the function is unsplittable --
-        // retry with tighter budgets, which lands the cuts differently.
+        // Different budgets place the cuts differently, so retry before giving up.
         for (int attempt = 0; attempt < 3; attempt++) {
             int attemptBudget = budget - (budget / 4) * attempt;
             if (attemptBudget < 512) {
@@ -525,9 +438,7 @@ final class MethodSplitter {
         return null;
     }
 
-    // Chooses chunk starts for one budget, or null if this budget cannot produce a
-    // valid plan. Split out of planTrampolineSplit so a failed plan can simply be
-    // retried at a different budget.
+    // Chunk starts for one budget, or null.
     private static int[] planTrampolineStarts(
             int budget,
             NavigableSet<Integer> candidateStarts,
@@ -535,10 +446,7 @@ final class MethodSplitter {
             Map<Integer, Integer> cumulativeSizeAtIndex,
             List<CompilerInstruction> instructions,
             int totalLocals) {
-        // Seed with a purely size-driven partition, then repair it: any branch that
-        // lands somewhere other than a chunk start forces that landing position to
-        // become one. Adding starts only ever subdivides chunks, so this terminates
-        // (worst case: every candidate becomes a start).
+        // Seed by size, then make every cross-chunk branch target a start.
         TreeSet<Integer> starts = new TreeSet<>();
         starts.add(0);
         int chunkBase = 0; // cumulative size immediately before the current chunk
@@ -548,8 +456,7 @@ final class MethodSplitter {
                 continue;
             }
             if (cumulativeSizeAtIndex.get(c - 1) - chunkBase > budget) {
-                // close the chunk at the last candidate that fit, not at the one
-                // that overflowed
+                // close the chunk at the last candidate that fit
                 if (prev > starts.last()) {
                     starts.add(prev);
                     chunkBase = cumulativeSizeAtIndex.get(prev - 1);
@@ -563,11 +470,7 @@ final class MethodSplitter {
             prev = c;
         }
 
-        // Two invariants have to hold together, and fixing either can break the
-        // other: every branch must land exactly on a chunk start, and every chunk
-        // must fit the size limit once its real sync cost is counted. Subdividing an
-        // oversized chunk can strand a branch that used to be internal to it, so the
-        // branch repair is re-run after every subdivision rather than once up front.
+        // Repeat until every cross-chunk branch lands on a start and every chunk fits.
         for (int round = 0; ; round++) {
             for (int pass = 0; ; pass++) {
                 List<Integer> forced = new ArrayList<>();
@@ -583,8 +486,7 @@ final class MethodSplitter {
                 }
                 for (int f : forced) {
                     if (!candidateStarts.contains(f)) {
-                        // A branch crosses into a position that can never begin a
-                        // chunk (non-empty operand stack there). Not splittable.
+                        // the target cannot start a chunk
                         return null;
                     }
                     starts.add(f);
@@ -594,7 +496,7 @@ final class MethodSplitter {
                 }
             }
 
-            // Now that the chunks are settled, cost each one exactly.
+            // cost each chunk exactly
             List<Integer> startList = new ArrayList<>(starts);
             int oversized = -1;
             for (int k = 0; k < startList.size(); k++) {
@@ -619,10 +521,7 @@ final class MethodSplitter {
                 return null;
             }
 
-            // Subdivide the offending chunk at the LAST candidate that still fits,
-            // so the leading piece is packed as full as the limit allows. Splitting
-            // down the middle instead would leave both halves half-empty and end up
-            // producing more, smaller chunks than necessary.
+            // Split at the last candidate that fits, packing the leading piece full.
             int from = startList.get(oversized);
             int to =
                     (oversized + 1 < startList.size())
@@ -642,8 +541,7 @@ final class MethodSplitter {
                 split = c;
             }
             if (split == null) {
-                // not even the first candidate fits; take it anyway so the loop
-                // still makes progress, and let the next round subdivide further
+                // nothing fits: take the first candidate and subdivide again next round
                 var tail = candidateStarts.subSet(from + 1, to);
                 if (!tail.isEmpty()) {
                     split = tail.first();
@@ -675,8 +573,7 @@ final class MethodSplitter {
             List<CompilerInstruction> instructions,
             boolean splitEligible) {
 
-        // labels referenced by at least one branch/try-catch operand (matches exactly
-        // what real emission marks -- see Compiler.emitInstruction).
+        // labels targeted by a branch or try-catch, as in Compiler.emitInstruction
         Map<Long, Label> labels = new HashMap<>();
         for (var ins : instructions) {
             for (long target : ins.labelTargets()) {
@@ -684,7 +581,6 @@ final class MethodSplitter {
             }
         }
 
-        // where each such label is actually defined in the flat instruction stream.
         Map<Long, Integer> labelDefPosition = new HashMap<>();
         for (int idx = 0; idx < instructions.size(); idx++) {
             var ins = instructions.get(idx);
@@ -693,8 +589,7 @@ final class MethodSplitter {
             }
         }
 
-        // loop headers (targets of a backward branch) and the [min,max] index span of
-        // every real branch -- a cut point must not fall strictly inside any span.
+        // loop headers, and the span of every branch: no cut may fall inside a span
         Set<Long> loopHeaders = new HashSet<>();
         List<int[]> spans = new ArrayList<>();
         for (int idx = 0; idx < instructions.size(); idx++) {
@@ -720,8 +615,7 @@ final class MethodSplitter {
             }
         }
 
-        // buffer the exact same emission into a MethodNode while measuring cumulative
-        // size, so we get both a precise byte count and a structure ASM can analyze.
+        // Emit for real to measure sizes and analyze the operand stack.
         var methodNode =
                 new MethodNode(
                         Opcodes.ASM9,
@@ -746,10 +640,7 @@ final class MethodSplitter {
             return new Plan(totalSize, null, null, null);
         }
 
-        // Unlike ClassWriter's COMPUTE_MAXS, MethodNode never computes these on its
-        // own -- Analyzer.computeInitialFrame sizes its frames directly off whatever
-        // is here, so it must be set explicitly (and generously; this MethodNode is
-        // discarded after analysis, so over-provisioning costs nothing).
+        // MethodNode does not compute these, and the Analyzer needs them.
         methodNode.visitMaxs(512, ctx.trySaveBaseSlot() + 256);
         methodNode.visitEnd();
 
@@ -762,10 +653,7 @@ final class MethodSplitter {
             return new Plan(totalSize, null, null, null);
         }
 
-        // Positions listed here MUST become an actual cuts[] entry, not merely an
-        // option the size-driven packer below may or may not take -- populated only
-        // by the switch-eligibility loop further down. Everything else in
-        // `candidates` remains purely opportunistic, exactly as before.
+        // switch targets that must become cuts
         Set<Integer> mandatoryCuts = new HashSet<>();
 
         List<Integer> candidates = new ArrayList<>();
@@ -775,11 +663,7 @@ final class MethodSplitter {
             }
             int idx = e.getValue();
 
-            // A cut at idx puts instructions[0,idx] (inclusive of idx) in the earlier
-            // chunk and instructions[idx+1,...) in the later one -- so a LABEL
-            // instruction chosen as idx lands in the *earlier* chunk together with
-            // whatever forward branch targets it, rather than being severed from it.
-            // A span [s,e] is severed by that cut iff s <= idx < e.
+            // a cut at idx keeps instructions[0, idx] in the earlier chunk
             boolean insideSpan = false;
             for (int[] span : spans) {
                 if (span[0] <= idx && idx < span[1]) {
@@ -798,35 +682,7 @@ final class MethodSplitter {
             candidates.add(idx);
         }
 
-        // A br_table's targets all share one source position (the switch itself),
-        // so the ordinary span check above pessimistically blocks almost every
-        // candidate once a switch has more than a handful of targets scattered
-        // through the function -- confirmed against real code: a 1,366-target
-        // switch was the reason a 47KB BoxedWine function had zero viable
-        // candidates. For switches at or above SWITCH_SPLIT_MIN_TARGETS, check
-        // each distinct target independently against the same requirements as any
-        // other candidate, exempting only this one switch's own spans -- never any
-        // other branch's. Unlike a regular candidate, an eligible target is added
-        // as a MANDATORY cut, not just an option for the packer: a far tableswitch
-        // target is only reachable by calling straight into another chunk's start
-        // (see emitChunkAwareSwitch), which requires that target's position to
-        // actually BE a chunk boundary -- leaving it to chance, size-driven packing
-        // would almost never land on more than one or two of potentially hundreds
-        // of targets.
-        //
-        // Targets are judged individually rather than all-or-nothing: real
-        // dispatch-loop-shaped code (the classic `for(;;) { switch(op) { ... } }`
-        // interpreter-loop pattern -- confirmed in QuickJS's JS_CallInternal,
-        // printf_core, resolve_labels, and BoxedWine's funcId 770) has most targets
-        // sitting inside the enclosing loop's span, which can never be a cut point
-        // no matter how eligibility is computed -- splitting a loop body across JVM
-        // methods would need threading the loop's state through the call, which
-        // this doesn't attempt. Requiring every target to qualify would throw away
-        // the (sometimes substantial) minority of targets -- e.g. `break` cases
-        // whose code sits after the loop's own back-edge -- that genuinely don't
-        // have this problem. The post-packing safety gate below still independently
-        // verifies every switch's actual outcome, so leaving some targets
-        // ineligible here can only ever result in a safe bail, never wrong bytecode.
+        // Large br_table: each safe target becomes a mandatory cut, ignoring this switch's spans.
         for (int switchIdx = 0; switchIdx < instructions.size(); switchIdx++) {
             var ins = instructions.get(switchIdx);
             if (ins.opcode() != CompilerOpCode.SWITCH) {
@@ -865,10 +721,6 @@ final class MethodSplitter {
             }
         }
 
-        // Sorted, de-duplicated -- the same position can arrive twice (e.g. one
-        // label targeted by two different eligible switches), and the packer below
-        // needs a strictly increasing sequence to reason about "the cut right
-        // before this one".
         TreeSet<Integer> sortedCandidates = new TreeSet<>(candidates);
 
         List<Integer> cuts = new ArrayList<>();
@@ -889,10 +741,7 @@ final class MethodSplitter {
                 }
             }
             if (mandatoryCuts.contains(idx)) {
-                // A switch target must become an actual chunk boundary regardless
-                // of whether it was strictly needed to stay under budget -- see
-                // emitChunkAwareSwitch, which relies on every far target being
-                // exactly reachable as another chunk's start.
+                // far switch targets must start a chunk, see emitChunkAwareSwitch
                 if (idx > chunkStart) {
                     cuts.add(idx);
                     chunkStart = idx;
@@ -917,16 +766,7 @@ final class MethodSplitter {
             return new Plan(totalSize, null, null, null);
         }
 
-        // Safety gate for switch splitting: a far switch target can only be reached
-        // from another chunk by calling into that chunk's start, so it's only safe
-        // to leave a target in a different chunk than its switch when that target's
-        // position is EXACTLY where the greedy packer chose to start a chunk. The
-        // packer above picks cuts purely by size, with no knowledge of switches, so
-        // that alignment isn't guaranteed -- e.g. with 3 targets and only the first
-        // chosen as a cut, the second could land mid-chunk, unreachable as a call
-        // target. Rather than special-case the packer, verify the outcome here and
-        // bail to no-split (same fallback as any other unsplittable function) if any
-        // switch ends up with a target stranded away from a chunk boundary.
+        // Every switch target outside its switch's chunk must start a chunk.
         for (int switchIdx = 0; switchIdx < instructions.size(); switchIdx++) {
             var ins = instructions.get(switchIdx);
             if (ins.opcode() != CompilerOpCode.SWITCH) {
@@ -941,12 +781,7 @@ final class MethodSplitter {
                     return new Plan(totalSize, null, null, null);
                 }
                 int targetChunk = chunkIndexOf(defPos, cuts);
-                // A label's own position is the LAST instruction of the chunk that
-                // contains it (chunks are [start, cuts[k]] inclusive), so the code
-                // that actually follows the label -- what a jump to it must reach --
-                // only starts at the very beginning of the NEXT chunk. That's only
-                // reachable via a cross-chunk call when this label's position is
-                // itself exactly a chosen cut, i.e. the last instruction of its chunk.
+                // the code after a label starts the next chunk, so the label must be a cut
                 if (targetChunk != switchChunk && !cuts.contains(defPos)) {
                     return new Plan(totalSize, null, null, null);
                 }
@@ -956,16 +791,10 @@ final class MethodSplitter {
         return new Plan(totalSize, cuts.stream().mapToInt(Integer::intValue).toArray(), null, null);
     }
 
-    // Estimates JVM Code-attribute size by counting per-instruction encoding lengths
-    // per the class file spec. Approximate (e.g. always assumes the wider constant-pool
-    // index / offset form where an instruction has a narrow and wide encoding), so it
-    // over-estimates. Standalone rather than asm-util's CodeSizeEvaluator because this
-    // build's asm-util artifact has been minimized and no longer includes it.
+    // Over-estimates bytecode size; asm-util's CodeSizeEvaluator is not in this build.
     private static final class CodeSizeCounter extends MethodVisitor {
         int size;
 
-        // Chains to a delegate (typically a MethodNode) so the same emission pass can
-        // simultaneously measure size and build a buffered, analyzable method.
         CodeSizeCounter(MethodVisitor delegate) {
             super(Opcodes.ASM9, delegate);
         }
@@ -1053,20 +882,7 @@ final class MethodSplitter {
         }
     }
 
-    // implements one compiled Wasm function's body: initializes locals, then
-
-    // Emits an oversized function as several JVM methods, per the cut plan chosen by
-    // analyzeAndPlanSplit above. Chunk 0 is emitted into the function's real, external
-    // entry point (func_xxx) with its normal signature unchanged -- nothing outside
-    // this one function's own emission needs to know it was split. Chunks 1..N-1 are
-    // private helper methods (func_xxx_chunk_N), never called from anywhere else, that
-    // additionally take Memory/Instance and every Wasm local as explicit parameters --
-    // reusing Context's existing slot layout unmodified, since the extended signature
-    // is built to match it exactly (params, Memory, Instance, then locals in order).
-    // Chunks are chained with a plain call-then-return at each cut point; this only
-    // ever happens once per static split point per invocation (never per loop
-    // iteration -- the planner guarantees no cut sits inside a loop's own span), so it
-    // adds a small, bounded number of extra calls rather than per-iteration overhead.
+    // Emits a direct split: chunk 0 in the function's method, chunk k in <name>_chunk_<k>.
     private static void emitChunkedFunction(
             ClassVisitor classWriter,
             int[] cuts,
@@ -1078,18 +894,13 @@ final class MethodSplitter {
         FunctionBody body = ctx.getBody();
         String internalClassName = ctx.internalClassName();
 
-        // shared across all chunks: a jump never crosses a chunk boundary except at
-        // the boundary itself, so one label/backward-jump-tracking state is correct
-        // for the whole (conceptually single) function, split or not.
+        // one label state for all chunks, since no jump crosses a cut
         Map<Long, Label> labels = new HashMap<>();
         for (var ins : instructions) {
             for (long target : ins.labelTargets()) {
                 labels.putIfAbsent(target, new Label());
             }
         }
-        // needed to resolve which chunk a far switch target lands in -- rebuilt here
-        // rather than threaded through from analyzeAndPlanSplit's own copy, since
-        // position indices are only meaningful relative to this same instructions list.
         Map<Long, Integer> labelDefPosition = new HashMap<>();
         for (int idx = 0; idx < instructions.size(); idx++) {
             var ins = instructions.get(idx);
@@ -1102,16 +913,11 @@ final class MethodSplitter {
         MethodType chunkType = chunkMethodType(type, body);
         String funcName = ctx.methodNameForFunc(funcId);
         int numChunks = cuts.length + 1;
-        // internalClassName is a naming *prefix*, not itself the class chunk methods
-        // actually live in -- they're emitted into the same FuncGroup class as this
-        // function itself, exactly like an ordinary cross-function CALL resolves its
-        // target class (see Emitters.CALL).
+        // chunk methods live in the function's FuncGroup class
         String chunkClassName = ctx.classNameForFuncGroup(internalClassName, funcId);
 
         int start = 0;
         for (int chunkIdx = 0; chunkIdx < numChunks; chunkIdx++) {
-            // cuts[chunkIdx] is the last instruction index included in this chunk
-            // (inclusive), matching the span-safety check in analyzeAndPlanSplit.
             int end = (chunkIdx < cuts.length) ? cuts[chunkIdx] + 1 : instructions.size();
             List<CompilerInstruction> slice = instructions.subList(start, end);
             boolean isFirst = chunkIdx == 0;
@@ -1119,10 +925,7 @@ final class MethodSplitter {
             String nextChunkName = isLast ? null : funcName + "_chunk_" + (chunkIdx + 1);
 
             int thisChunkIdx = chunkIdx;
-            // stub Labels are scoped per chunk: a far switch target gets one stub per
-            // chunk that jumps to it (never shared across chunks, since a Label can't
-            // be marked in more than one method), but a target referenced by several
-            // switches within the SAME chunk shares one stub, tracked via stubBodyEmitted.
+            // stubs are per chunk, since a Label belongs to one method
             Map<Long, Label> stubLabels = new HashMap<>();
             Set<Long> stubBodyEmitted = new HashSet<>();
             if (isFirst) {
@@ -1186,11 +989,7 @@ final class MethodSplitter {
         }
     }
 
-    // Emits one chunk's slice of instructions. Every opcode goes through the plain,
-    // unmodified emitInstruction EXCEPT a SWITCH with at least one target outside
-    // this chunk -- analyzeAndPlanSplit's post-packing safety gate guarantees any
-    // such target sits exactly at another chunk's start, so it's resolved to a small
-    // stub that calls straight into that chunk instead of a local Label.
+    // Emits one chunk; a switch with far targets goes through emitChunkAwareSwitch.
     private static void emitChunkAwareInstructions(
             Context ctx,
             FunctionType type,
@@ -1243,12 +1042,7 @@ final class MethodSplitter {
                                         != currentChunkIdx);
     }
 
-    // A far-target SWITCH never has a backward (loop-header) target -- that's a
-    // precondition of switch-split eligibility in analyzeAndPlanSplit, since a loop
-    // header target disqualifies ALL of that switch's targets from the candidate
-    // pool, so none of them could ever have driven a cut. That means the
-    // CHECK_INTERRUPTION-before-backward-jump handling in the plain SWITCH case
-    // (emitInstruction) never applies here and is safely omitted.
+    // Far switch targets are never loop headers, so no interruption check is needed.
     private static void emitChunkAwareSwitch(
             Context ctx,
             FunctionType type,
@@ -1293,10 +1087,7 @@ final class MethodSplitter {
             if (labelChunk == currentChunkIdx || !stubBodyEmitted.add(targetId)) {
                 continue;
             }
-            // The label's own position is the LAST instruction of labelChunk (see
-            // chunkIndexOf), so the code it actually names -- what the stub must
-            // reach -- is the very start of the chunk right after it, not labelChunk
-            // itself. The plan-time safety gate guarantees this alignment holds.
+            // the code after the label starts the next chunk
             int targetChunk = labelChunk + 1;
             asm.mark(stubLabels.get(targetId));
             emitChunkCall(
@@ -1310,10 +1101,7 @@ final class MethodSplitter {
         }
     }
 
-    // A local target resolves to its real, shared Label exactly as before. A far
-    // target gets one stub Label per chunk (reused across every switch in this
-    // chunk that shares the target); the stub body (a call into the target's own
-    // chunk) is emitted once, right after the tableswitch, by the caller.
+    // Local targets keep their Label; far targets share a per-chunk stub.
     private static Label resolveSwitchTarget(
             long targetId,
             Map<Long, Label> labels,
@@ -1328,10 +1116,7 @@ final class MethodSplitter {
         return stubLabels.computeIfAbsent(targetId, id -> new Label());
     }
 
-    // Emits a trampoline-split function: the real entry point keeps its normal
-    // signature and becomes a driver loop over chunk methods, each of which
-    // communicates "where to go next" through the frame's PC slot rather than by
-    // jumping. See TRAMPOLINE_MAX_CHUNKS for why this exists.
+    // Emits a trampoline split: a driver loop in the function's method, chunk k in <name>_tc_<k>.
     private static void emitTrampolineFunction(
             ClassVisitor classWriter,
             Plan plan,
@@ -1347,7 +1132,7 @@ final class MethodSplitter {
 
         int totalLocals = type.params().size() + body.localTypes().size();
         int pcIndex = totalLocals; // the frame slot after all locals holds the PC
-        // slots after the PC carry any operand-stack values a boundary has to spill
+        // spill slots follow the PC slot
         Map<Integer, Type[]> entryStacks = plan.entryStacks;
         int maxSpill = 0;
         for (Type[] st : entryStacks.values()) {
@@ -1362,16 +1147,13 @@ final class MethodSplitter {
                 methodType(jvmReturnType(type), long[].class, Memory.class, Instance.class);
         Type returnAsmType = getType(jvmReturnType(type));
 
-        // ---- entry method: build the frame, then run the driver ----
-        // Nothing but driver code is emitted into this method, so slots past the
-        // ones Context reserved for the function's own body are free to use.
+        // entry method: build the frame and run the driver; slots past the body's are free
         int frameSlot = entryCtx.trySaveBaseSlot() + 8;
         asm.iconst(frameLength);
         asm.newarray(LONG_TYPE);
         asm.store(frameSlot, LONG_ARRAY_TYPE);
 
-        // Params seed the frame; declared locals correctly default to 0, which the
-        // freshly allocated array already provides.
+        // params seed the frame; declared locals are already 0
         for (int i = 0; i < type.params().size(); i++) {
             var localType = localType(type, body, i);
             asm.load(frameSlot, LONG_ARRAY_TYPE);
@@ -1389,9 +1171,7 @@ final class MethodSplitter {
         Label driverDefault = new Label();
 
         asm.mark(driverLoop);
-        // One interruption check per dispatch. A Wasm loop whose back-edge became a
-        // chunk transition no longer passes through the emitter's own backward-jump
-        // check, so this is what preserves interruptibility for those loops.
+        // covers loop back-edges that became chunk transitions
         emitInvokeStatic(asm, CHECK_INTERRUPTION);
         asm.load(frameSlot, LONG_ARRAY_TYPE);
         asm.iconst(pcIndex);
@@ -1409,8 +1189,7 @@ final class MethodSplitter {
                     trampolineChunkName(funcName, k),
                     chunkType.toMethodDescriptorString(),
                     false);
-            // The chunk's return value is live on the stack here; whether it is the
-            // function's real result depends entirely on the PC it left behind.
+            // the result counts only if the chunk left the PC at DONE
             asm.load(frameSlot, LONG_ARRAY_TYPE);
             asm.iconst(pcIndex);
             asm.aload(LONG_TYPE);
@@ -1428,13 +1207,12 @@ final class MethodSplitter {
             asm.goTo(driverLoop);
         }
 
-        // Unreachable: the PC is only ever set by transitions this compiler emits.
-        // Returning the default value keeps it well-formed without a throw.
+        // unreachable: the PC is only set by emitted transitions
         asm.mark(driverDefault);
         emitDefaultReturnValue(asm, returnAsmType);
         asm.areturn(returnAsmType);
 
-        // ---- chunk methods ----
+        // chunk methods
         Map<Long, Label> labels = new HashMap<>();
         for (var ins : instructions) {
             for (long target : ins.labelTargets()) {
@@ -1482,10 +1260,7 @@ final class MethodSplitter {
         }
     }
 
-    // What one chunk's prologue and epilogue actually cost, from the locals it
-    // really touches rather than the function's whole local count. Deliberately an
-    // over-estimate of the emitted aload/iconst/laload/convert/store sequences, so
-    // a plan that fits here fits for real.
+    // Prologue and epilogue cost from the locals the chunk touches (over-estimate).
     private static int trampolineChunkOverhead(List<CompilerInstruction> slice, int totalLocals) {
         boolean[] touched = new boolean[totalLocals];
         boolean[] written = new boolean[totalLocals];
@@ -1555,41 +1330,23 @@ final class MethodSplitter {
             Type returnAsmType,
             InstructionAdapter asm) {
 
-        // Default the PC to DONE, so an ordinary `return` inside this slice needs no
-        // special handling at all -- it just areturns, and the driver sees DONE.
+        // a plain return leaves the PC at DONE, so the driver returns the value
         asm.load(0, LONG_ARRAY_TYPE);
         asm.iconst(pcIndex);
         asm.lconst(TRAMPOLINE_PC_DONE);
         asm.astore(LONG_TYPE);
 
-        // The frame is the single source of truth for locals; the JVM slots are
-        // only this chunk's cache of it. So a chunk needs to load just the locals
-        // it actually touches, and store back just the ones it writes -- a local
-        // this chunk never mentions keeps its value in the frame untouched.
-        //
-        // Written locals must also be *loaded*, not just stored: a write that only
-        // happens on one path through the chunk would otherwise leave the slot
-        // undefined, and the shared epilogue stores unconditionally. Loading first
-        // means the worst case is storing back the value that was already there.
-        //
-        // This matters most exactly where the trampoline is most valuable: a
-        // dispatch-loop case body typically touches a handful of the function's
-        // locals (JS_CallInternal has 48), and without this every one of them was
-        // boxed and unboxed on every transition, per loop iteration.
+        // load touched locals, written ones too since a write may be on one path only
         boolean[] readsLocal = new boolean[totalLocals];
         boolean[] writesLocal = new boolean[totalLocals];
         for (var ins : slice) {
             switch (ins.opcode()) {
-                // an out-of-range index is a malformed module that would already
-                // have failed validation, and would blow up in LOCAL_GET's own
-                // emitter too -- so index directly rather than hiding it
                 case LOCAL_GET:
                     readsLocal[(int) ins.operand(0)] = true;
                     break;
                 case LOCAL_SET:
                 case LOCAL_TEE:
-                    // LOCAL_TEE dups the stack value and delegates to LOCAL_SET,
-                    // so it writes the local without reading it
+                    // LOCAL_TEE writes the local without reading it
                     writesLocal[(int) ins.operand(0)] = true;
                     break;
                 default:
@@ -1609,9 +1366,7 @@ final class MethodSplitter {
             asm.store(ctx.localSlotIndex(i), asmType(localType));
         }
 
-        // Reload whatever operand-stack values this chunk was entered with. They
-        // were spilled by whichever transition jumped here, and must be pushed back
-        // in the same bottom-to-top order before the first instruction runs.
+        // reload the spilled stack, bottom to top
         Type[] entryStack = entryStacks.getOrDefault(startPositions[chunkIdx], EMPTY_TYPES);
         for (int i = 0; i < entryStack.length; i++) {
             asm.load(0, LONG_ARRAY_TYPE);
@@ -1620,10 +1375,7 @@ final class MethodSplitter {
             emitLongToStackValue(asm, entryStack[i]);
         }
 
-        // Every cross-chunk exit funnels through one shared epilogue, so the cost of
-        // boxing all the locals back is paid once per chunk rather than once per
-        // transition -- which matters a lot for a dispatch chunk with hundreds of
-        // outgoing switch targets.
+        // all cross-chunk exits share one epilogue
         Label sharedExit = new Label();
         int pcTempSlot = ctx.trySaveBaseSlot() + 8;
         Map<Integer, Label> switchStubs = new HashMap<>();
@@ -1645,9 +1397,7 @@ final class MethodSplitter {
                     asm);
         }
 
-        // Falling off the end of a chunk continues into the next one. For the last
-        // chunk this is unreachable (the body ends in a return), but emitting a
-        // well-formed DONE keeps the method verifiable either way.
+        // falling off the end continues into the next chunk
         emitTrampolineTransition(
                 ctx,
                 chunkIdx + 1 < numChunks ? chunkIdx + 1 : TRAMPOLINE_PC_DONE,
@@ -1692,9 +1442,7 @@ final class MethodSplitter {
         asm.areturn(returnAsmType);
     }
 
-    // Like emitInstruction, but any branch leaving this chunk becomes a transition
-    // through the shared epilogue instead of a jump. Non-branching opcodes are
-    // emitted by the ordinary path, unchanged.
+    // Like emitInstruction, but branches leaving the chunk become transitions.
     private static void emitTrampolineInstruction(
             Context ctx,
             Map<Long, Label> labels,
@@ -1833,11 +1581,7 @@ final class MethodSplitter {
         return switchStubs.computeIfAbsent(target, k -> new Label());
     }
 
-    // Leaves for another chunk. Any operand-stack values pending here belong to the
-    // destination (the verifier guarantees the stack at a branch matches its target),
-    // so they are spilled into the frame and the stack left empty -- which is also
-    // what lets every transition share one epilogue, since they all arrive there
-    // with the same empty stack.
+    // Spills the stack for the target chunk, sets the PC and jumps to the epilogue.
     private static void emitTrampolineTransition(
             Context ctx,
             int targetChunk,
@@ -1892,12 +1636,7 @@ final class MethodSplitter {
         }
     }
 
-    // The JVM method type shared by every chunk after the first: the function's own
-    // params, then Memory and Instance (matching Context's memorySlot/instanceSlot),
-    // then every declared local in order (matching Context's local slot layout for
-    // indices >= params.size()). Chunk 0 keeps the function's normal, unextended
-    // signature -- it's the real entry point and receives locals via initialization,
-    // not as arguments.
+    // Direct-split chunks after the first take params, Memory, Instance, then locals.
     private static MethodType chunkMethodType(FunctionType type, FunctionBody body) {
         var params = new ArrayList<Class<?>>();
         params.addAll(List.of(jvmParameterTypes(type)));
@@ -1909,9 +1648,7 @@ final class MethodSplitter {
         return methodType(jvmReturnType(type), params.toArray(new Class<?>[0]));
     }
 
-    // Loads every param and local from this chunk's own JVM slots (via the shared
-    // Context, so slot numbers line up identically in every chunk), calls the next
-    // chunk, and returns its result directly.
+    // Calls the next direct-split chunk with all params and locals and returns its result.
     private static void emitChunkCall(
             Context ctx,
             FunctionType type,
@@ -1920,8 +1657,7 @@ final class MethodSplitter {
             String nextChunkName,
             MethodType chunkType,
             InstructionAdapter asm) {
-        // Argument order must match chunkMethodType exactly: params, then Memory,
-        // then Instance, then declared locals.
+        // order must match chunkMethodType
         int paramCount = type.params().size();
         int totalLocals = paramCount + body.localTypes().size();
         for (int i = 0; i < paramCount; i++) {

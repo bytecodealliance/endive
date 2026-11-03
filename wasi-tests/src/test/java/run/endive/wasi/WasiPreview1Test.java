@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
 import run.endive.runtime.ByteBufferMemory;
 import run.endive.wasm.types.MemoryLimits;
 
@@ -301,6 +302,102 @@ public class WasiPreview1Test {
                 assertEquals(WasiErrno.EINVAL.value(), result);
             }
         }
+    }
+
+    @Test
+    public void pathOpenReadWriteAppend(@TempDir Path dir) throws IOException {
+        writeString(dir.resolve("log.txt"), "old");
+        try (var wasi = wasiWithDirectory(dir.toString(), dir)) {
+            var memory = new ByteBufferMemory(new MemoryLimits(1));
+            long rights = WasiRights.FD_READ | WasiRights.FD_WRITE | WasiRights.FD_SEEK;
+            int fd = openFile(wasi, memory, "log.txt", 0, rights, WasiFdFlags.APPEND);
+
+            writeData(wasi, memory, fd, "new");
+            seek(wasi, memory, fd, 0);
+            assertEquals("oldnew", readData(wasi, memory, fd));
+
+            seek(wasi, memory, fd, 0);
+            writeData(wasi, memory, fd, "!");
+        }
+        assertEquals("oldnew!", java.nio.file.Files.readString(dir.resolve("log.txt")));
+    }
+
+    @Test
+    public void pathOpenTruncateAppend(@TempDir Path dir) throws IOException {
+        writeString(dir.resolve("read-write.txt"), "old");
+        writeString(dir.resolve("write-only.txt"), "old");
+        try (var wasi = wasiWithDirectory(dir.toString(), dir)) {
+            var memory = new ByteBufferMemory(new MemoryLimits(1));
+            long readWrite = WasiRights.FD_READ | WasiRights.FD_WRITE;
+            int fd =
+                    openFile(
+                            wasi,
+                            memory,
+                            "read-write.txt",
+                            WasiOpenFlags.TRUNC,
+                            readWrite,
+                            WasiFdFlags.APPEND);
+            writeData(wasi, memory, fd, "new");
+
+            fd =
+                    openFile(
+                            wasi,
+                            memory,
+                            "write-only.txt",
+                            WasiOpenFlags.TRUNC,
+                            WasiRights.FD_WRITE,
+                            WasiFdFlags.APPEND);
+            writeData(wasi, memory, fd, "new");
+        }
+        assertEquals("new", java.nio.file.Files.readString(dir.resolve("read-write.txt")));
+        assertEquals("new", java.nio.file.Files.readString(dir.resolve("write-only.txt")));
+    }
+
+    @Test
+    public void pathOpenEmptyPathReturnsEnoent() throws IOException {
+        try (var fs = newZeroFs()) {
+            Path root = fs.getPath("test");
+            createDirectory(root);
+            try (var wasi = wasiWithDirectory(root.toString(), root)) {
+                var memory = new ByteBufferMemory(new MemoryLimits(1));
+                int result = wasi.pathOpen(memory, 3, 0, "", 0, 0, 0, 0, 0);
+                assertEquals(WasiErrno.ENOENT.value(), result);
+            }
+        }
+    }
+
+    private static int openFile(
+            WasiPreview1 wasi,
+            ByteBufferMemory memory,
+            String path,
+            int openFlags,
+            long rights,
+            int fdFlags) {
+        int fdPtr = 0;
+        int result = wasi.pathOpen(memory, 3, 0, path, openFlags, rights, 0, fdFlags, fdPtr);
+        assertEquals(WasiErrno.ESUCCESS.value(), result);
+        return memory.readInt(fdPtr);
+    }
+
+    private static void writeData(WasiPreview1 wasi, ByteBufferMemory memory, int fd, String data) {
+        byte[] bytes = data.getBytes(UTF_8);
+        memory.write(200, bytes);
+        memory.writeI32(100, 200);
+        memory.writeI32(104, bytes.length);
+        assertEquals(WasiErrno.ESUCCESS.value(), wasi.fdWrite(memory, fd, 100, 1, 300));
+        assertEquals(bytes.length, memory.readInt(300));
+    }
+
+    private static String readData(WasiPreview1 wasi, ByteBufferMemory memory, int fd) {
+        memory.writeI32(100, 200);
+        memory.writeI32(104, 64);
+        assertEquals(WasiErrno.ESUCCESS.value(), wasi.fdRead(memory, fd, 100, 1, 300));
+        return new String(memory.readBytes(200, memory.readInt(300)), UTF_8);
+    }
+
+    private static void seek(WasiPreview1 wasi, ByteBufferMemory memory, int fd, long offset) {
+        assertEquals(
+                WasiErrno.ESUCCESS.value(), wasi.fdSeek(memory, fd, offset, WasiWhence.SET, 300));
     }
 
     @Test

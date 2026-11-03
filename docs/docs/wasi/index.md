@@ -219,7 +219,7 @@ For the most up-to-date info, and to see what specific functions we support, see
 | fd_close                | ✅         |                                                                           |
 | fd_datasync             | ✅         |                                                                           |
 | fd_fdstat_get           | ✅         |                                                                           |
-| fd_fdstat_set_flags     | ✅         |                                                                           |
+| fd_fdstat_set_flags     | 🟡         | Only `APPEND` can be changed, not cleared on write-only append files.     |
 | fd_fdstat_set_rights    | ❌         |                                                                           |
 | fd_filestat_get         | ✅         |                                                                           |
 | fd_filestat_set_size    | ✅         |                                                                           |
@@ -234,7 +234,7 @@ For the most up-to-date info, and to see what specific functions we support, see
 | fd_seek                 | ✅         |                                                                           |
 | fd_sync                 | ✅         |                                                                           |
 | fd_tell                 | ✅         |                                                                           |
-| fd_write                | ✅         |                                                                           |
+| fd_write                | 🟡         | Appends are atomic only on files opened write-only in append mode.        |
 | path_create_directory   | ✅         |                                                                           |
 | path_filestat_get       | ✅         |                                                                           |
 | path_filestat_set_times | ✅         |                                                                           |

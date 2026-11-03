@@ -988,6 +988,9 @@ public final class WasiPreview1 implements Closeable {
         }
         Path directory = ((Directory) descriptor).path();
 
+        if (rawPath.isEmpty()) {
+            return wasiResult(WasiErrno.ENOENT);
+        }
         Path path = resolvePath(directory, rawPath);
         if (path == null) {
             return wasiResult(WasiErrno.EACCES);
@@ -1019,6 +1022,9 @@ public final class WasiPreview1 implements Closeable {
         }
         Path directory = ((Directory) descriptor).path();
 
+        if (rawPath.isEmpty()) {
+            return wasiResult(WasiErrno.ENOENT);
+        }
         Path path = resolvePath(directory, rawPath);
         if (path == null) {
             return wasiResult(WasiErrno.EACCES);
@@ -1072,6 +1078,9 @@ public final class WasiPreview1 implements Closeable {
         }
         Path directory = ((Directory) descriptor).path();
 
+        if (rawPath.isEmpty()) {
+            return wasiResult(WasiErrno.ENOENT);
+        }
         Path path = resolvePath(directory, rawPath);
         if (path == null) {
             return wasiResult(WasiErrno.EACCES);
@@ -1166,6 +1175,9 @@ public final class WasiPreview1 implements Closeable {
         }
         Path newDirectory = ((Directory) newDescriptor).path();
 
+        if (rawOldPath.isEmpty() || rawNewPath.isEmpty()) {
+            return wasiResult(WasiErrno.ENOENT);
+        }
         Path oldPath = resolvePath(oldDirectory, rawOldPath);
         if (oldPath == null) {
             return wasiResult(WasiErrno.EACCES);
@@ -1358,6 +1370,9 @@ public final class WasiPreview1 implements Closeable {
         }
         Path directory = ((Directory) descriptor).path();
 
+        if (rawPath.isEmpty()) {
+            return wasiResult(WasiErrno.ENOENT);
+        }
         Path path = resolvePath(directory, rawPath);
         if (path == null) {
             return wasiResult(WasiErrno.EACCES);
@@ -1397,9 +1412,15 @@ public final class WasiPreview1 implements Closeable {
         }
         Path directory = ((Directory) descriptor).path();
 
+        if (rawPath.isEmpty()) {
+            return wasiResult(WasiErrno.ENOENT);
+        }
         Path path = resolvePath(directory, rawPath);
         if (path == null) {
             return wasiResult(WasiErrno.EACCES);
+        }
+        if (path.equals(directory)) {
+            return wasiResult(WasiErrno.EINVAL);
         }
 
         try {
@@ -1443,6 +1464,9 @@ public final class WasiPreview1 implements Closeable {
         }
         Path newDirectory = ((Directory) newDescriptor).path();
 
+        if (oldRawPath.isEmpty() || newRawPath.isEmpty()) {
+            return wasiResult(WasiErrno.ENOENT);
+        }
         Path oldPath = resolvePath(oldDirectory, oldRawPath);
         if (oldPath == null) {
             return wasiResult(WasiErrno.EACCES);
@@ -1451,6 +1475,9 @@ public final class WasiPreview1 implements Closeable {
         Path newPath = resolvePath(newDirectory, newRawPath);
         if (newPath == null) {
             return wasiResult(WasiErrno.EACCES);
+        }
+        if (oldPath.equals(oldDirectory) || newPath.equals(newDirectory)) {
+            return wasiResult(WasiErrno.EBUSY);
         }
 
         if (Files.isDirectory(oldPath) && Files.isRegularFile(newPath, LinkOption.NOFOLLOW_LINKS)) {
@@ -1492,6 +1519,9 @@ public final class WasiPreview1 implements Closeable {
         }
         Path directory = ((Directory) descriptor).path();
 
+        if (oldRawPath.isEmpty() || newRawPath.isEmpty()) {
+            return wasiResult(WasiErrno.ENOENT);
+        }
         Path oldPath = resolvePath(directory, oldRawPath);
         if (oldPath == null) {
             return wasiResult(WasiErrno.EACCES);
@@ -1544,6 +1574,9 @@ public final class WasiPreview1 implements Closeable {
         }
         Path directory = ((Directory) descriptor).path();
 
+        if (rawPath.isEmpty()) {
+            return wasiResult(WasiErrno.ENOENT);
+        }
         Path path = resolvePath(directory, rawPath);
         if (path == null) {
             return wasiResult(WasiErrno.EACCES);

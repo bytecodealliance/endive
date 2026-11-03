@@ -3,13 +3,16 @@ package run.endive.wasi;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.createDirectory;
 import static java.nio.file.Files.createSymbolicLink;
+import static java.nio.file.Files.exists;
 import static java.nio.file.Files.getLastModifiedTime;
+import static java.nio.file.Files.readString;
 import static java.nio.file.Files.writeString;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static run.endive.wasi.Files.copyDirectory;
 
@@ -351,17 +354,66 @@ public class WasiPreview1Test {
                 assertEquals(WasiErrno.EACCES.value(), result);
             }
         } finally {
-            try (var paths = java.nio.file.Files.walk(tmpDir)) {
-                paths.sorted(java.util.Comparator.reverseOrder())
-                        .forEach(
-                                p -> {
-                                    try {
-                                        java.nio.file.Files.deleteIfExists(p);
-                                    } catch (IOException ignored) {
-                                        // best-effort cleanup
-                                    }
-                                });
+            deleteRecursively(tmpDir);
+        }
+    }
+
+    @Test
+    public void pathRenameOnHostFileSystem() throws IOException {
+        Path dir = java.nio.file.Files.createTempDirectory("wasi-rename-test");
+        try {
+            writeString(dir.resolve("old.txt"), "old");
+            writeString(dir.resolve("other.txt"), "other");
+            try (var wasi = wasiWithDirectory(dir.toString(), dir)) {
+                assertEquals(
+                        WasiErrno.ESUCCESS.value(), wasi.pathRename(3, "old.txt", 3, "new.txt"));
+                assertFalse(exists(dir.resolve("old.txt")));
+                assertEquals("old", readString(dir.resolve("new.txt")));
+
+                assertEquals(
+                        WasiErrno.ESUCCESS.value(), wasi.pathRename(3, "other.txt", 3, "new.txt"));
+                assertFalse(exists(dir.resolve("other.txt")));
+                assertEquals("other", readString(dir.resolve("new.txt")));
             }
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    @Test
+    public void pathRenameAcrossFileSystemsReturnsExdev() throws IOException {
+        Path hostDir = java.nio.file.Files.createTempDirectory("wasi-rename-test");
+        try (var fs = newZeroFs()) {
+            Path zeroDir = fs.getPath("zero");
+            createDirectory(zeroDir);
+            writeString(zeroDir.resolve("file.txt"), "hello");
+            var options =
+                    WasiOptions.builder()
+                            .withDirectory("zero", zeroDir)
+                            .withDirectory("host", hostDir)
+                            .build();
+            try (var wasi = WasiPreview1.builder().withOptions(options).build()) {
+                assertEquals(
+                        WasiErrno.EXDEV.value(), wasi.pathRename(3, "file.txt", 4, "file.txt"));
+                assertTrue(exists(zeroDir.resolve("file.txt")));
+                assertFalse(exists(hostDir.resolve("file.txt")));
+            }
+        } finally {
+            deleteRecursively(hostDir);
+        }
+    }
+
+    private static void deleteRecursively(Path dir) throws IOException {
+        try (var paths = java.nio.file.Files.walk(dir)) {
+            paths.sorted(java.util.Comparator.reverseOrder())
+                    .forEach(
+                            p -> {
+                                try {
+                                    java.nio.file.Files.deleteIfExists(p);
+                                } catch (IOException ignored) {
+                                    // best-effort cleanup
+                                }
+                            });
         }
     }
 

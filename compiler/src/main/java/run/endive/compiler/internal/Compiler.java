@@ -142,7 +142,14 @@ public final class Compiler {
     private static final int MAX_DISPATCH_METHODS =
             Integer.highestOneBit(
                     HUGE_METHOD_LIMIT / ESTIMATED_BYTES_PER_DISPATCH_ENTRY); // must be power of two
-    private static final int MAX_CALL_INDIRECT_METHODS = 1024; // must be power of two
+    // lookupswitch entry (8) + invokestatic (3) + return (1), plus headroom
+    private static final int ESTIMATED_BYTES_PER_CALL_INDIRECT_ENTRY = 14;
+    // Function ids per Indirect_*.apply method; must be a power of two.
+    private static final int CALL_INDIRECT_BLOCK_SIZE =
+            Integer.highestOneBit(
+                    Math.max(4, HUGE_METHOD_LIMIT / ESTIMATED_BYTES_PER_CALL_INDIRECT_ENTRY));
+    // call_indirect_N also holds the table lookup and the cross-module path.
+    private static final int MAX_CALL_INDIRECT_METHODS = CALL_INDIRECT_BLOCK_SIZE >> 2;
     // 1024*12 was empirically determined to work for the 50K small wasm functions.
     // So lets start there and halve it until we find a size that works.
     // This should give us the biggest class size possible.
@@ -1693,15 +1700,7 @@ public final class Compiler {
 
         // local: call function in this module
         asm.mark(local);
-        if (hasTooManyParameters(type)) {
-            asm.load(0, LONG_ARRAY_TYPE);
-        } else {
-            int slot = 0;
-            for (ValType param : type.params()) {
-                asm.load(slot, asmType(param));
-                slot += slotCount(param);
-            }
-        }
+        emitLoadParams(asm, type);
         asm.load(memory, OBJECT_TYPE);
         asm.load(instance, OBJECT_TYPE);
 
@@ -1735,30 +1734,29 @@ public final class Compiler {
                     rawMethodTypeFor(type)
                             .appendParameterTypes(Memory.class, Instance.class, int.class);
 
-            // Best value that worked with the 50K small wasm functions
-            var maxCallIndirectMethods = MAX_CALL_INDIRECT_METHODS << 2;
-            loadChunkedClass(
-                    functionTypes.size(),
-                    maxCallIndirectMethods,
-                    (collector, start, end, chunkSize) ->
-                            compileExtraClass(
-                                    collector,
-                                    classNameForCallIndirect(this.className, typeId, start),
-                                    (cw) -> {
-                                        emitFunction(
-                                                cw,
-                                                "apply",
-                                                applyParams,
-                                                true,
-                                                a ->
-                                                        compileCallIndirectApply(
-                                                                internalClassName,
-                                                                typeId,
-                                                                type,
-                                                                a,
-                                                                start,
-                                                                end));
-                                    }));
+            var maxCallIndirectMethods =
+                    loadChunkedClass(
+                            functionTypes.size(),
+                            CALL_INDIRECT_BLOCK_SIZE,
+                            (collector, start, end, chunkSize) ->
+                                    compileExtraClass(
+                                            collector,
+                                            classNameForCallIndirect(this.className, typeId, start),
+                                            (cw) -> {
+                                                emitFunction(
+                                                        cw,
+                                                        "apply",
+                                                        applyParams,
+                                                        true,
+                                                        a ->
+                                                                compileCallIndirectApply(
+                                                                        internalClassName,
+                                                                        typeId,
+                                                                        type,
+                                                                        a,
+                                                                        start,
+                                                                        end));
+                                            }));
 
             assert Integer.bitCount(maxCallIndirectMethods) == 1; // power of two
             int shift = Integer.numberOfTrailingZeros(maxCallIndirectMethods);
@@ -1854,10 +1852,7 @@ public final class Compiler {
         int[] keys = validIds.stream().mapToInt(x -> x).toArray();
         Label[] labels = validIds.stream().map(x -> new Label()).toArray(Label[]::new);
 
-        // push the call args on to the stack...
-        for (int i = 0; i < type.params().size(); i++) {
-            asm.load(i, asmType(type.params().get(i)));
-        }
+        emitLoadParams(asm, type);
         asm.load(memory, OBJECT_TYPE);
         asm.load(instance, OBJECT_TYPE);
 
@@ -1875,7 +1870,6 @@ public final class Compiler {
                     methodName(keys[i]),
                     type);
             asm.areturn(getType(jvmReturnType(type)));
-            asm.areturn(OBJECT_TYPE);
         }
 
         // throw new InvalidException("unknown function " + funcId);
@@ -1884,6 +1878,18 @@ public final class Compiler {
         asm.load(funcId, INT_TYPE);
         emitInvokeStatic(asm, THROW_UNKNOWN_FUNCTION);
         asm.athrow();
+    }
+
+    private static void emitLoadParams(InstructionAdapter asm, FunctionType type) {
+        if (hasTooManyParameters(type)) {
+            asm.load(0, LONG_ARRAY_TYPE);
+            return;
+        }
+        int slot = 0;
+        for (ValType param : type.params()) {
+            asm.load(slot, asmType(param));
+            slot += slotCount(param);
+        }
     }
 
     // implements the body of:

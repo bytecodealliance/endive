@@ -1465,9 +1465,10 @@ public final class WasiPreview1 implements Closeable {
                     oldPath,
                     newPath,
                     StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.COPY_ATTRIBUTES);
-        } catch (UnsupportedOperationException | AtomicMoveNotSupportedException e) {
+                    StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            return wasiResult(WasiErrno.EXDEV);
+        } catch (UnsupportedOperationException e) {
             return wasiResult(WasiErrno.ENOTSUP);
         } catch (NoSuchFileException e) {
             return wasiResult(WasiErrno.ENOENT);

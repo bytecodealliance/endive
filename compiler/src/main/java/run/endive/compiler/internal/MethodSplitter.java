@@ -19,6 +19,7 @@ import static run.endive.compiler.internal.CompilerUtil.jvmType;
 import static run.endive.compiler.internal.CompilerUtil.localType;
 import static run.endive.compiler.internal.CompilerUtil.methodTypeFor;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
+import static run.endive.compiler.internal.Emitters.emitDefaultReturn;
 import static run.endive.compiler.internal.ShadedRefs.CHECK_INTERRUPTION;
 
 import java.lang.invoke.MethodType;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Handle;
@@ -64,9 +66,9 @@ final class MethodSplitter {
         // index of the first instruction of each chunk
         final int[] starts;
         // trampoline only: operand-stack types each chunk receives through the frame
-        final Type[][] entryStacks;
+        final ValType[][] entryStacks;
 
-        private Plan(int totalSize, boolean trampoline, int[] starts, Type[][] entryStacks) {
+        private Plan(int totalSize, boolean trampoline, int[] starts, ValType[][] entryStacks) {
             this.totalSize = totalSize;
             this.trampoline = trampoline;
             this.starts = starts;
@@ -83,7 +85,7 @@ final class MethodSplitter {
     }
 
     private static final Type LONG_ARRAY_TYPE = Type.getType(long[].class);
-    private static final Type[] EMPTY_STACK = new Type[0];
+    private static final ValType[] EMPTY_STACK = new ValType[0];
 
     private static final int MIN_INSTRUCTIONS = 200;
     // Sizes are estimates, so stay well under the JVM's 64 KB even with a raised limit.
@@ -111,7 +113,6 @@ final class MethodSplitter {
     private final Map<Long, Integer> labelPositions = new HashMap<>();
     private final Set<Long> visitedTargets = new HashSet<>();
 
-    // set while planning
     private int[] sizes;
     private final Map<Long, Frame<BasicValue>> labelFrames = new HashMap<>();
 
@@ -181,7 +182,6 @@ final class MethodSplitter {
         }
     }
 
-    // Emits the function once, recording the bytecode size after each instruction.
     private MethodNode measure() {
         var method =
                 new MethodNode(
@@ -202,7 +202,6 @@ final class MethodSplitter {
         return method;
     }
 
-    // Records the operand stack at each label.
     private boolean analyze(MethodNode method) {
         // the Analyzer needs bounds; a function exceeding them is not split
         method.visitMaxs(512, ctx.trySaveBaseSlot() + 256);
@@ -384,11 +383,11 @@ final class MethodSplitter {
 
     private Plan planTrampoline(int totalSize, List<int[]> branches) {
         TreeSet<Integer> candidates = new TreeSet<>();
-        Map<Integer, Type[]> stacks = new HashMap<>();
+        Map<Integer, ValType[]> stacks = new HashMap<>();
         candidates.add(0);
         stacks.put(0, EMPTY_STACK);
         for (var label : labelPositions.entrySet()) {
-            Type[] stack = spillableStack(label.getKey());
+            ValType[] stack = spillableStack(label.getKey());
             if (stack != null) {
                 candidates.add(label.getValue());
                 stacks.put(label.getValue(), stack);
@@ -414,7 +413,6 @@ final class MethodSplitter {
 
         int budget =
                 MAX_CHUNK_SIZE - CHUNK_BASE_COST - Math.min(totalLocals, 16) * LOCAL_SYNC_COST * 2;
-        // Smaller budgets place the starts differently, so retry before giving up.
         for (int attempt = 0; attempt < 3; attempt++) {
             int attemptBudget = budget - (budget / 4) * attempt;
             if (attemptBudget < 512) {
@@ -422,7 +420,7 @@ final class MethodSplitter {
             }
             int[] starts = planTrampolineStarts(attemptBudget, candidates, branches);
             if (starts != null) {
-                Type[][] entryStacks = new Type[starts.length][];
+                ValType[][] entryStacks = new ValType[starts.length][];
                 for (int k = 0; k < starts.length; k++) {
                     entryStacks[k] = stacks.get(starts[k]);
                 }
@@ -455,7 +453,6 @@ final class MethodSplitter {
             prev = c;
         }
 
-        // Make every branch into another chunk land on a start, and every chunk fit.
         for (int round = 0; ; round++) {
             for (int pass = 0; ; pass++) {
                 List<Integer> forced = new ArrayList<>();
@@ -496,7 +493,6 @@ final class MethodSplitter {
                 return null;
             }
 
-            // Split it at the last start that fits, or else at the first one.
             int from = list.get(oversized);
             int to = oversized + 1 < list.size() ? list.get(oversized + 1) : instructions.size();
             var inside = candidates.subSet(from + 1, to);
@@ -519,7 +515,6 @@ final class MethodSplitter {
         return starts.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    // Bytecode of [from, to) plus loading and storing its locals.
     private int trampolineChunkCost(int from, int to) {
         var slice = instructions.subList(from, to);
         boolean[] touched = localsUsed(slice, true);
@@ -554,12 +549,12 @@ final class MethodSplitter {
     }
 
     // Operand-stack types at the label if a trampoline chunk can start there, else null.
-    private Type[] spillableStack(long label) {
+    private ValType[] spillableStack(long label) {
         Frame<BasicValue> frame = labelFrames.get(label);
         if (frame == null || frame.getStackSize() > MAX_SPILL) {
             return null;
         }
-        Type[] stack = new Type[frame.getStackSize()];
+        ValType[] stack = new ValType[frame.getStackSize()];
         for (int i = 0; i < stack.length; i++) {
             BasicValue value = frame.getStack(i);
             Type valueType = value == null ? null : value.getType();
@@ -568,10 +563,16 @@ final class MethodSplitter {
             }
             switch (valueType.getSort()) {
                 case Type.INT:
+                    stack[i] = ValType.I32;
+                    break;
                 case Type.LONG:
+                    stack[i] = ValType.I64;
+                    break;
                 case Type.FLOAT:
+                    stack[i] = ValType.F32;
+                    break;
                 case Type.DOUBLE:
-                    stack[i] = valueType;
+                    stack[i] = ValType.F64;
                     break;
                 default:
                     return null;
@@ -594,7 +595,6 @@ final class MethodSplitter {
         return instructions.subList(starts[chunk], end);
     }
 
-    // Chunk 0 is the function's method; each chunk ends by calling the next.
     private void emitDirect(int[] starts, ClassVisitor classWriter, InstructionAdapter asm) {
         var chunkType = directChunkType();
         emitLocalsDefaultInit(ctx, type, body, asm);
@@ -603,7 +603,7 @@ final class MethodSplitter {
             int chunk = k;
             emitFunction(
                     classWriter,
-                    funcName + "_chunk_" + chunk,
+                    chunkName(chunk),
                     chunkType,
                     true,
                     chunkAsm -> emitDirectChunk(starts, chunk, chunkType, chunkAsm));
@@ -636,6 +636,9 @@ final class MethodSplitter {
             Map<Long, Label> stubs,
             Set<Long> stubsEmitted,
             InstructionAdapter asm) {
+        if (ins.operands().anyMatch(visitedTargets::contains)) {
+            emitInvokeStatic(asm, CHECK_INTERRUPTION);
+        }
         int n = ins.operandCount() - 1;
         Label[] table = new Label[n];
         for (int i = 0; i < n; i++) {
@@ -681,20 +684,20 @@ final class MethodSplitter {
         for (int i = paramCount; i < totalLocals; i++) {
             asm.load(ctx.localSlotIndex(i), asmType(localType(type, body, i)));
         }
-        asm.invokestatic(
-                chunkClass,
-                funcName + "_chunk_" + chunk,
-                chunkType.toMethodDescriptorString(),
-                false);
+        asm.invokestatic(chunkClass, chunkName(chunk), chunkType.toMethodDescriptorString(), false);
         asm.areturn(returnType);
     }
 
-    // The function's method copies its params into the frame and calls chunks until one returns.
+    // Ends in the function's name, so extractFuncId still finds the function.
+    private String chunkName(int chunk) {
+        return "chunk" + chunk + "_" + funcName;
+    }
+
     private void emitTrampoline(
             Plan plan, ClassVisitor classWriter, Context entryCtx, InstructionAdapter asm) {
         int chunks = plan.starts.length;
         int maxSpill = 0;
-        for (Type[] stack : plan.entryStacks) {
+        for (ValType[] stack : plan.entryStacks) {
             maxSpill = Math.max(maxSpill, stack.length);
         }
         var chunkType = methodType(jvmReturnType(type), long[].class, Memory.class, Instance.class);
@@ -731,8 +734,7 @@ final class MethodSplitter {
             asm.load(frame, LONG_ARRAY_TYPE);
             asm.load(entryCtx.memorySlot(), OBJECT_TYPE);
             asm.load(entryCtx.instanceSlot(), OBJECT_TYPE);
-            asm.invokestatic(
-                    chunkClass, funcName + "_tc_" + k, chunkType.toMethodDescriptorString(), false);
+            asm.invokestatic(chunkClass, chunkName(k), chunkType.toMethodDescriptorString(), false);
             asm.load(frame, LONG_ARRAY_TYPE);
             asm.iconst(pcIndex);
             asm.aload(LONG_TYPE);
@@ -750,21 +752,19 @@ final class MethodSplitter {
             asm.goTo(loop);
         }
         asm.mark(invalidPc);
-        emitDefaultReturnValue(asm);
-        asm.areturn(returnType);
+        emitDefaultReturn(entryCtx, asm);
 
         for (int k = 0; k < chunks; k++) {
             int chunk = k;
             emitFunction(
                     classWriter,
-                    funcName + "_tc_" + chunk,
+                    chunkName(chunk),
                     chunkType,
                     true,
                     chunkAsm -> emitTrampolineChunk(plan, chunk, chunkAsm));
         }
     }
 
-    // (long[] frame, Memory, Instance): loads its locals, runs, stores them and sets the PC.
     private void emitTrampolineChunk(Plan plan, int chunk, InstructionAdapter asm) {
         var slice = chunkInstructions(plan.starts, chunk);
         asm.load(0, LONG_ARRAY_TYPE);
@@ -785,16 +785,16 @@ final class MethodSplitter {
                 asm.store(ctx.localSlotIndex(i), asmType(localType));
             }
         }
-        Type[] stack = plan.entryStacks[chunk];
+        ValType[] stack = plan.entryStacks[chunk];
         for (int i = 0; i < stack.length; i++) {
             asm.load(0, LONG_ARRAY_TYPE);
             asm.iconst(spillBase + i);
             asm.aload(LONG_TYPE);
-            emitLongToStackValue(asm, stack[i]);
+            emitLongToJvm(asm, stack[i]);
         }
 
         Label exit = new Label();
-        Map<Integer, Label> stubs = new HashMap<>();
+        Map<Integer, Label> stubs = new TreeMap<>();
         for (var ins : slice) {
             emitTrampolineInstruction(plan, chunk, ins, exit, stubs, asm);
         }
@@ -820,8 +820,7 @@ final class MethodSplitter {
         asm.load(ctx.trySaveBaseSlot() + 8, INT_TYPE);
         asm.visitInsn(Opcodes.I2L);
         asm.astore(LONG_TYPE);
-        emitDefaultReturnValue(asm);
-        asm.areturn(returnType);
+        emitDefaultReturn(ctx, asm);
     }
 
     // Like emitInstruction, but a branch to another chunk becomes a transition.
@@ -859,6 +858,9 @@ final class MethodSplitter {
                     if (ins.operands().allMatch(target -> labelChunk(starts, target) == chunk)) {
                         break;
                     }
+                    if (ins.operands().anyMatch(visitedTargets::contains)) {
+                        emitInvokeStatic(asm, CHECK_INTERRUPTION);
+                    }
                     int n = ins.operandCount() - 1;
                     Label[] table = new Label[n];
                     for (int i = 0; i < n; i++) {
@@ -875,7 +877,6 @@ final class MethodSplitter {
         emitInstruction(ctx, labels, visitedTargets, ins, asm);
     }
 
-    // Targets in other chunks share one stub per chunk.
     private Label trampolineSwitchLabel(
             int[] starts, int chunk, long target, Map<Integer, Label> stubs) {
         int targetChunk = labelChunk(starts, target);
@@ -885,12 +886,11 @@ final class MethodSplitter {
         return stubs.computeIfAbsent(targetChunk, k -> new Label());
     }
 
-    // Spills the operand stack into the frame, sets the PC and jumps to the chunk's exit.
     private void emitTransition(Plan plan, int targetChunk, Label exit, InstructionAdapter asm) {
-        Type[] stack = targetChunk == PC_DONE ? EMPTY_STACK : plan.entryStacks[targetChunk];
+        ValType[] stack = targetChunk == PC_DONE ? EMPTY_STACK : plan.entryStacks[targetChunk];
         int temp = ctx.trySaveBaseSlot() + 16;
         for (int i = stack.length - 1; i >= 0; i--) {
-            emitStackValueToLong(asm, stack[i]);
+            emitJvmToLong(asm, stack[i]);
             asm.store(temp + i * 2, LONG_TYPE);
         }
         for (int i = 0; i < stack.length; i++) {
@@ -904,61 +904,7 @@ final class MethodSplitter {
         asm.goTo(exit);
     }
 
-    private static void emitStackValueToLong(InstructionAdapter asm, Type type) {
-        switch (type.getSort()) {
-            case Type.INT:
-                asm.visitInsn(Opcodes.I2L);
-                return;
-            case Type.FLOAT:
-                asm.invokestatic("java/lang/Float", "floatToRawIntBits", "(F)I", false);
-                asm.visitInsn(Opcodes.I2L);
-                return;
-            case Type.DOUBLE:
-                asm.invokestatic("java/lang/Double", "doubleToRawLongBits", "(D)J", false);
-                return;
-            default:
-        }
-    }
-
-    private static void emitLongToStackValue(InstructionAdapter asm, Type type) {
-        switch (type.getSort()) {
-            case Type.INT:
-                asm.visitInsn(Opcodes.L2I);
-                return;
-            case Type.FLOAT:
-                asm.visitInsn(Opcodes.L2I);
-                asm.invokestatic("java/lang/Float", "intBitsToFloat", "(I)F", false);
-                return;
-            case Type.DOUBLE:
-                asm.invokestatic("java/lang/Double", "longBitsToDouble", "(J)D", false);
-                return;
-            default:
-        }
-    }
-
-    private void emitDefaultReturnValue(InstructionAdapter asm) {
-        switch (returnType.getSort()) {
-            case Type.VOID:
-                return;
-            case Type.LONG:
-                asm.lconst(0L);
-                return;
-            case Type.FLOAT:
-                asm.fconst(0f);
-                return;
-            case Type.DOUBLE:
-                asm.dconst(0d);
-                return;
-            case Type.OBJECT:
-            case Type.ARRAY:
-                asm.aconst(null);
-                return;
-            default:
-                asm.iconst(0);
-        }
-    }
-
-    // Over-estimates bytecode size.
+    // Estimated bytecode size, usually a little high.
     private static final class CodeSizeCounter extends MethodVisitor {
         int size;
 

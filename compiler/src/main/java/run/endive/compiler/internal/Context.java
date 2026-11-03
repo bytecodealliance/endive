@@ -35,38 +35,7 @@ final class Context {
     private final IntFunction<String> callIndirectClassResolver;
     private final IntFunction<String> methodNames;
 
-    public Context(
-            WasmModule module,
-            String internalClassName,
-            int maxFunctionsPerClass,
-            List<ValType> globalTypes,
-            List<FunctionType> functionTypes,
-            int funcId,
-            FunctionType type,
-            FunctionBody body,
-            boolean[] tailCallFunctions,
-            boolean[] tailCallTypes,
-            IntFunction<String> callIndirectClassResolver,
-            int maxTempSlots,
-            IntFunction<String> methodNames) {
-        this(
-                module,
-                internalClassName,
-                maxFunctionsPerClass,
-                globalTypes,
-                functionTypes,
-                funcId,
-                type,
-                body,
-                tailCallFunctions,
-                tailCallTypes,
-                callIndirectClassResolver,
-                maxTempSlots,
-                methodNames,
-                false);
-    }
-
-    // forceFrameLayout: long[], Memory, Instance, then all locals, as trampoline chunks need.
+    // forceFrameLayout: params arrive in a long[] as with too many params (trampoline chunks)
     public Context(
             WasmModule module,
             String internalClassName,

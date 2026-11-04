@@ -416,10 +416,12 @@ public final class WasiPreview1 implements Closeable {
             throw unhandledDescriptor(descriptor);
         }
 
-        // we don't support changing flags
-        if (flags != ((OpenFile) descriptor).fdFlags()) {
+        var file = (OpenFile) descriptor;
+        int changed = flags ^ file.fdFlags();
+        if ((changed & ~WasiFdFlags.APPEND) != 0 || (changed != 0 && file.channelAppends())) {
             return wasiResult(WasiErrno.ENOTSUP);
         }
+        file.setFdFlags(flags);
 
         return wasiResult(WasiErrno.ESUCCESS);
     }
@@ -1248,6 +1250,9 @@ public final class WasiPreview1 implements Closeable {
         if (rawPath.endsWith("\0")) {
             return wasiResult(WasiErrno.EINVAL);
         }
+        if (rawPath.isEmpty()) {
+            return wasiResult(WasiErrno.ENOENT);
+        }
 
         Path path = resolvePath(directory, rawPath);
         if (path == null) {
@@ -1293,11 +1298,11 @@ public final class WasiPreview1 implements Closeable {
 
         boolean append = flagSet(fdFlags, WasiFdFlags.APPEND);
         boolean truncate = flagSet(openFlags, WasiOpenFlags.TRUNC);
+        boolean read = flagSet(rightsBase, WasiRights.FD_READ);
+        // FileChannel cannot combine APPEND with READ or TRUNCATE_EXISTING
+        boolean channelAppends = append && !read;
 
-        if (append && truncate) {
-            return wasiResult(WasiErrno.ENOTSUP);
-        }
-        if (!append && flagSet(rightsBase, WasiRights.FD_READ)) {
+        if (read) {
             openOptions.add(StandardOpenOption.READ);
         }
         if (flagSet(rightsBase, WasiRights.FD_WRITE)) {
@@ -1312,10 +1317,10 @@ public final class WasiPreview1 implements Closeable {
             }
             openOptions.add(StandardOpenOption.WRITE);
         }
-        if (truncate) {
+        if (truncate && !channelAppends) {
             openOptions.add(StandardOpenOption.TRUNCATE_EXISTING);
         }
-        if (append) {
+        if (channelAppends) {
             openOptions.add(StandardOpenOption.APPEND);
         }
         if (flagSet(fdFlags, WasiFdFlags.SYNC)) {
@@ -1329,7 +1334,17 @@ public final class WasiPreview1 implements Closeable {
         int fd;
         try {
             FileChannel channel = FileChannel.open(path, openOptions);
-            fd = descriptors.allocate(new OpenFile(path, channel, fdFlags, rightsBase));
+            if (truncate && channelAppends) {
+                try {
+                    channel.truncate(0);
+                } catch (IOException e) {
+                    channel.close();
+                    throw e;
+                }
+            }
+            fd =
+                    descriptors.allocate(
+                            new OpenFile(path, channel, channelAppends, fdFlags, rightsBase));
         } catch (FileAlreadyExistsException e) {
             return wasiResult(WasiErrno.EEXIST);
         } catch (NoSuchFileException e) {

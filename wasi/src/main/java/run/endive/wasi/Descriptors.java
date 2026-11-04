@@ -163,12 +163,15 @@ final class Descriptors {
     static final class OpenFile implements Descriptor, Closeable, DataReader, DataWriter {
         private final Path path;
         private final FileChannel channel;
-        private final int fdFlags;
+        private final boolean channelAppends;
+        private int fdFlags;
         private final long rights;
 
-        public OpenFile(Path path, FileChannel channel, int fdFlags, long rights) {
+        public OpenFile(
+                Path path, FileChannel channel, boolean channelAppends, int fdFlags, long rights) {
             this.path = requireNonNull(path);
             this.channel = requireNonNull(channel);
+            this.channelAppends = channelAppends;
             this.fdFlags = fdFlags;
             this.rights = rights;
         }
@@ -181,8 +184,17 @@ final class Descriptors {
             return channel;
         }
 
+        /** Whether the channel itself was opened with {@code APPEND}. */
+        public boolean channelAppends() {
+            return channelAppends;
+        }
+
         public int fdFlags() {
             return fdFlags;
+        }
+
+        public void setFdFlags(int fdFlags) {
+            this.fdFlags = fdFlags;
         }
 
         public long rights() {
@@ -200,6 +212,9 @@ final class Descriptors {
 
         @Override
         public int write(byte[] data) throws IOException {
+            if (!channelAppends && (fdFlags & WasiFdFlags.APPEND) != 0) {
+                channel.position(channel.size());
+            }
             return channel.write(ByteBuffer.wrap(data));
         }
 

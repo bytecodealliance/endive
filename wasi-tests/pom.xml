@@ -99,8 +99,6 @@
               <include>tests/rust/testsuite/wasm32-wasip1/*.wasm</include>
             </includes>
             <excludes>
-              <!-- Java does not support READ+APPEND -->
-              <exclude>tests/rust/testsuite/wasm32-wasip1/fd_flags_set.wasm</exclude>
               <!-- Linux and Jimfs always append with APPEND -->
               <exclude>tests/c/testsuite/wasm32-wasip1/pwrite-with-append.wasm</exclude>
               <!-- dangling symlinks are not supported -->

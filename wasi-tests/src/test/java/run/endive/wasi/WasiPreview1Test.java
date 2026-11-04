@@ -443,61 +443,67 @@ public class WasiPreview1Test {
                 };
         for (Configuration configuration : configurations) {
             try (var fs = ZeroFs.newFileSystem(configuration)) {
-                Path root = fs.getPath("test");
-                createDirectory(root);
-                writeString(root.resolve("file"), "hello");
-                createDirectory(root.resolve("dir"));
-                try (var wasi = wasiWithDirectory("test", root)) {
-                    var memory = new ByteBufferMemory(new MemoryLimits(1));
-                    int buf = 0;
-
-                    assertEquals(
-                            WasiErrno.ESUCCESS.value(),
-                            wasi.pathFilestatGet(memory, 3, 0, "file", buf));
-                    assertEquals(WasiFileType.REGULAR_FILE.value(), memory.read(buf + 16));
-                    assertEquals(5, memory.readLong(buf + 32));
-                    long mtime = getLastModifiedTime(root.resolve("file")).to(NANOSECONDS);
-                    assertEquals(mtime, memory.readLong(buf + 48));
-                    long fileIno = memory.readLong(buf + 8);
-                    assertNotEquals(0, fileIno);
-
-                    assertEquals(
-                            WasiErrno.ESUCCESS.value(),
-                            wasi.pathFilestatGet(memory, 3, 0, "dir", buf));
-                    long dirIno = memory.readLong(buf + 8);
-                    assertNotEquals(0, dirIno);
-                    assertNotEquals(fileIno, dirIno);
-
-                    int fdPtr = 4096;
-                    assertEquals(
-                            WasiErrno.ESUCCESS.value(),
-                            wasi.pathOpen(memory, 3, 0, "file", 0, 0, 0, 0, fdPtr));
-                    int fd = memory.readInt(fdPtr);
-                    assertEquals(WasiErrno.ESUCCESS.value(), wasi.fdFilestatGet(memory, fd, buf));
-                    assertEquals(WasiFileType.REGULAR_FILE.value(), memory.read(buf + 16));
-                    assertEquals(5, memory.readLong(buf + 32));
-                    assertEquals(fileIno, memory.readLong(buf + 8));
-
-                    int bufUsedPtr = 2048;
-                    assertEquals(
-                            WasiErrno.ESUCCESS.value(),
-                            wasi.fdReaddir(memory, 3, buf, 1024, 0, bufUsedPtr));
-                    Map<String, Integer> types = new HashMap<>();
-                    Map<String, Long> inodes = new HashMap<>();
-                    int used = memory.readInt(bufUsedPtr);
-                    for (int pos = buf; pos < buf + used; ) {
-                        int nameLen = memory.readInt(pos + 16);
-                        String name = memory.readString(pos + 24, nameLen);
-                        types.put(name, (int) memory.read(pos + 20));
-                        inodes.put(name, memory.readLong(pos + 8));
-                        pos += 24 + nameLen;
-                    }
-                    assertEquals(WasiFileType.REGULAR_FILE.value(), types.get("file"));
-                    assertEquals(WasiFileType.DIRECTORY.value(), types.get("dir"));
-                    assertEquals(fileIno, inodes.get("file"));
-                    assertEquals(dirIno, inodes.get("dir"));
-                }
+                assertFileStat(fs.getPath("test"));
             }
+        }
+    }
+
+    @Test
+    public void filestatOnHostFileSystem(@TempDir Path tempDir) throws IOException {
+        assertFileStat(tempDir.resolve("test"));
+    }
+
+    private static void assertFileStat(Path root) throws IOException {
+        createDirectory(root);
+        writeString(root.resolve("file"), "hello");
+        createDirectory(root.resolve("dir"));
+        try (var wasi = wasiWithDirectory("test", root)) {
+            var memory = new ByteBufferMemory(new MemoryLimits(1));
+            int buf = 0;
+
+            assertEquals(
+                    WasiErrno.ESUCCESS.value(), wasi.pathFilestatGet(memory, 3, 0, "file", buf));
+            assertEquals(WasiFileType.REGULAR_FILE.value(), memory.read(buf + 16));
+            assertEquals(5, memory.readLong(buf + 32));
+            long mtime = getLastModifiedTime(root.resolve("file")).to(NANOSECONDS);
+            assertEquals(mtime, memory.readLong(buf + 48));
+            long fileIno = memory.readLong(buf + 8);
+            assertNotEquals(0, fileIno);
+
+            assertEquals(
+                    WasiErrno.ESUCCESS.value(), wasi.pathFilestatGet(memory, 3, 0, "dir", buf));
+            long dirIno = memory.readLong(buf + 8);
+            assertNotEquals(0, dirIno);
+            assertNotEquals(fileIno, dirIno);
+
+            int fdPtr = 4096;
+            assertEquals(
+                    WasiErrno.ESUCCESS.value(),
+                    wasi.pathOpen(memory, 3, 0, "file", 0, 0, 0, 0, fdPtr));
+            int fd = memory.readInt(fdPtr);
+            assertEquals(WasiErrno.ESUCCESS.value(), wasi.fdFilestatGet(memory, fd, buf));
+            assertEquals(WasiFileType.REGULAR_FILE.value(), memory.read(buf + 16));
+            assertEquals(5, memory.readLong(buf + 32));
+            assertEquals(fileIno, memory.readLong(buf + 8));
+
+            int bufUsedPtr = 2048;
+            assertEquals(
+                    WasiErrno.ESUCCESS.value(),
+                    wasi.fdReaddir(memory, 3, buf, 1024, 0, bufUsedPtr));
+            Map<String, Integer> types = new HashMap<>();
+            Map<String, Long> inodes = new HashMap<>();
+            int used = memory.readInt(bufUsedPtr);
+            for (int pos = buf; pos < buf + used; ) {
+                int nameLen = memory.readInt(pos + 16);
+                String name = memory.readString(pos + 24, nameLen);
+                types.put(name, (int) memory.read(pos + 20));
+                inodes.put(name, memory.readLong(pos + 8));
+                pos += 24 + nameLen;
+            }
+            assertEquals(WasiFileType.REGULAR_FILE.value(), types.get("file"));
+            assertEquals(WasiFileType.DIRECTORY.value(), types.get("dir"));
+            assertEquals(fileIno, inodes.get("file"));
+            assertEquals(dirIno, inodes.get("dir"));
         }
     }
 

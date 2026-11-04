@@ -43,6 +43,7 @@ import org.apache.maven.shared.model.fileset.util.FileSetManager;
 public class WasiTestGenMojo extends AbstractMojo {
 
     private static final String JUNIT_TEST = "org.junit.jupiter.api.Test";
+    private static final String JUNIT_TEMP_DIR = "org.junit.jupiter.api.io.TempDir";
     private static final String WASI_TEST_RUNNER = "run.endive.wasi.WasiTestRunner";
 
     private final Log log = new SystemStreamLog();
@@ -84,6 +85,12 @@ public class WasiTestGenMojo extends AbstractMojo {
      */
     @Parameter(property = "wasi-test-gen.skip", defaultValue = "false")
     private boolean skip;
+
+    /**
+     * Run the tests on a JUnit temporary directory of the host file system.
+     */
+    @Parameter(defaultValue = "false")
+    private boolean hostFileSystem;
 
     /**
      * The current Maven project.
@@ -158,9 +165,17 @@ public class WasiTestGenMojo extends AbstractMojo {
             cu.addImport("java.util.Map");
             cu.addImport("java.util.Optional");
             cu.addImport(JUNIT_TEST);
+            if (hostFileSystem) {
+                cu.addImport("java.nio.file.Path");
+                cu.addImport(JUNIT_TEMP_DIR);
+            }
 
             // generate test methods
-            var testClass = cu.addClass("Suite" + capitalize(testSuite) + "Test");
+            var testClass =
+                    cu.addClass(
+                            "Suite"
+                                    + capitalize(testSuite)
+                                    + (hostFileSystem ? "HostTest" : "Test"));
             for (File file : files) {
                 String baseName =
                         file.getName().substring(0, file.getName().length() - ".wasm".length());
@@ -172,6 +187,9 @@ public class WasiTestGenMojo extends AbstractMojo {
                         testClass.addMethod(
                                 "test" + escapedCamelCase(baseName), Modifier.Keyword.PUBLIC);
                 method.addAnnotation("Test");
+                if (hostFileSystem) {
+                    method.addAndGetParameter("Path", "tempDir").addMarkerAnnotation("TempDir");
+                }
 
                 method.getBody()
                         .orElseThrow()
@@ -207,8 +225,11 @@ public class WasiTestGenMojo extends AbstractMojo {
                                         AssignExpr.Operator.ASSIGN))
                         .addStatement(
                                 new NameExpr(
-                                        "WasiTestRunner.execute("
-                                                + "test, args, root, env, exitCode, stdout)"));
+                                        hostFileSystem
+                                                ? "WasiTestRunner.executeOnHost(tempDir, "
+                                                        + "test, args, root, env, exitCode, stdout)"
+                                                : "WasiTestRunner.execute(test, args, root, env,"
+                                                        + " exitCode, stdout)"));
             }
 
             dest.add(

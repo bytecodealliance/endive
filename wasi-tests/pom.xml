@@ -119,4 +119,34 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <!-- older JDKs cannot set file times with nanosecond precision -->
+      <id>host-file-system</id>
+      <activation>
+        <jdk>[25,)</jdk>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>run.endive</groupId>
+            <artifactId>wasi-test-gen-plugin</artifactId>
+            <version>${project.version}</version>
+            <executions>
+              <execution>
+                <id>host</id>
+                <goals>
+                  <goal>wasi-test-gen</goal>
+                </goals>
+                <configuration>
+                  <hostFileSystem>true</hostFileSystem>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

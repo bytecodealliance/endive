@@ -9,6 +9,7 @@ import static java.nio.file.Files.readString;
 import static java.nio.file.Files.writeString;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -330,6 +331,60 @@ public class WasiPreview1Test {
                                 WasiFstFlags.MTIM);
                 assertEquals(WasiErrno.ESUCCESS.value(), result);
                 assertEquals(2000, getLastModifiedTime(root.resolve("file")).toMillis());
+            }
+        }
+    }
+
+    @Test
+    public void filestatWithoutUnixAttributeView() throws IOException {
+        // Windows' default file system, and ZeroFs's stock configurations, have no "unix" view
+        var configurations =
+                new Configuration[] {
+                    Configuration.unix().toBuilder().setAttributeViews("basic").build(),
+                    Configuration.windows()
+                };
+        for (Configuration configuration : configurations) {
+            try (var fs = ZeroFs.newFileSystem(configuration)) {
+                Path root = fs.getPath("test");
+                createDirectory(root);
+                writeString(root.resolve("file"), "hello");
+                createDirectory(root.resolve("dir"));
+                try (var wasi = wasiWithDirectory("test", root)) {
+                    var memory = new ByteBufferMemory(new MemoryLimits(1));
+                    int buf = 0;
+
+                    assertEquals(
+                            WasiErrno.ESUCCESS.value(),
+                            wasi.pathFilestatGet(memory, 3, 0, "file", buf));
+                    assertEquals(WasiFileType.REGULAR_FILE.value(), memory.read(buf + 16));
+                    assertEquals(5, memory.readLong(buf + 32));
+                    long mtime = getLastModifiedTime(root.resolve("file")).to(NANOSECONDS);
+                    assertEquals(mtime, memory.readLong(buf + 48));
+
+                    int fdPtr = 4096;
+                    assertEquals(
+                            WasiErrno.ESUCCESS.value(),
+                            wasi.pathOpen(memory, 3, 0, "file", 0, 0, 0, 0, fdPtr));
+                    int fd = memory.readInt(fdPtr);
+                    assertEquals(WasiErrno.ESUCCESS.value(), wasi.fdFilestatGet(memory, fd, buf));
+                    assertEquals(WasiFileType.REGULAR_FILE.value(), memory.read(buf + 16));
+                    assertEquals(5, memory.readLong(buf + 32));
+
+                    int bufUsedPtr = 2048;
+                    assertEquals(
+                            WasiErrno.ESUCCESS.value(),
+                            wasi.fdReaddir(memory, 3, buf, 1024, 0, bufUsedPtr));
+                    Map<String, Integer> types = new HashMap<>();
+                    int used = memory.readInt(bufUsedPtr);
+                    for (int pos = buf; pos < buf + used; ) {
+                        int nameLen = memory.readInt(pos + 16);
+                        types.put(
+                                memory.readString(pos + 24, nameLen), (int) memory.read(pos + 20));
+                        pos += 24 + nameLen;
+                    }
+                    assertEquals(WasiFileType.REGULAR_FILE.value(), types.get("file"));
+                    assertEquals(WasiFileType.DIRECTORY.value(), types.get("dir"));
+                }
             }
         }
     }

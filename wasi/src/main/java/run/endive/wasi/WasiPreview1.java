@@ -41,6 +41,7 @@ import java.nio.file.attribute.FileTime;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -466,7 +467,7 @@ public final class WasiPreview1 implements Closeable {
 
         Map<String, Object> attributes;
         try {
-            attributes = Files.readAttributes(path, FILESTAT_ATTRIBUTES);
+            attributes = readFileStatAttributes(path);
         } catch (UnsupportedOperationException e) {
             return wasiResult(WasiErrno.ENOTSUP);
         } catch (IOException e) {
@@ -778,9 +779,7 @@ public final class WasiPreview1 implements Closeable {
 
                 Map<String, Object> attributes;
                 try {
-                    attributes =
-                            Files.readAttributes(
-                                    entryPath, FILESTAT_ATTRIBUTES, LinkOption.NOFOLLOW_LINKS);
+                    attributes = readFileStatAttributes(entryPath, LinkOption.NOFOLLOW_LINKS);
                 } catch (UnsupportedOperationException e) {
                     return wasiResult(WasiErrno.ENOTSUP);
                 } catch (NoSuchFileException e) {
@@ -1036,7 +1035,7 @@ public final class WasiPreview1 implements Closeable {
                     path = resolved.resolved();
                 }
             }
-            attributes = Files.readAttributes(path, FILESTAT_ATTRIBUTES, linkOptions);
+            attributes = readFileStatAttributes(path, linkOptions);
         } catch (UnsupportedOperationException e) {
             return wasiResult(WasiErrno.ENOTSUP);
         } catch (NoSuchFileException e) {
@@ -1878,6 +1877,29 @@ public final class WasiPreview1 implements Closeable {
         }
 
         return directory.resolve(normalized);
+    }
+
+    private static Map<String, Object> readFileStatAttributes(Path path, LinkOption... options)
+            throws IOException {
+        if (path.getFileSystem().supportedFileAttributeViews().contains("unix")) {
+            return Files.readAttributes(path, FILESTAT_ATTRIBUTES, options);
+        }
+        // No "unix" view (e.g. Windows): use the basic view.
+        // Unknown inode numbers are 0, and ctime falls back to the modification time.
+        BasicFileAttributes basic = Files.readAttributes(path, BasicFileAttributes.class, options);
+        Object fileKey = basic.fileKey();
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("dev", 0L);
+        attributes.put("ino", fileKey instanceof Number ? ((Number) fileKey).longValue() : 0L);
+        attributes.put("nlink", 1L);
+        attributes.put("size", basic.size());
+        attributes.put("lastAccessTime", basic.lastAccessTime());
+        attributes.put("lastModifiedTime", basic.lastModifiedTime());
+        attributes.put("ctime", basic.lastModifiedTime());
+        attributes.put("isSymbolicLink", basic.isSymbolicLink());
+        attributes.put("isDirectory", basic.isDirectory());
+        attributes.put("isRegularFile", basic.isRegularFile());
+        return attributes;
     }
 
     private static void writeFileStat(

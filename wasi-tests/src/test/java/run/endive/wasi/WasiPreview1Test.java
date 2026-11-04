@@ -571,6 +571,34 @@ public class WasiPreview1Test {
     }
 
     @Test
+    public void windowsPathsStayInTheDirectory() throws IOException {
+        try (var fs = ZeroFs.newFileSystem(Configuration.windows())) {
+            Path dir = java.nio.file.Files.createDirectories(fs.getPath("C:\\work\\dir"));
+            writeString(dir.resolve("file.txt"), "hello");
+            writeString(fs.getPath("C:\\work\\outside.txt"), "outside");
+            try (var wasi = wasiWithDirectory("dir", dir)) {
+                var memory = new ByteBufferMemory(new MemoryLimits(1));
+                for (String path :
+                        new String[] {
+                            "../outside.txt",
+                            "..\\outside.txt",
+                            "sub\\..\\..\\outside.txt",
+                            "C:\\work\\outside.txt"
+                        }) {
+                    assertEquals(
+                            WasiErrno.EPERM.value(),
+                            wasi.pathOpen(memory, 3, 0, path, 0, 0, 0, 0, 0),
+                            path);
+                }
+                assertEquals(
+                        WasiErrno.ESUCCESS.value(),
+                        wasi.pathOpen(memory, 3, 0, "sub\\..\\file.txt", 0, 0, 0, 0, 0));
+                assertEquals(WasiErrno.EACCES.value(), wasi.pathSymlink("..\\outside.txt", 3, "l"));
+            }
+        }
+    }
+
+    @Test
     public void emptyPathReturnsEnoent() throws IOException {
         Path dir = java.nio.file.Files.createTempDirectory("wasi-empty-path-test");
         try (var wasi = wasiWithDirectory(dir.toString(), dir)) {

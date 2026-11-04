@@ -1,5 +1,5 @@
-<svg width="346.4" height="20" viewBox="0 0 3464 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tests WASI: 85 success, 0 skip, 0 failures, 0 errors, 85 total">
-  <title>Tests WASI: 85 success, 0 skip, 0 failures, 0 errors, 85 total</title>
+<svg width="346.4" height="20" viewBox="0 0 3464 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tests WASI: 87 success, 0 skip, 0 failures, 0 errors, 87 total">
+  <title>Tests WASI: 87 success, 0 skip, 0 failures, 0 errors, 87 total</title>
   <linearGradient id="a" x2="0" y2="100%">
     <stop offset="0" stop-opacity=".1" stop-color="#EEE"/>
     <stop offset="1" stop-opacity=".1"/>
@@ -13,8 +13,8 @@
   <g aria-hidden="true" fill="#fff" text-anchor="start" font-family="Verdana,DejaVu Sans,sans-serif" font-size="110">
     <text x="60" y="148" textLength="636" fill="#000" opacity="0.25">Tests WASI</text>
     <text x="50" y="138" textLength="636">Tests WASI</text>
-    <text x="791" y="148" textLength="2628" fill="#000" opacity="0.25">85 success, 0 skip, 0 failures, 0 errors, 85 total</text>
-    <text x="781" y="138" textLength="2628">85 success, 0 skip, 0 failures, 0 errors, 85 total</text>
+    <text x="791" y="148" textLength="2628" fill="#000" opacity="0.25">87 success, 0 skip, 0 failures, 0 errors, 87 total</text>
+    <text x="781" y="138" textLength="2628">87 success, 0 skip, 0 failures, 0 errors, 87 total</text>
   </g>
   
 </svg>

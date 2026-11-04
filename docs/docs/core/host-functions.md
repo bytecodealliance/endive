@@ -3,47 +3,22 @@ sidebar_position: 1
 sidebar_label: Host Functions
 title: Host Functions
 ---
-# Host and guests
+A host function is a Java function that a Wasm module imports and calls, and it is the way a module reaches anything outside its sandbox.
 
 :::warning[Security Consideration]
-Host functions cross the sandbox boundary. Validate all arguments received from Wasm code — especially memory offsets and lengths — before accessing host resources. Never trust guest-provided pointers without bounds checking. See [Security Best Practices](/docs/security/best-practices).
+Host functions cross the sandbox boundary: validate every argument that comes from Wasm, especially memory offsets and lengths, before touching host resources. See [Security Best Practices](/docs/security/best-practices).
 :::
 
-In Wasm, the instance of a module is generally regarded as the **guest**,
-and the surrounding runtime environment is called the **host**.
+In Wasm terms the module instance is the **guest** and the surrounding runtime, your Java application, is the **host**.
+A module can **export** functions for the host to call, and **import** functions that the host must provide when the module is instantiated.
+Without imports a module is pure compute: it cannot perform I/O or interact with other modules.
 
-For example, an **application** using Endive as a **library** would be the **host**
-to a Wasm module **guest** you have instantiated.
+## Writing a host function
 
-Wasm modules may **export** functions, so that they can be externally invoked.
-But Wasm modules may also **import** functions. 
-These imports have to be resolved at the time when a module is instantiated;
-in other words, when a module is instantiated, the runtime has to provide
-references for all the imports that a module declares.
+A host function is called from Wasm but runs in the JVM, so it can do anything your Java code can.
+That is also what makes it a security boundary when the module is untrusted.
 
-The import/export mechanism is the way through which Wasm interacts 
-with the outside world: without imports, a Wasm module is "pure compute",
-that is, it cannot perform any kind of I/O, nor can it interact with other
-modules.
-
-## Host Functions
-
-One way to fulfill imports is providing a **host function** written in Java. 
-No matter what source language that your Wasm module was written in, 
-it will be able to call this Java function when needed.
-
-It is called a **host** function because it is executed in the environment of the
-**host** (in this case, a JVM). As opposed to any other Wasm function, 
-a **host function** is _unrestricted_ and it may interact with the surrounding
-environment in any arbitrary way. This lets you effectively escape the sandbox.
-As a consequence, host functions are a security boundary and
-need to be implemented carefully if the Wasm code is not trusted.
-
-You can think of host functions as similar to OS system calls or the standard library in your favorite programming language.
-The key difference is that, instead of relying on a default implementation, you use Java to define their behavior 
-and determine what they do.
-
-Let's see it with another example. Download the following Wasm binary:
+Download the following module, which imports a `console.log` function:
 
 ```bash
 curl https://raw.githubusercontent.com/bytecodealliance/endive/main/wasm-corpus/src/main/resources/compiled/host-function.wat.wasm > logger.wasm

@@ -1,63 +1,26 @@
 ---
 sidebar_position: 2
-sidebar_label: Build time Compilation
-title: Build Time Compilation
+sidebar_label: Build-time Compiler
+title: Build-time Compiler
 ---
-## Overview
+
+The build-time compiler translates Wasm functions to JVM bytecode during your build and stores them as `.class` files that you package in your application.
 
 :::warning[Security Consideration]
-The compiler translates Wasm to JVM bytecode without post-compilation verification. Only compile Wasm modules you trust. See [Security Model](/docs/security/overview).
+The compiler generates JVM bytecode without a separate verification pass. Only compile modules you trust. See [Security Model](/docs/security/overview).
 :::
 
-The build-time compiler translates Wasm functions to JVM bytecode and stores them as `.class` files
-that you package in your application. Compiled code runs much faster and uses less memory than interpreted code.
+Compared to the [runtime compiler](runtime-compiler.md):
+
+- nothing is compiled at instantiation
+- no reflection and no ASM at runtime, so it works with `native-image`
+- the module ships as a self-contained jar
+
 Modules that use SIMD (`v128`) instructions cannot be compiled and must run in the interpreter.
 
-The build time compiler has several advantages over the [Runtime Compiler](runtime-compiler.md) such as: 
+## Maven
 
-- improved instance initialization time: the translation occurs at build time
-- no reflection needed: easier to use with `native-image`
-- fewer runtime dependencies: ASM is only needed at build time
-- distribute Wasm modules as self-contained jars: making it a convenient way to distribute software that was not originally meant to run on the Java platform
-
-You can use the compiler at build-time via Maven plug-in, Gradle plug-in, or plain CLI.
-
-### Interpreter Fall Back
-
-The WASM to bytecode compiler translates each WASM function into JVM method.  Occasionally you will find WASM module where functions are bigger than the maximum method size allowed by the JVM.  In these rare cases, we fall back to executing these large functions in the interpreter.  
-
-Since interpreted functions have worse performance, we want to make sure you are aware this is happening so the build time compiler will FAIL if it finds any functions that are too large.  The build tool will produce a message that contains text like:
-
-```text
-WASM function size exceeds the Java method size limits and cannot be compiled to Java bytecode. It can only be run in the interpreter. Either reduce the size of the function or enable the interpreter fallback mode: WASM function index: 3938
-```
-
-If this happens you can configure your build tool, to just issue warning messages, or to be silent.  Another way to silence the message is to configure the build tool with an explicit list of functions that should be interpreted. Typically, you obtain the list of the functions by running the compiler once with `interpreterFallback` set to `WARN`
-
-### Method Names
-
-By default the compiler names each generated method `func_0`, `func_1`, etc. Set `methodPrefixer` to
-name them after the module's name section instead, so that thread dumps, profiler output and stack
-traces identify functions by name:
-
-```xml
-<configuration>
-  <wasmFile>src/main/resources/add.wasm</wasmFile>
-  <name>org.acme.wasm.Add</name>
-  <methodPrefixer>run.endive.compiler.NameSectionMethodPrefixer</methodPrefixer>
-</configuration>
-```
-
-The names are resolved at build time and baked into the generated classes; the name section itself is
-not shipped with them.
-
-The parameter accepts any `run.endive.compiler.MethodPrefixer` with a public no-argument constructor,
-declared as a dependency of the plugin. See [Method Names](runtime-compiler.md#method-names) for the
-naming contract.
-
-## Using Maven
-
-Example configuration of the Maven plug-in:
+Configure the plugin:
 
 ```xml
 <build>
@@ -84,7 +47,7 @@ Example configuration of the Maven plug-in:
 </build>
 ```
 
-In the codebase you can use the generated module by configuring appropriately the `MachineFactory`:
+Then use the generated class as the machine factory:
 
 <!--
 ```java
@@ -126,7 +89,26 @@ var instance = Instance.builder(module).
         build();
 ```
 
-### Generating Module Exports and Imports
+### Parameters
+
+The ones you are likely to set:
+
+| Parameter | Description |
+|---|---|
+| `wasmFile` | The Wasm module to compile. Required. |
+| `name` | Fully qualified name of the generated class. Required. |
+| `moduleInterface` | Fully qualified name for which to generate typed `_ModuleExports` and `_ModuleImports` wrappers. See [below](#generating-module-exports-and-imports). |
+| `interpreterFallback` | What to do with a function too large for a JVM method: `FAIL` (default), `WARN` or `SILENT`. With `WARN` or `SILENT` the function runs in the interpreter. |
+| `interpretedFunctions` | Comma-separated function indexes to interpret instead of compile. |
+| `methodPrefixer` | Set to `run.endive.compiler.NameSectionMethodPrefixer` to name the compiled methods after the module's name section, so stack traces and profiler output show the Wasm function names. Any `MethodPrefixer` with a public no-argument constructor on the plugin's classpath is accepted. |
+
+Print the full list with:
+
+```bash
+mvn help:describe -DgroupId=run.endive -DartifactId=endive-compiler-maven-plugin -Ddetail
+```
+
+### Generating module exports and imports
 
 The build-time compiler can also generate typed Java wrappers for a module's exports and imports,
 eliminating the need for the [`@WasmModuleInterface` annotation](../annotations/index.md#wasmmoduleinterface) and the annotation processor setup.
@@ -183,65 +165,7 @@ var instance = Instance.builder(DemoModule.load()).
 var exports = new Demo_ModuleExports(instance);
 ```
 
-### The `compile` Goal
-
-You can obtain the full description of the Maven Plugin with a command like:
-`mvn help:describe -DgroupId=run.endive -DartifactId=endive-compiler-maven-plugin -Dversion=999-SNAPSHOT -Ddetail`
-
-```
-endive:compile
-  Description: This plugin generates an invokable library from the compiled
-    Wasm
-  Implementation: run.endive.build.time.maven.EndiveCompilerGenMojo
-  Language: java
-  Bound to phase: generate-sources
-
-  Available parameters:
-
-    interpretedFunctions
-      The indexes of functions that should be interpreted, separated by commas
-
-    interpreterFallback (Default: FAIL)
-      Required: true
-      the action to take if the compiler needs to use the interpreter because a
-      function is too big
-
-    methodPrefixer
-      Fully qualified name of a MethodPrefixer implementation used to name the
-      compiled methods. Defaults to naming them func_0, func_1 and so on. Set
-      it to run.endive.compiler.NameSectionMethodPrefixer to name them after
-      the module's name section.
-
-    moduleInterface
-      Fully qualified name of the user's class for which to generate
-      _ModuleExports and _ModuleImports wrapper classes. When set, eliminates
-      the need for @WasmModuleInterface annotation and the annotation processor.
-
-    name
-      Required: true
-      the base name to be used for the generated classes
-
-    targetClassFolder (Default:
-    ${project.build.directory}/generated-resources/endive-compiler)
-      Required: true
-      the target folder to generate classes
-
-    targetSourceFolder (Default:
-    ${project.build.directory}/generated-sources/endive-compiler)
-      Required: true
-      the target source folder to generate the Machine implementation
-
-    targetWasmFolder (Default:
-    ${project.build.directory}/generated-resources/endive-compiler)
-      Required: true
-      the target wasm folder to generate the stripped meta wasm module
-
-    wasmFile
-      Required: true
-      the wasm module to be used
-```
-
-#### IDE shortcomings
+### IDE shortcomings
 
 In some IDEs the sources generated under the standard folder `target/generated-sources` are not automatically recognized.
 To overcome this limitation you can use an additional Maven Plugin for a smoother IDE experience:
@@ -267,10 +191,10 @@ To overcome this limitation you can use an additional Maven Plugin for a smoothe
 </plugin>
 ```
 
-## Using Gradle [community]
+## Gradle [community]
 
 Gradle users can leverage the [wasm2class-gradle-plugin](https://github.com/illarionov/wasm2class-gradle-plugin),
-a third-party plugin that serves as an alternative to the Maven plugin, running the AoT compiler at build time
+a third-party plugin that serves as an alternative to the Maven plugin, running the build-time compiler
 and enabling the use of pre-compiled Wasm code in Java, Kotlin, and Android projects.
 
 To set it up, make sure MavenCentral is listed as a repository in the `pluginManagement` block of your `settings.gradle.kts`:

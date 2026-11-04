@@ -61,20 +61,7 @@ var options = WasiOptions.builder()
 
 Wasm modules can consume unbounded CPU and memory. Always set limits when running untrusted code.
 
-**CPU timeout via thread interruption:**
-
-```java title="Example"
-var executor = Executors.newSingleThreadExecutor();
-var future = executor.submit(() -> instance.export("run").apply());
-
-try {
-    var result = future.get(5, TimeUnit.SECONDS);
-} catch (TimeoutException e) {
-    future.cancel(true); // interrupts the Wasm execution
-}
-```
-
-See [CPU Limits](/docs/advanced/cpu-limits) for more patterns.
+Run untrusted code under a timeout and interrupt it when the deadline passes; see [CPU Limits](/docs/security/cpu-limits) for the patterns.
 
 ## Compiler Security
 

@@ -24,6 +24,10 @@ docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "count_vowels.wasm");
 ```
 -->
 
+:::tip
+A module like this one is a Rust library built with `rustc --target=wasm32-unknown-unknown --crate-type=cdylib`. Use `--target=wasm32-wasip1` for programs that need [WASI](../wasi/index.md).
+:::
+
 Build and instantiate this module:
 
 ```java

@@ -39,8 +39,8 @@ const config: Config = {
       {
         redirects: [
           {
-            to: '/docs/annotations',
-            from: ['/docs/experimental/host-modules', '/docs/usage/annotations'],
+            to: '/docs/core/annotations',
+            from: ['/docs/experimental/host-modules', '/docs/usage/annotations', '/docs/annotations'],
           },
           {
             to: '/docs/execution/runtime-compiler',
@@ -56,27 +56,23 @@ const config: Config = {
           },
           {
             to: '/docs/core/memory',
-            from: ['/docs/usage/memory'],
+            from: ['/docs/usage/memory', '/docs/examples/rust'],
           },
           {
             to: '/docs/core/linking',
             from: ['/docs/usage/linking'],
           },
           {
-            to: '/docs/core/execution-modes',
-            from: ['/docs/usage/execution_modes'],
+            to: '/docs/execution',
+            from: ['/docs/usage/execution_modes', '/docs/core/execution-modes', '/docs/usage/simd', '/docs/advanced/simd'],
           },
           {
             to: '/docs/wasi',
             from: ['/docs/usage/wasi'],
           },
           {
-            to: '/docs/advanced/cpu-limits',
-            from: ['/docs/usage/cpu'],
-          },
-          {
-            to: '/docs/advanced/simd',
-            from: ['/docs/usage/simd'],
+            to: '/docs/security/cpu-limits',
+            from: ['/docs/usage/cpu', '/docs/advanced/cpu-limits'],
           },
           {
             to: '/docs/advanced/tools',

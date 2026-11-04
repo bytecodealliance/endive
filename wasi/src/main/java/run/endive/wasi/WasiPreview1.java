@@ -1516,9 +1516,21 @@ public final class WasiPreview1 implements Closeable {
         } catch (DirectoryNotEmptyException e) {
             return wasiResult(WasiErrno.ENOTEMPTY);
         } catch (IOException e) {
-            return wasiResult(WasiErrno.EIO);
+            // the default provider reports a non-empty target as a generic exception
+            return wasiResult(isNonEmptyDirectory(newPath) ? WasiErrno.ENOTEMPTY : WasiErrno.EIO);
         }
         return wasiResult(WasiErrno.ESUCCESS);
+    }
+
+    private static boolean isNonEmptyDirectory(Path path) {
+        if (!Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+            return false;
+        }
+        try (Stream<Path> entries = Files.list(path)) {
+            return entries.findAny().isPresent();
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     @WasmExport

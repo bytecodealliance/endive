@@ -1885,12 +1885,16 @@ public final class WasiPreview1 implements Closeable {
             return Files.readAttributes(path, FILESTAT_ATTRIBUTES, options);
         }
         // No "unix" view (e.g. Windows): use the basic view.
-        // Unknown inode numbers are 0, and ctime falls back to the modification time.
+        // ctime falls back to the modification time.
         BasicFileAttributes basic = Files.readAttributes(path, BasicFileAttributes.class, options);
         Object fileKey = basic.fileKey();
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("dev", 0L);
-        attributes.put("ino", fileKey instanceof Number ? ((Number) fileKey).longValue() : 0L);
+        attributes.put(
+                "ino",
+                fileKey instanceof Number
+                        ? ((Number) fileKey).longValue()
+                        : inodeFromPath(path, options));
         attributes.put("nlink", 1L);
         attributes.put("size", basic.size());
         attributes.put("lastAccessTime", basic.lastAccessTime());
@@ -1900,6 +1904,25 @@ public final class WasiPreview1 implements Closeable {
         attributes.put("isDirectory", basic.isDirectory());
         attributes.put("isRegularFile", basic.isRegularFile());
         return attributes;
+    }
+
+    // Without a numeric file key (e.g. Windows), derive the inode number from the real path,
+    // so that different files get different, non-zero numbers. A file keeps its number while
+    // its path does not change; hard links to the same file get different numbers.
+    private static long inodeFromPath(Path path, LinkOption... options) {
+        Path real;
+        try {
+            real = path.toRealPath(options);
+        } catch (IOException e) {
+            real = path.toAbsolutePath().normalize();
+        }
+        // 64-bit FNV-1a
+        long hash = 0xcbf29ce484222325L;
+        for (byte b : real.toString().getBytes(UTF_8)) {
+            hash ^= b & 0xff;
+            hash *= 0x100000001b3L;
+        }
+        return hash != 0 ? hash : 1;
     }
 
     private static void writeFileStat(

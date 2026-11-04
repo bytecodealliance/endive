@@ -69,6 +69,22 @@ dealloc.apply(ptr, len);
 assert(3L == result); // 3 vowels in Hello, World!
 ```
 
+## Limiting memory growth
+
+A module declares the initial and maximum size of its memory in 64 KiB pages, and the maximum defaults to 4 GiB when it declares none.
+To cap how far an untrusted module can grow, override the limits of its memory when building the instance:
+
+```java
+import run.endive.wasm.types.MemoryLimits;
+
+// keep the declared 17 initial pages, allow growth up to 32 pages (2 MiB)
+var limited = Instance.builder(Parser.parse(new File("./count_vowels.wasm"))).
+        withMemoryLimits(new MemoryLimits(17, 32)).
+        build();
+```
+
+Past the maximum, `memory.grow` fails inside the module. The override applies to the memory the module defines; an imported memory keeps the limits it was created with.
+
 <!--
 ```java
 docs.FileOps.writeResult("docs/core", "memory.md.result", "" + result);

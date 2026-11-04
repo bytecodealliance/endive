@@ -59,6 +59,8 @@ var options = WasiOptions.builder()
 
 Wasm modules can consume unbounded CPU and memory. Always set limits when running untrusted code.
 
+Cap memory growth with `withMemoryLimits`; see [Limiting memory growth](/docs/core/memory#limiting-memory-growth).
+
 Run untrusted code under a timeout and interrupt it when the deadline passes; see [CPU Limits](/docs/security/cpu-limits) for the patterns.
 
 ## Compiler Security

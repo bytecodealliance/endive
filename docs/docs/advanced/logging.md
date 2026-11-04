@@ -3,8 +3,6 @@ sidebar_position: 4
 sidebar_label: Logging
 title: Logging
 ---
-# Logging
-
 For maximum compatibility and to avoid external dependencies we use, by default, the JDK Platform Logging ([JEP 264](https://openjdk.org/jeps/264)).
 The Platform Logging falls back to the [`java.util.logging` API](https://docs.oracle.com/en/java/javase/21/core/java-logging-overview.html) by default.
 

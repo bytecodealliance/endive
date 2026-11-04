@@ -5,9 +5,8 @@ title: Annotations
 ---
 ## Host Modules
 
-Instead of writing host functions by hand, you can write a class containing annotated methods
-and let the Endive annotation processor generate the host functions for you. This is especially
-useful when you have many host functions.
+Instead of writing host functions by hand, you can annotate the methods of a class and let the Endive annotation processor generate the host functions for you.
+This is especially useful when you have many host functions.
 
 <!--
 ```java
@@ -76,14 +75,16 @@ var imports = ImportValues.builder().addFunction(demo.toHostFunctions()).build()
 
 ### Type conversions
 
-The following conversions are supported:
+Parameters and return values are converted as follows:
 
-| Java Type         | Wasm Type  |
-|-------------------|------------|
-| `int`             | `i32`      |
-| `long`            | `i64`      |
-| `float`           | `f32`      |
-| `double`          | `f64`      |
+| Java type | Wasm type |
+|-----------|-----------|
+| `int`     | `i32`     |
+| `long`    | `i64`     |
+| `float`   | `f32`     |
+| `double`  | `f64`     |
+
+Parameters can also be a `String` annotated with `@Buffer` (passed as an `i32` pointer and an `i32` length) or `@CString` (an `i32` pointer to a NUL-terminated string), both read from the module's memory, and `Instance` or `Memory`, which receive the calling instance or its memory without a Wasm parameter.
 
 ## WasmModuleInterface
 
@@ -118,7 +119,7 @@ In order to use host modules, you need to import the relevant annotations, e.g. 
 <dependency>
   <groupId>run.endive</groupId>
   <artifactId>annotations</artifactId>
-  <version>latest-release</version>
+  <version>${endive.version}</version>
 </dependency>
 ```
 
@@ -134,7 +135,7 @@ Exactly how this is done depends on the build system you are using, for instance
       <path>
         <groupId>run.endive</groupId>
         <artifactId>annotations-processor</artifactId>
-        <version>latest-release</version>
+        <version>${endive.version}</version>
       </path>
     </annotationProcessorPaths>
   </configuration>

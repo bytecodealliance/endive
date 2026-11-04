@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
-sidebar_label: Runtime Compiler Cache
-title: Runtime Compiler Cache
+sidebar_label: Compiler Cache
+title: Compiler Cache
 ---
 
 The compiler cache stores the bytecode produced by the [runtime compiler](runtime-compiler.md), so later runs skip compilation and start faster.

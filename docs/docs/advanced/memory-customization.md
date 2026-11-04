@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
-sidebar_label: Memory
-title: Advanced Wasm Memory Customization
+sidebar_label: Memory Customization
+title: Memory Customization
 ---
 <!--
 ```java
@@ -19,11 +19,8 @@ var module = Parser.parse(new File("count_vowels.rs.wasm"));
 ```
 -->
 
-Different Wasm workloads will be using the memory in very different ways.
-
-Make sure you don't do changes without proper benchmarking and analysis.
-
-It's possible to provide a custom implementation of the entire Memory used by the Wasm module:
+You can replace the `Memory` implementation backing a module through `withMemoryFactory`.
+Workloads use memory in very different ways, so benchmark before changing it:
 
 ```java
 var instance = Instance.builder(module).withMemoryFactory(limits -> {

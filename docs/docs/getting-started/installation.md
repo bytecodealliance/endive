@@ -3,8 +3,6 @@ sidebar_position: 1
 sidebar_label: Installation
 title: Installation
 ---
-# Installation
-
 Endive requires **Java 11** or later.
 
 Add Endive to your project using Maven or Gradle.

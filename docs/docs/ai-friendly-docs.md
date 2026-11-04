@@ -4,8 +4,6 @@ sidebar_label: AI-Friendly Docs
 title: AI-Friendly Documentation
 ---
 
-# AI-Friendly Documentation
-
 Endive documentation is designed to be easily consumed by LLMs, AI agents, and developer tools. All machine-readable files are auto-generated at build time from the same source as the human-facing site, using the [llms.txt specification](https://llmstxt.org/).
 
 ## Available Endpoints

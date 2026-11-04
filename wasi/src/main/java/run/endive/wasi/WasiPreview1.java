@@ -1915,12 +1915,13 @@ public final class WasiPreview1 implements Closeable {
             return null;
         }
 
-        if (rawPath.isAbsolute()) {
+        // on Windows a root can also be "\" or a drive
+        if (rawPath.getRoot() != null) {
             return null;
         }
 
-        String normalized = rawPath.normalize().toString();
-        if (normalized.equals("..") || normalized.startsWith("../")) {
+        Path normalized = rawPath.normalize();
+        if (normalized.getNameCount() > 0 && normalized.getName(0).toString().equals("..")) {
             return null;
         }
 

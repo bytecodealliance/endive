@@ -99,5 +99,5 @@ logIt.apply();
 ```
 
 :::tip
-For an easier way to write host function and interact with a Wasm module, see [Annotations](../annotations/index.md).
+For an easier way to write host function and interact with a Wasm module, see [Annotations](annotations.md).
 :::

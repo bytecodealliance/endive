@@ -111,7 +111,7 @@ mvn help:describe -DgroupId=run.endive -DartifactId=endive-compiler-maven-plugin
 ### Generating module exports and imports
 
 The build-time compiler can also generate typed Java wrappers for a module's exports and imports,
-eliminating the need for the [`@WasmModuleInterface` annotation](../annotations/index.md#wasmmoduleinterface) and the annotation processor setup.
+eliminating the need for the [`@WasmModuleInterface` annotation](../core/annotations.md#wasmmoduleinterface) and the annotation processor setup.
 
 Add the `moduleInterface` parameter to the plugin configuration:
 

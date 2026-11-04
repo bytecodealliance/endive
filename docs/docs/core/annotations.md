@@ -1,5 +1,5 @@
 ---
-sidebar_position: 100
+sidebar_position: 4
 sidebar_label: Annotations
 title: Annotations
 ---
@@ -143,6 +143,6 @@ Exactly how this is done depends on the build system you are using, for instance
 
 <!--
 ```java
-docs.FileOps.writeResult("docs/annotations", "index.md.result", "empty");
+docs.FileOps.writeResult("docs/core", "annotations.md.result", "empty");
 ```
 -->

@@ -5,7 +5,7 @@ title: Quick start
 ---
 
 :::info[Requirements]
-Endive requires **Java 11** or later. SIMD instructions are supported on all supported Java versions.
+Endive requires **Java 11** or later.
 :::
 
 ### Install the dependency

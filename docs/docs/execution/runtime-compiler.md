@@ -13,16 +13,11 @@ The compiler translates Wasm to JVM bytecode without post-compilation verificati
 Compiling very large Wasm modules can consume significant memory and CPU. Consider setting JVM heap limits and compilation timeouts when processing untrusted input.
 :::
 
-The runtime compiler backend is a drop-in replacement for the interpreter, and it passes 100% of the same
-spec tests that the interpreter already supports.
+The runtime compiler translates Wasm functions to JVM bytecode in memory when the instance is created, as a drop-in replacement for the interpreter.
+Compiled code runs much faster and uses less memory than interpreted code, at the cost of a small delay at instantiation.
+Use the [build-time compiler](./build-time-compiler.md) to move that work into your build.
 
-This runtime compiler translates the WASM instructions to Java bytecode on-the-fly in-memory.
-The resulting code is usually expected to evaluate (much) faster and consume less memory than if it 
-was interpreted.
-
-At the current time, the compiler will eagerly compile all WASM instructions to Java bytecode.  You end up
-paying a small performance penalty at Instance initialization, but the execution speedup
-is usually worth it.  Use [Build Time Compilation](./build-time-compiler.md) if you want to avoid the penalty.
+Modules that use SIMD (`v128`) instructions cannot be compiled and must run in the interpreter.
 
 ## Using
 

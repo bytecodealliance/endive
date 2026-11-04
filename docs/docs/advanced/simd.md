@@ -4,21 +4,13 @@ sidebar_label: SIMD
 title: SIMD support
 ---
 
-SIMD is supported out of the box by the interpreter.
+SIMD (`v128`) instructions are supported by the interpreter on every supported JDK, with no extra dependency or configuration.
 
-All WebAssembly `v128` instructions use the scalar interpreter implementation on every supported
-JDK. No extra dependency, JVM flag, or machine-factory configuration is required.
+The runtime and build-time compilers do not support SIMD: compiling a module that uses `v128` instructions fails, so such modules must run in the interpreter.
 
 :::warning
-SIMD support **REQUIRES** validation. Disabling validation (`WasmModule.builder().withValidation(false)`) is likely to produce incorrect results.
+SIMD execution relies on validation. Keep it enabled (the default) for modules that use `v128`.
 :::
-
-### Migration
-
-The `run.endive:simd` module is gone. If your application declares it and uses
-`SimdInterpreterMachine`, remove that dependency and the explicit
-`withMachineFactory(SimdInterpreterMachine::new)` call; the default machine from
-`run.endive:runtime` now executes `v128` instructions.
 
 <!--
 ```java

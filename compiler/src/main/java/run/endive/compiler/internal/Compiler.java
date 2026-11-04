@@ -1842,8 +1842,8 @@ public final class Compiler {
         int funcId = slots + 2;
 
         List<Integer> validIds = new ArrayList<>();
-        for (int i = 0; i < functionTypes.size(); i++) {
-            if (isFuncTypeMatch(typeId, i, type) && startFunc <= i && i < endFunc) {
+        for (int i = startFunc; i < endFunc; i++) {
+            if (isFuncTypeMatch(typeId, i, type)) {
                 validIds.add(i);
             }
         }

@@ -55,6 +55,16 @@ public final class WatGenerator {
                 "/run/endive/corpus/method_too_large.wat", Map.of("instructions", instructions));
     }
 
+    public static String callIndirectTargets(int funcCount) {
+        ArrayList<Integer> functions = new ArrayList<>();
+        for (int i = 0; i < funcCount; i++) {
+            functions.add(i);
+        }
+
+        return render(
+                "/run/endive/corpus/call_indirect_targets.wat", Map.of("functions", functions));
+    }
+
     private static String render(String template, Map<String, Object> map) {
         VelocityEngine velocityEngine = new VelocityEngine();
         velocityEngine.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");

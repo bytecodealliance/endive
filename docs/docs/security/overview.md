@@ -4,8 +4,6 @@ sidebar_label: Security Model
 title: Security Model
 ---
 
-# Security Model
-
 Endive executes WebAssembly modules inside the JVM. Understanding the security boundaries is essential when running untrusted code.
 
 ## The Wasm Sandbox

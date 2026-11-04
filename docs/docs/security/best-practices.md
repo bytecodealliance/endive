@@ -4,8 +4,6 @@ sidebar_label: Best Practices
 title: Security Best Practices
 ---
 
-# Security Best Practices
-
 Practical guidance for running Wasm modules securely with Endive.
 
 ## Writing Safe Host Functions

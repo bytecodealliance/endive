@@ -3,14 +3,9 @@ sidebar_position: 3
 sidebar_label: Linking
 title: Linking
 ---
-# Linking
+A [Store](https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#store%E2%91%A0) collects host functions, globals, memories, tables and named instances, so that modules can import from each other.
 
-In the [Host Functions section](host-functions.md) we met the `Store` for the first-time.
-
-A [Store][spec] is an intermediate-level abstraction that collects Wasm function, global, memory, and table instances
-as named entities. It simplifies creating instances, especially when there are a lot of interdependencies.
-
-In the simplest case, it allows to register single host functions, globals, memories and tables. For instance, we already saw how to register a `console.log()` host function to the `Store`:
+In the simplest case it registers single host functions, globals, memories and tables, as in the `console.log` example from [Host Functions](host-functions.md):
 
 <!--
 ```java
@@ -78,8 +73,6 @@ memories and tables with matching names.
 
 - A `Store` _does not_ resolve interdependencies between modules in itself: if your set of modules
 have interdependencies, you will have to instantiate and register them in the right order.
-
-[spec]: https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#store%E2%91%A0
 
 <!--
 ```java

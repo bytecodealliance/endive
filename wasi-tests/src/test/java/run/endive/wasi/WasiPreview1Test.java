@@ -500,6 +500,60 @@ public class WasiPreview1Test {
         }
     }
 
+    @Test
+    public void emptyPathReturnsEnoent() throws IOException {
+        Path dir = java.nio.file.Files.createTempDirectory("wasi-empty-path-test");
+        try (var wasi = wasiWithDirectory(dir.toString(), dir)) {
+            var memory = new ByteBufferMemory(new MemoryLimits(1));
+            int enoent = WasiErrno.ENOENT.value();
+            assertEquals(enoent, wasi.pathRemoveDirectory(3, ""));
+            assertTrue(exists(dir));
+
+            writeString(dir.resolve("file.txt"), "hello");
+            assertEquals(enoent, wasi.pathCreateDirectory(3, ""));
+            assertEquals(enoent, wasi.pathFilestatGet(memory, 3, 0, "", 0));
+            assertEquals(enoent, wasi.pathFilestatSetTimes(3, 0, "", 0, 0, WasiFstFlags.MTIM_NOW));
+            assertEquals(enoent, wasi.pathLink(3, 0, "", 3, "link.txt"));
+            assertEquals(enoent, wasi.pathLink(3, 0, "file.txt", 3, ""));
+            assertEquals(enoent, wasi.pathReadlink(memory, 3, "", 0, 64, 128));
+            assertEquals(enoent, wasi.pathRename(3, "", 3, "moved"));
+            assertEquals(enoent, wasi.pathRename(3, "file.txt", 3, ""));
+            assertEquals(enoent, wasi.pathSymlink("", 3, "link.txt"));
+            assertEquals(enoent, wasi.pathSymlink("file.txt", 3, ""));
+            assertEquals(enoent, wasi.pathUnlinkFile(3, ""));
+            assertFalse(exists(dir.resolve("link.txt"), NOFOLLOW_LINKS));
+            assertEquals("hello", readString(dir.resolve("file.txt")));
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    @Test
+    public void pathOperationsOnTheDirectoryItself() throws IOException {
+        Path dir = java.nio.file.Files.createTempDirectory("wasi-self-path-test");
+        try {
+            Path a = createDirectory(dir.resolve("a"));
+            Path b = createDirectory(dir.resolve("b"));
+            createDirectory(b.resolve("sub"));
+            var options = WasiOptions.builder().withDirectory("a", a).withDirectory("b", b).build();
+            try (var wasi = WasiPreview1.builder().withOptions(options).build()) {
+                int einval = WasiErrno.EINVAL.value();
+                assertEquals(einval, wasi.pathRemoveDirectory(3, "."));
+                assertEquals(einval, wasi.pathRemoveDirectory(4, "sub/.."));
+                assertTrue(exists(a));
+
+                int ebusy = WasiErrno.EBUSY.value();
+                assertEquals(ebusy, wasi.pathRename(3, ".", 4, "moved"));
+                assertEquals(ebusy, wasi.pathRename(4, "sub", 3, "."));
+                assertTrue(exists(a));
+                assertTrue(exists(b.resolve("sub")));
+                assertFalse(exists(b.resolve("moved")));
+            }
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
     private static void deleteRecursively(Path dir) throws IOException {
         try (var paths = java.nio.file.Files.walk(dir)) {
             paths.sorted(java.util.Comparator.reverseOrder())

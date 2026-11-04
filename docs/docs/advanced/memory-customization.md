@@ -10,10 +10,6 @@ title: Advanced Wasm Memory Customization
 
 docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "count_vowels.rs.wasm");
 
-System.setOut(new PrintStream(
-  new BufferedOutputStream(
-    new FileOutputStream("docs/examples/rust.md.result"))));
-
 import run.endive.wasm.Parser;
 import run.endive.runtime.Instance;
 import run.endive.runtime.ByteArrayMemory;

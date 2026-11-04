@@ -86,7 +86,7 @@ The runtime and build-time compilers translate Wasm to JVM bytecode for performa
 
 ## Dependency Supply Chain
 
-- All Endive dependencies are checked against the [Bytecode Alliance allowed license list](/docs/security/overview) in CI
+- All Endive dependencies are checked in CI against the Bytecode Alliance allowed license list
 - Dependency vulnerabilities are scanned nightly via OWASP Dependency-Check
 - Dependabot is enabled for automated security updates
 - All dependency updates are manually reviewed before merging

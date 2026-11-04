@@ -49,8 +49,7 @@ System.setOut(new PrintStream(
 
 ## wat2wasm
 
-In Endive, we don't have a Wasm text format parser just yet.
-To overcome this limitation you can use `wat2wasm`, for example:
+Endive does not parse the Wasm text format. Use `wat2wasm` to convert text to binary:
 
 ```java
 import run.endive.wabt.Wat2Wasm;

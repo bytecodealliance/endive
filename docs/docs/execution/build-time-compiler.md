@@ -9,12 +9,9 @@ title: Build Time Compilation
 The compiler translates Wasm to JVM bytecode without post-compilation verification. Only compile Wasm modules you trust. See [Security Model](/docs/security/overview).
 :::
 
-The build time compiler backend is a drop-in replacement for the interpreter, and it passes 100% of the same 
-spec tests that the interpreter already supports.
-
-This compiler translates the WASM instructions to Java bytecode and stores them as `.class` files
-that you package in your application.  The resulting code is usually expected to evaluate (much) faster and 
-consume less memory than if it was interpreted.
+The build-time compiler translates Wasm functions to JVM bytecode and stores them as `.class` files
+that you package in your application. Compiled code runs much faster and uses less memory than interpreted code.
+Modules that use SIMD (`v128`) instructions cannot be compiled and must run in the interpreter.
 
 The build time compiler has several advantages over the [Runtime Compiler](runtime-compiler.md) such as: 
 

@@ -173,9 +173,7 @@ var wasi = WasiOptions.builder().
 
 ## disk
 
-We provide limited support for operations on the disk, we only test on a Virtual FileSystem and we encourage you to use the same. We use [Google's Jimfs](https://github.com/google/jimfs).
-
-Example code to use the disk looks like:
+File access goes through a virtual file system, which confines the guest to the directories you map. The example uses [Google's Jimfs](https://github.com/google/jimfs):
 
 <!--
 ```java

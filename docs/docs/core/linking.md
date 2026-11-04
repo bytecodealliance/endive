@@ -71,9 +71,8 @@ For instance, the exported function `logIt` will be visible by other modules as 
 
     However, in most cases we recommend to use the shorthand form.
 
-- Also notice that registering two instances with the same name results in overwriting the
-functions, globals, memories, tables with matching names. In this case, the new `logger2.logIt` function
-overwrote the old `logger2.logIt` function.
+- Registering a second instance under a name already in use overwrites the functions, globals,
+memories and tables with matching names.
 
 - The current `Store` is a mutable object, not meant to be shared (it is not thread-safe).
 

@@ -502,6 +502,28 @@ public class WasiPreview1Test {
     }
 
     @Test
+    public void createFileInSymlinkedDirectory(@TempDir Path tempDir) throws IOException {
+        Path real = createDirectory(tempDir.resolve("real"));
+        Path link = createSymbolicLink(tempDir.resolve("link"), real);
+        try (var wasi = wasiWithDirectory("dir", link)) {
+            var memory = new ByteBufferMemory(new MemoryLimits(1));
+            assertEquals(
+                    WasiErrno.ESUCCESS.value(),
+                    wasi.pathOpen(
+                            memory,
+                            3,
+                            WasiLookupFlags.SYMLINK_FOLLOW,
+                            "new.txt",
+                            WasiOpenFlags.CREAT,
+                            WasiRights.FD_WRITE,
+                            0,
+                            0,
+                            0));
+            assertTrue(exists(real.resolve("new.txt")));
+        }
+    }
+
+    @Test
     public void symlinkEscapeShouldReturnEacces() throws IOException {
         Path tmpDir = java.nio.file.Files.createTempDirectory("wasi-symlink-test");
         try {

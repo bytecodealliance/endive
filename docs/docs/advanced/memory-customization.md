@@ -19,20 +19,31 @@ var module = Parser.parse(new File("count_vowels.rs.wasm"));
 ```
 -->
 
-You can replace the `Memory` implementation backing a module through `withMemoryFactory`.
-Workloads use memory in very different ways, so benchmark before changing it:
+Endive ships two implementations of linear memory, and `withMemoryFactory` selects which one backs an instance:
 
 ```java
-var instance = Instance.builder(module).withMemoryFactory(limits -> {
-        return new ByteArrayMemory(limits);
-    }).build();
+var instance = Instance.builder(module).
+        withMemoryFactory(ByteArrayMemory::new).
+        build();
 ```
 
-:::note
-Endive provides two built-in Memory implementations:
-- `ByteArrayMemory`: An optimized memory implementation, recommended for recent OpenJDK systems
-- `ByteBufferMemory`: Recommended for different Java runtimes (in particular, on Android VMs)
-:::
+## Choosing an implementation
+
+| Implementation | Plain loads and stores | Atomic instructions | Works on |
+|---|---|---|---|
+| `ByteBufferMemory` (default) | Good | Always take a lock | Every JDK and Android |
+| `ByteArrayMemory` | Fastest on every JDK | Lock-free up to JDK 21, locked from JDK 23 | Every JDK |
+
+Atomic instructions only matter for modules built with the threads proposal that share their memory between threads.
+For everything else `ByteArrayMemory` is the faster choice on a standard JVM, and `ByteBufferMemory` is the safe default where that cannot be assumed, such as Android.
+From JDK 23 the JDK no longer provides lock-free multi-byte atomics on byte arrays, so a shared memory performs the same with either implementation there.
+
+Workloads use memory in very different ways, so benchmark before changing the default.
+
+[Redline](../experimental/redline.md#native-memory) keeps linear memory off-heap with lock-free atomics; that memory comes with the Redline runners and is not selectable here.
+
+Any class implementing `Memory` can be passed to `withMemoryFactory`, for example an off-heap implementation of your own.
+The factory receives the module's declared limits, or the ones set with [`withMemoryLimits`](../core/memory.md#limiting-memory-growth).
 
 <!--
 ```java

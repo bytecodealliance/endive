@@ -14,7 +14,7 @@ Endive can run a Wasm module in three ways: interpreted, compiled to JVM bytecod
 
 The interpreter needs nothing beyond `run.endive:runtime`.
 Both compilers translate each Wasm function to a JVM method and can leave functions too large to compile to the interpreter.
-Neither supports SIMD yet, and SIMD execution relies on validation, so keep it enabled for modules that use `v128`.
+Neither supports SIMD. The interpreter's SIMD support relies on validation, so do not disable it for modules that use `v128`.
 
 [Redline](../experimental/redline.md) is an experimental fourth option that compiles the module to native code at build time.
 

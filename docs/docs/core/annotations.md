@@ -3,10 +3,41 @@ sidebar_position: 4
 sidebar_label: Annotations
 title: Annotations
 ---
-## Host Modules
+The annotation processor generates host functions from annotated Java methods, and typed Java bindings from a Wasm module, so you do not write the `HostFunction` boilerplate by hand.
 
-Instead of writing host functions by hand, you can annotate the methods of a class and let the Endive annotation processor generate the host functions for you.
-This is especially useful when you have many host functions.
+## Setup
+
+Add the annotations dependency:
+
+```xml
+<dependency>
+  <groupId>run.endive</groupId>
+  <artifactId>annotations</artifactId>
+  <version>${endive.version}</version>
+</dependency>
+```
+
+and register `annotations-processor` as an annotation processor of the Java compiler, with Maven:
+
+```xml
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <configuration>
+    <annotationProcessorPaths>
+      <path>
+        <groupId>run.endive</groupId>
+        <artifactId>annotations-processor</artifactId>
+        <version>${endive.version}</version>
+      </path>
+    </annotationProcessorPaths>
+  </configuration>
+</plugin>
+```
+
+## Host modules
+
+Annotate the methods of a class and the processor generates one host function per method:
 
 <!--
 ```java
@@ -18,9 +49,8 @@ This is especially useful when you have many host functions.
 ```java
 @HostModule("demo")
 public final class Demo {
-    
-    public Demo() {}
-    
+    private final Random random = new Random();
+
     @WasmExport
     public long add(int a, int b) {
         return a + b;
@@ -110,37 +140,6 @@ This annotation generates several things, depending on the provided module:
 - `ModuleImports`: Represents the module's imported host functions and includes a convenient `toImportValues()` method to obtain ImportValues after implementing the interfaces.
 
 You can find examples of how to use the generated code in the [`annotations/it` folder of the repository](https://github.com/bytecodealliance/endive/tree/main/annotations/it).
-
-## Enabling the Annotation Processor
-
-In order to use host modules, you need to import the relevant annotations, e.g. in Maven:
-
-```xml
-<dependency>
-  <groupId>run.endive</groupId>
-  <artifactId>annotations</artifactId>
-  <version>${endive.version}</version>
-</dependency>
-```
-
-and configure the Java compiler to include the Endive `annotations-processor` as an annotation processor.
-Exactly how this is done depends on the build system you are using, for instance, with Maven:
-
-```xml
-<plugin>
-  <groupId>org.apache.maven.plugins</groupId>
-  <artifactId>maven-compiler-plugin</artifactId>
-  <configuration>
-    <annotationProcessorPaths>
-      <path>
-        <groupId>run.endive</groupId>
-        <artifactId>annotations-processor</artifactId>
-        <version>${endive.version}</version>
-      </path>
-    </annotationProcessorPaths>
-  </configuration>
-</plugin>
-```
 
 <!--
 ```java

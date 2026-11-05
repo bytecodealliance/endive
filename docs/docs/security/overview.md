@@ -43,7 +43,7 @@ The critical trust boundary is between **Wasm guest code** and **host functions*
 ## What the Sandbox Does NOT Guarantee
 
 - **CPU limits**: Wasm modules can execute infinite loops. The host must enforce timeouts (see [CPU Limits](/docs/security/cpu-limits)).
-- **Memory growth limits**: Modules can request memory growth up to the declared maximum. The host should set appropriate limits (see [Limiting memory growth](/docs/core/memory#limiting-memory-growth)).
+- **Memory growth limits**: Modules can request memory growth up to the declared maximum. The host should set appropriate limits (see [Limiting memory growth](/docs/core/memory#limiting-memory-growth)). Those limits cover linear memory only: WasmGC structs and arrays are allocated on the JVM heap.
 - **Post-compilation verification**: The build-time and runtime compilers translate Wasm to JVM bytecode without a separate verification pass. For maximum assurance with untrusted code, prefer the interpreter.
 - **Cache integrity**: The [directory-based compiler cache](/docs/execution/compiler-cache/#the-directory-cache) does not verify bytecode integrity on load. Protect cache directories with restrictive permissions.
 

@@ -41,7 +41,6 @@ docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "your.wasm");
 ```java
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.wasm.Parser;
-import run.endive.wasm.WasmModule;
 
 var module = Parser.parse(new File("your.wasm"));
 var instance = Instance.builder(module).
@@ -85,7 +84,7 @@ Compiled methods are named `func_0`, `func_1`, and so on.
 ### Releasing function bodies
 
 After compilation the parsed function bodies are only needed by the interpreter.
-To let the garbage collector reclaim them, build the instance from `compileModule()` instead of `compile()`:
+To let the garbage collector reclaim them and keep the instance's footprint small, build the instance from `compileModule()` instead of `compile()`:
 
 ```java
 var compiled = MachineFactoryCompiler.builder(Parser.parse(new File("your.wasm"))).compileModule();

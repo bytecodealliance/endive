@@ -1,7 +1,7 @@
 ---
 sidebar_position: 50
 sidebar_label: WASI P1
-title: Wasi Preview 1
+title: WASI Preview 1
 ---
 <!--
 ```java
@@ -64,7 +64,6 @@ docs.FileOps.copyFromWasmCorpus("hello-wasi.wat.wasm", "hello-wasi.wasm");
 -->
 
 ```java
-import run.endive.log.SystemLogger;
 import run.endive.wasi.WasiOptions;
 import run.endive.wasi.WasiPreview1;
 import run.endive.wasm.Parser;
@@ -72,7 +71,6 @@ import run.endive.runtime.Store;
 
 import java.io.File;
 
-var logger = new SystemLogger();
 // let's just use the default options for now
 var options = WasiOptions.builder().build();
 // create our instance of wasip1
@@ -121,7 +119,7 @@ var wasi = WasiPreview1.builder().withOptions(wasiOpts).build();
 // greet-wasi is a rust program that greets the string passed in stdin
 var store = new Store().addFunction(wasi.toHostFunctions());
 // instantiating will execute the module if it's a WASI command-pattern module
-store.instantiate("hello-wasi", Parser.parse(new File("greet-wasi.wasm")));
+store.instantiate("greet-wasi", Parser.parse(new File("greet-wasi.wasm")));
 
 
 // check that we output the greeting

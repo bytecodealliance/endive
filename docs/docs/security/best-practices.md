@@ -13,7 +13,7 @@ Host functions are the primary attack surface — they cross the sandbox boundar
 **Always validate arguments from Wasm:**
 
 ```java title="Example"
-HostFunction readMemory = (Instance instance, long... args) -> {
+WasmFunctionHandle readMemory = (Instance instance, long... args) -> {
     int offset = (int) args[0];
     int length = (int) args[1];
 

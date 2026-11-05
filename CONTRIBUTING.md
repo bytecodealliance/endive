@@ -12,6 +12,7 @@ But first, read this page (including the small print at the end).
   + [Coding Guidelines](#coding-guidelines)
   + [Continuous Integration](#continuous-integration)
   + [Tests and documentation are not optional](#tests-and-documentation-are-not-optional)
+  + [Writing docs](#writing-docs)
 * [Reporting an issue](#reporting-an-issue)
 * [AI Tool Use Policy](#ai-tool-use-policy)
 * [Legal](#legal)
@@ -158,6 +159,17 @@ To automatically apply and approve e new version of the "Golden samples" used by
 ```
 APPROVAL_TESTS_USE_REPORTER=AutoApproveReporter
 ```
+
+### Writing docs
+
+The website lives in `docs/` (see [its README](docs/README.md) for the build). Every page under `docs/docs/` follows these rules:
+
+- Describe how to use a feature, not how it is implemented. Internals belong in Javadoc or in the pull request description.
+- No release-time or migration statements. Those go in a blog post; breaking changes relative to Chicory go in the migration guide.
+- One code sample per option. Show a builder once per page.
+- Body headings start at `##`; the frontmatter `title` is the page heading. Open every page with one plain sentence saying what it covers, which becomes its description in `llms.txt`.
+- Names: Wasm, interpreter, runtime compiler, build-time compiler. Version placeholder: `${endive.version}`.
+- Every page is executed by `npm test` in `docs/`: keep the hidden `//DEPS` and `docs.FileOps.writeResult(...)` blocks, and update `docs/tests/approvals/` when a page moves.
 
 ## Reporting an issue
 

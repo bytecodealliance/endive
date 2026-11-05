@@ -27,8 +27,7 @@ Every documentation page also has a **raw Markdown** version available by append
 Fetch `llms-full.txt` and include it in your prompt context:
 
 ```bash
-curl -s https://endive.run/llms-full.txt | wc -c
-# ~86 KB — fits easily in any modern LLM context window
+curl -s https://endive.run/llms-full.txt
 ```
 
 ### Let an AI agent discover relevant pages

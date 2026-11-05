@@ -15,9 +15,6 @@ Without imports a module is pure compute: it cannot perform I/O or interact with
 
 ## Writing a host function
 
-A host function is called from Wasm but runs in the JVM, so it can do anything your Java code can.
-That is also what makes it a security boundary when the module is untrusted.
-
 Download the following module, which imports a `console.log` function:
 
 ```bash
@@ -33,9 +30,7 @@ docs.FileOps.copyFromWasmCorpus("host-function.wat.wasm", "logger.wasm");
 ```
 -->
 
-This module expects us to fulfil an import with the name `console.log`. 
-As the name implies, this function allows a caller to log a message to standard output.
-We could write it as the host function:
+The module expects an import named `console.log` that prints a message, written as a host function like this:
 
 <!--
 ```java

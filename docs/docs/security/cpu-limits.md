@@ -8,7 +8,7 @@ Wasm modules can loop forever, so untrusted code needs a timeout. Endive offers 
 
 ## Interrupts
 
-Wasm modules executed using Endive honour the carrier thread interruption mechanism, thus you can leverage it to implement absolute timeouts:
+Endive checks the interrupt flag of the thread running the module, so interrupting that thread stops the execution with a `WasmInterruptedException`:
 
 ```bash
 curl https://raw.githubusercontent.com/bytecodealliance/endive/main/wasm-corpus/src/main/resources/compiled/infinite-loop.c.wasm > infinite-loop.wasm
@@ -54,6 +54,7 @@ Or using an `ExecutorService`:
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 ExecutorService service = Executors.newSingleThreadExecutor();
 var future = service.submit(() -> function.apply());

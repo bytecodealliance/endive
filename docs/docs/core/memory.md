@@ -3,7 +3,7 @@ sidebar_position: 2
 sidebar_label: Memory
 title: Memory
 ---
-The `Memory` class reads and writes a module's linear memory, which is how anything beyond integers and floats crosses the boundary.
+`Memory` reads and writes a module's linear memory, which is how anything beyond integers and floats crosses the boundary.
 Wasm functions only take and return numbers, so more complex values are passed as pointers into that memory.
 Let's look at an example where we have a module `count_vowels.wasm`, written in Rust, that takes a string input and counts the number of vowels
 in the string:
@@ -83,7 +83,10 @@ var limited = Instance.builder(Parser.parse(new File("./count_vowels.wasm"))).
         build();
 ```
 
-Past the maximum, `memory.grow` fails inside the module. The override applies to the memory the module defines; an imported memory keeps the limits it was created with.
+Past the maximum, `memory.grow` fails inside the module and the instance keeps running.
+The override applies to the first memory the module defines; an imported memory keeps the limits it was created with.
+Memory limits bound linear memory only: structs and arrays allocated by a [GC](gc-types.md) module live on the JVM heap and are bounded only by its size.
+To change which implementation backs the memory, see [Memory Customization](../advanced/memory-customization.md).
 
 <!--
 ```java

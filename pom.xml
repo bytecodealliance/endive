@@ -66,7 +66,7 @@
     <commons-io.version>2.22.0</commons-io.version>
     <commons-lang.version>3.21.0</commons-lang.version>
     <jackson-annotations.version>2.22</jackson-annotations.version>
-    <jffi.version>1.4.5</jffi.version>
+    <jffi.version>1.4.7</jffi.version>
     <jackson-databind.version>2.22.4</jackson-databind.version>
     <javaparser.version>3.28.2</javaparser.version>
     <zip4j.version>2.11.6</zip4j.version>
@@ -79,7 +79,7 @@
 
     <build-helper-maven-plugin.version>3.6.2</build-helper-maven-plugin.version>
     <checkstyle.version>14.4.0</checkstyle.version>
-    <error-prone.version>2.51.0</error-prone.version>
+    <error-prone.version>2.52.0</error-prone.version>
     <flatten-maven-plugin.version>1.8.0</flatten-maven-plugin.version>
     <maven-antrun-plugin.version>3.2.0</maven-antrun-plugin.version>
     <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
@@ -103,7 +103,7 @@
     <central-publishing-maven-plugin.version>0.12.0</central-publishing-maven-plugin.version>
     <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
     <inlay-maven-plugin.version>0.0.4</inlay-maven-plugin.version>
-    <spotless-maven-plugin.version>3.10.4</spotless-maven-plugin.version>
+    <spotless-maven-plugin.version>3.11.0</spotless-maven-plugin.version>
     <templating-maven-plugin.version>3.1.1</templating-maven-plugin.version>
     <maven-file-management.version>3.2.0</maven-file-management.version>
     <google-compile-testing.version>0.24.0</google-compile-testing.version>

@@ -34,8 +34,7 @@ final class TempSlotCalculators {
             CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
         var type = module.typeSection().getType((int) ins.operand(0));
         if (hasTooManyParameters(type)) {
-            // the boxed arguments and the funcTableIdx
-            return paramSlots(type) + 1;
+            return 1 + paramSlots(type); // funcTableIdx, then the boxed arguments
         }
         return 0;
     }
@@ -82,11 +81,8 @@ final class TempSlotCalculators {
     static int callRef(
             CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
         var type = module.typeSection().getType((int) ins.operand(0));
-        // the funcref, above the boxed arguments
-        if (hasTooManyParameters(type)) {
-            return paramSlots(type) + 1;
-        }
-        return 1;
+        // funcref, then the boxed arguments
+        return 1 + (hasTooManyParameters(type) ? paramSlots(type) : 0);
     }
 
     static int structNew(

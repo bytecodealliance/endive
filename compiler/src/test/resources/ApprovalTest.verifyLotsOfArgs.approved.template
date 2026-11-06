@@ -275,12 +275,6 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     ARETURN
 
   public static func_1([J[Ljava/lang/Object;Lrun/endive/runtime/Memory;Lrun/endive/runtime/Instance;)I
-    ALOAD 1
-    IFNONNULL L0
-    SIPUSH 300
-    ANEWARRAY java/lang/Object
-    ASTORE 1
-   L0
     ALOAD 0
     ICONST_0
     LALOAD
@@ -306,8 +300,15 @@ final class run/endive/$gen/CompiledMachineFuncGroup_0 {
     L2I
     ISTORE 10
     ALOAD 1
+    DUP
+    IFNONNULL L0
+    POP
+    ACONST_NULL
+    GOTO L1
+   L0
     ICONST_5
     AALOAD
+   L1
     ASTORE 11
     ALOAD 0
     BIPUSH 6

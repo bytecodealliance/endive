@@ -29,15 +29,8 @@ import run.endive.wasm.types.ExternalType;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.ValType;
 
-/**
- * Functions with more than 251 parameter slots receive their arguments boxed in a long[] (and an
- * Object[] for object references). Their locals must still start at zero, object references must
- * still reach them, and the call_indirect and call_ref bridges, which take four extra JVM
- * parameters, must fit into a JVM method signature too.
- */
+// Functions with too many parameter slots for a JVM signature get their arguments boxed
 public class ManyParamsAbiTest {
-
-    private static final int MAX_UNBOXED_PARAM_SLOTS = 251;
 
     private static final int PARAMS = 254;
 
@@ -58,20 +51,17 @@ public class ManyParamsAbiTest {
                         (Function<WasmModule, Function<Instance, Machine>>)
                                 module ->
                                         MachineFactoryCompiler.builder(module)
-                                                .withInterpretedFunctions(boxedFunctions(module))
+                                                .withInterpretedFunctions(manyParams(module))
                                                 .compile()));
     }
 
-    private static Set<Integer> boxedFunctions(WasmModule module) {
+    // the callees in these modules, boxed or just below the threshold
+    private static Set<Integer> manyParams(WasmModule module) {
         int imports = module.importSection().count(ExternalType.FUNCTION);
         var functions = new HashSet<Integer>();
         for (int i = 0; i < module.functionSection().functionCount(); i++) {
             var type = module.functionSection().getFunctionType(i, module.typeSection());
-            int slots = 0;
-            for (var param : type.params()) {
-                slots += param.equals(ValType.I64) || param.equals(ValType.F64) ? 2 : 1;
-            }
-            if (slots > MAX_UNBOXED_PARAM_SLOTS) {
+            if (type.params().size() > 100) {
                 functions.add(imports + i);
             }
         }
@@ -113,37 +103,62 @@ public class ManyParamsAbiTest {
         assertEquals(41, instance.export("last_param").apply()[0]);
     }
 
-    private static Instance refsInstance(
-            Function<WasmModule, Function<Instance, Machine>> machine) {
+    // a host import taking an externref and PARAMS i32s
+    private static HostFunction bigHost(
+            String name, List<ValType> results, Function<Object, CallResult> body) {
         var params = new ArrayList<ValType>();
         params.add(ValType.ExternRef);
         params.addAll(Collections.nCopies(PARAMS, ValType.I32));
-        var big =
-                new HostFunction(
-                        "host",
-                        "big",
-                        FunctionType.of(params, List.of(ValType.I32)),
-                        new WasmFunctionHandle() {
-                            @Override
-                            public long[] apply(Instance instance, long... args) {
-                                throw new UnsupportedOperationException("use applyWithRefs");
-                            }
+        return new HostFunction(
+                "host",
+                name,
+                FunctionType.of(params, results),
+                new WasmFunctionHandle() {
+                    @Override
+                    public long[] apply(Instance instance, long... args) {
+                        throw new UnsupportedOperationException("use applyWithRefs");
+                    }
 
-                            @Override
-                            public CallResult applyWithRefs(
-                                    Instance instance, long[] args, Object[] refArgs) {
-                                long same = refArgs != null && refArgs[0] == HOST_OBJECT ? 1 : 0;
-                                return CallResult.of(new long[] {same}, null);
-                            }
-                        });
+                    @Override
+                    public CallResult applyWithRefs(
+                            Instance instance, long[] args, Object[] refArgs) {
+                        return body.apply(refArgs == null ? null : refArgs[0]);
+                    }
+                });
+    }
+
+    private static Instance refsInstance(
+            Function<WasmModule, Function<Instance, Machine>> machine) {
+        var big =
+                bigHost(
+                        "big",
+                        List.of(ValType.I32),
+                        ref -> CallResult.of(new long[] {ref == HOST_OBJECT ? 1 : 0}, null));
+        var pair =
+                bigHost(
+                        "big_pair",
+                        List.of(ValType.I32, ValType.ExternRef),
+                        ref ->
+                                CallResult.of(
+                                        new long[] {ref == null ? 1 : 0, 0},
+                                        new Object[] {null, ref}));
         return instance(
-                "many_params_refs", machine, ImportValues.builder().addFunction(big).build());
+                "many_params_refs",
+                machine,
+                ImportValues.builder().addFunction(big).addFunction(pair).build());
+    }
+
+    private static void assertPair(CallResult result) {
+        assertEquals(0, result.longResult(0));
+        assertSame(HOST_OBJECT, result.refResult(1));
+    }
+
+    private static CallResult applyRefs(Instance instance, String export) {
+        return instance.export(export).applyWithRefs(new long[1], new Object[] {HOST_OBJECT});
     }
 
     private static long applyWithHostObject(Instance instance, String export) {
-        return instance.export(export)
-                .applyWithRefs(new long[1], new Object[] {HOST_OBJECT})
-                .longResult(0);
+        return applyRefs(instance, export).longResult(0);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -164,17 +179,24 @@ public class ManyParamsAbiTest {
         assertEquals(0, applyWithHostObject(instance, "extern_direct"));
         assertEquals(0, applyWithHostObject(instance, "extern_indirect"));
         assertEquals(0, applyWithHostObject(instance, "extern_tail"));
+        assertEquals(0, applyWithHostObject(instance, "extern_tail_indirect"));
+        assertEquals(0, applyWithHostObject(instance, "extern_tail_ref"));
         assertEquals(1, applyWithHostObject(instance, "extern_host"));
         assertEquals(
                 1,
                 instance.export("extern_direct")
                         .applyWithRefs(new long[1], new Object[] {null})
                         .longResult(0));
-        assertSame(
-                HOST_OBJECT,
-                instance.export("extern_identity")
-                        .applyWithRefs(new long[1], new Object[] {HOST_OBJECT})
-                        .refResult(0));
+        assertSame(HOST_OBJECT, applyRefs(instance, "extern_identity").refResult(0));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("machineImplementations")
+    public void multiValueResultsWithRefs(
+            String name, Function<WasmModule, Function<Instance, Machine>> machine) {
+        var instance = refsInstance(machine);
+        assertPair(applyRefs(instance, "pair_direct"));
+        assertPair(applyRefs(instance, "pair_host"));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -194,6 +216,20 @@ public class ManyParamsAbiTest {
                 instance.export("big_extern_identity")
                         .applyWithRefs(new long[PARAMS + 1], refArgs)
                         .refResult(0));
+        // a null externref in refArgs, with a long[] that holds no null marker
+        int bigExtern = functionIndex(instance, "big_extern");
+        var nullRef = new Object[PARAMS + 1];
+        assertEquals(1, instance.getMachine().call(bigExtern, new long[PARAMS + 1], nullRef)[0]);
+    }
+
+    private static int functionIndex(Instance instance, String export) {
+        var exports = instance.module().exportSection();
+        for (int i = 0; i < exports.exportCount(); i++) {
+            if (exports.getExport(i).name().equals(export)) {
+                return exports.getExport(i).index();
+            }
+        }
+        throw new IllegalArgumentException(export);
     }
 
     private static long[] firstPlusLastArgs(int count) {
@@ -242,5 +278,6 @@ public class ManyParamsAbiTest {
                         imports -> instance("many_params_cross_module-import", machine, imports));
         assertEquals(0, applyWithHostObject(instance, "extern_indirect"));
         assertEquals(42, instance.export("indirect_252").apply()[0]);
+        assertPair(applyRefs(instance, "pair_indirect"));
     }
 }

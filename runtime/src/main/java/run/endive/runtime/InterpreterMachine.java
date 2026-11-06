@@ -55,6 +55,11 @@ public class InterpreterMachine implements Machine {
         return call(stack, instance, callStack, funcId, args, null, null, true);
     }
 
+    @Override
+    public long[] call(int funcId, long[] args, Object[] refArgs) throws WasmEngineException {
+        return call(stack, instance, callStack, funcId, args, refArgs, null, true);
+    }
+
     protected long[] call(
             MStack stack,
             Instance instance,

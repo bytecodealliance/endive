@@ -385,7 +385,8 @@ public final class ShadedRefs {
             THROW_UNKNOWN_FUNCTION = Shaded.class.getMethod("throwUnknownFunction", int.class);
 
             AOT_INTERPRETER_MACHINE_CALL =
-                    CompilerInterpreterMachine.class.getMethod("call", int.class, long[].class);
+                    CompilerInterpreterMachine.class.getMethod(
+                            "call", int.class, long[].class, Object[].class);
 
             // Exception handling methods
             CREATE_WASM_EXCEPTION =

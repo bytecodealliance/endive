@@ -1136,9 +1136,7 @@ public final class WasiPreview1 implements Closeable {
 
         try {
             Path dirReal = directory.toRealPath();
-            Path pathReal =
-                    Files.exists(path) ? path.toRealPath() : path.toAbsolutePath().normalize();
-            if (!pathReal.startsWith(dirReal)) {
+            if (!realPath(path).startsWith(dirReal)) {
                 return new ResolvedSymlink(wasiResult(WasiErrno.EACCES));
             }
         } catch (IOException e) {
@@ -1146,6 +1144,21 @@ public final class WasiPreview1 implements Closeable {
         }
 
         return new ResolvedSymlink(path);
+    }
+
+    // The real path of the nearest existing ancestor, followed by the missing names.
+    private static Path realPath(Path path) throws IOException {
+        Path existing = path.toAbsolutePath().normalize();
+        Path missing = existing.getFileSystem().getPath("");
+        while (!Files.exists(existing)) {
+            Path parent = existing.getParent();
+            if (parent == null) {
+                return path.toAbsolutePath().normalize();
+            }
+            missing = existing.getFileName().resolve(missing);
+            existing = parent;
+        }
+        return existing.toRealPath().resolve(missing);
     }
 
     @WasmExport
@@ -1516,9 +1529,21 @@ public final class WasiPreview1 implements Closeable {
         } catch (DirectoryNotEmptyException e) {
             return wasiResult(WasiErrno.ENOTEMPTY);
         } catch (IOException e) {
-            return wasiResult(WasiErrno.EIO);
+            // the default provider reports a non-empty target as a generic exception
+            return wasiResult(isNonEmptyDirectory(newPath) ? WasiErrno.ENOTEMPTY : WasiErrno.EIO);
         }
         return wasiResult(WasiErrno.ESUCCESS);
+    }
+
+    private static boolean isNonEmptyDirectory(Path path) {
+        if (!Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+            return false;
+        }
+        try (Stream<Path> entries = Files.list(path)) {
+            return entries.findAny().isPresent();
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     @WasmExport

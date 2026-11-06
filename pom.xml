@@ -109,7 +109,7 @@
     <google-compile-testing.version>0.24.0</google-compile-testing.version>
     <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
     <wagon-maven-plugin.version>3.0.0</wagon-maven-plugin.version>
-    <zerofs.version>0.1.0</zerofs.version>
+    <zerofs.version>0.2.0</zerofs.version>
   </properties>
 
   <dependencyManagement>

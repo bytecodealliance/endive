@@ -107,4 +107,36 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- ChunkSizeTest uses java.lang.classfile, final since JDK 24 -->
+    <profile>
+      <id>classfile-api</id>
+      <activation>
+        <jdk>[24,)</jdk>
+      </activation>
+      <properties>
+        <maven.compiler.testRelease>24</maven.compiler.testRelease>
+      </properties>
+    </profile>
+    <profile>
+      <id>no-classfile-api</id>
+      <activation>
+        <jdk>(,24)</jdk>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <testExcludes>
+                <testExclude>**/ChunkSizeTest.java</testExclude>
+              </testExcludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

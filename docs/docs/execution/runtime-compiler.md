@@ -171,6 +171,32 @@ characters itself, for example by percent-encoding them.
 The prefix is a hint for humans inspecting a compiled method name. Tools should not parse it, and
 should use the function index instead.
 
+### Method Splitting (experimental)
+
+The JVM does not JIT-compile methods larger than 8000 bytes of bytecode, so a large WASM function
+compiled to a single method always runs in the JVM's bytecode interpreter, however hot it is. With
+method splitting enabled, the compiler splits such functions into several smaller methods that the
+JIT can compile:
+
+```java
+import run.endive.compiler.MachineFactoryCompiler;
+import run.endive.runtime.Instance;
+import run.endive.wasm.Parser;
+import java.io.File;
+
+var module = Parser.parse(new File("your.wasm"));
+var instance = Instance.builder(module).
+        withMachineFactory(
+                MachineFactoryCompiler.builder(module)
+                .withMethodSplitting(true)
+                .compile()
+        ).
+        build();
+```
+
+Functions that cannot be split safely are compiled as before. The compiler prints a line for each
+function it splits unless `InterpreterFallback.SILENT` is set.
+
 ### Caveats 
 
 Please note that compiling and executing Wasm modules at runtime requires:

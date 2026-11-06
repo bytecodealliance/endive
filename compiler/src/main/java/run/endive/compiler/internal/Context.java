@@ -35,6 +35,7 @@ final class Context {
     private final IntFunction<String> callIndirectClassResolver;
     private final IntFunction<String> methodNames;
 
+    // forceFrameLayout: params arrive in a long[] as with too many params (trampoline chunks)
     public Context(
             WasmModule module,
             String internalClassName,
@@ -48,7 +49,8 @@ final class Context {
             boolean[] tailCallTypes,
             IntFunction<String> callIndirectClassResolver,
             int maxTempSlots,
-            IntFunction<String> methodNames) {
+            IntFunction<String> methodNames,
+            boolean forceFrameLayout) {
         this.module = module;
         this.internalClassName = internalClassName;
         this.maxFunctionsPerClass = maxFunctionsPerClass;
@@ -65,9 +67,10 @@ final class Context {
         // compute JVM slot indices for WASM locals
         List<Integer> slots = new ArrayList<>(type.params().size() + body.localTypes().size());
         int slot = 0;
+        boolean longArrayParams = hasTooManyParameters(type) || forceFrameLayout;
 
         // WASM arguments
-        if (hasTooManyParameters(type)) {
+        if (longArrayParams) {
             slot += 1; // long[]
         } else {
             for (ValType param : type.params()) {
@@ -83,7 +86,7 @@ final class Context {
         slot++;
 
         // the long[] gets unboxed
-        if (hasTooManyParameters(type)) {
+        if (longArrayParams) {
             for (ValType param : type.params()) {
                 slots.add(slot);
                 slot += slotCount(param);

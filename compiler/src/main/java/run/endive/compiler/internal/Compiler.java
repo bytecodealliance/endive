@@ -135,7 +135,7 @@ public final class Compiler {
 
     // C2 JIT's HugeMethodLimit (default 8KB) — methods exceeding this get degraded optimization.
     // Dispatch chunks are sized to stay under this limit for full C2 compilation.
-    private static final int HUGE_METHOD_LIMIT = Integer.getInteger("endive.hugeMethodLimit", 8000);
+    static final int HUGE_METHOD_LIMIT = Integer.getInteger("endive.hugeMethodLimit", 8000);
     // Estimated upper bound: tableswitch offset (4) + label + invokestatic (~5) + areturn (1) +
     // overhead
     private static final int ESTIMATED_BYTES_PER_DISPATCH_ENTRY = 40;
@@ -171,6 +171,7 @@ public final class Compiler {
     private final boolean moduleHasTailCalls;
     private final boolean moduleHasObjectRefs;
     private final String[] methodNames;
+    private final Map<Integer, MethodSplitter.Plan> splitPlans;
     private boolean useBridgeClasses;
     private IntFunction<String> callIndirectClassResolver;
 
@@ -181,7 +182,8 @@ public final class Compiler {
             InterpreterFallback interpreterFallback,
             Set<Integer> interpretedFunctions,
             Supplier<ClassCollector> classCollectorFactory,
-            MethodPrefixer methodPrefixer) {
+            MethodPrefixer methodPrefixer,
+            boolean methodSplitting) {
         this.className = requireNonNull(className, "className");
         this.module = requireNonNull(module, "module");
         this.analyzer = new WasmAnalyzer(module);
@@ -220,6 +222,47 @@ public final class Compiler {
         for (int funcId = 0; funcId < this.methodNames.length; funcId++) {
             this.methodNames[funcId] = methodNameForFunc(funcId, prefixer, module);
         }
+        this.splitPlans = methodSplitting ? planMethodSplits() : Map.of();
+    }
+
+    // See compiler/METHOD_SPLITTING.md.
+    private Map<Integer, MethodSplitter.Plan> planMethodSplits() {
+        var plans = new HashMap<Integer, MethodSplitter.Plan>();
+        int funcCount = module.functionSection().functionCount();
+        for (int i = 0; i < funcCount; i++) {
+            int funcId = functionImports + i;
+            if (interpretedFunctions.contains(funcId)) {
+                continue;
+            }
+            var type = functionTypes.get(funcId);
+            var body = module.codeSection().getFunctionBody(i);
+            var analysis = analyzer.analyze(funcId);
+            var ctx = newContext(funcId, type, body, analysis, "measure", false);
+            var plan = MethodSplitter.plan(ctx, analysis.instructions());
+            if (plan == null) {
+                continue;
+            }
+            plans.put(funcId, plan);
+            if (interpreterFallback != InterpreterFallback.SILENT) {
+                String functionDescription = "WASM function index: " + funcId;
+                if (module.nameSection() != null) {
+                    String name = module.nameSection().nameOfFunction(funcId);
+                    if (name != null) {
+                        functionDescription += String.format(" (name: %s)", name);
+                    }
+                }
+                System.err.println(
+                        "Info: "
+                                + functionDescription
+                                + " compiled to "
+                                + plan.totalSize
+                                + " bytes of JVM bytecode, split into "
+                                + plan.chunkCount()
+                                + (plan.isTrampoline() ? " trampolined" : "")
+                                + " chunks to stay JIT-eligible.");
+            }
+        }
+        return plans;
     }
 
     private String methodName(int funcId) {
@@ -265,6 +308,7 @@ public final class Compiler {
         private Set<Integer> interpretedFunctions;
         private Supplier<ClassCollector> classCollectorFactory;
         private MethodPrefixer methodPrefixer;
+        private boolean methodSplitting;
 
         private Builder(WasmModule module) {
             this.module = module;
@@ -300,6 +344,11 @@ public final class Compiler {
             return this;
         }
 
+        public Builder withMethodSplitting(boolean methodSplitting) {
+            this.methodSplitting = methodSplitting;
+            return this;
+        }
+
         public Compiler build() {
             var className = this.className;
             if (className == null) {
@@ -322,7 +371,8 @@ public final class Compiler {
                     interpreterFallback,
                     interpretedFunctions,
                     classCollectorFactory,
-                    methodPrefixer);
+                    methodPrefixer,
+                    methodSplitting);
         }
     }
 
@@ -552,7 +602,12 @@ public final class Compiler {
                                 true,
                                 asm ->
                                         compileFunction(
-                                                internalClassName, funcId, type, bodyCopy, asm));
+                                                classWriter,
+                                                internalClassName,
+                                                funcId,
+                                                type,
+                                                bodyCopy,
+                                                asm));
 
                         // call_xxx() bridges for boxed to native
                         emitFunction(
@@ -742,7 +797,7 @@ public final class Compiler {
                 e);
     }
 
-    private static void emitFunction(
+    static void emitFunction(
             ClassVisitor classWriter,
             String methodName,
             MethodType methodType,
@@ -2097,6 +2152,7 @@ public final class Compiler {
     // implements the body of:
     // public static <TypeR> func_xxx(<TypeN> ArgN..., Memory memory, Instance instance)
     private void compileFunction(
+            ClassVisitor classWriter,
             String internalClassName,
             int funcId,
             FunctionType type,
@@ -2142,23 +2198,15 @@ public final class Compiler {
         var analysis = analyzer.analyze(funcId);
         List<CompilerInstruction> instructions = analysis.instructions();
 
-        var ctx =
-                new Context(
-                        module,
-                        internalClassName,
-                        maxFunctionsPerClass,
-                        analyzer.globalTypes(),
-                        functionTypes,
-                        funcId,
-                        type,
-                        body,
-                        tailCallFunctions,
-                        tailCallTypes,
-                        useBridgeClasses ? callIndirectClassResolver : typeId -> internalClassName,
-                        analysis.maxTempSlots(),
-                        this::methodName);
+        var ctx = newContext(funcId, type, body, analysis, internalClassName, false);
 
-        int localsCount = type.params().size();
+        var splitPlan = splitPlans.get(funcId);
+        if (splitPlan != null) {
+            var frameCtx = newContext(funcId, type, body, analysis, internalClassName, true);
+            MethodSplitter.emit(splitPlan, classWriter, ctx, frameCtx, instructions, asm);
+            return;
+        }
+
         if (hasTooManyParameters(type)) {
             // unbox the arguments from long[]
             for (int i = 0; i < type.params().size(); i++) {
@@ -2174,23 +2222,9 @@ public final class Compiler {
                 }
                 asm.store(ctx.localSlotIndex(i), asmType(param));
             }
-            // since we just converted the arguments to long[].
-            localsCount = 1;
         }
 
-        // initialize local variables to their default values
-        localsCount += body.localTypes().size();
-        for (int i = type.params().size(); i < localsCount; i++) {
-            var localType = localType(type, body, i);
-            var defVal = defaultValue(localType);
-            if (defVal == null) {
-                // GC ref types: default to null (Object)
-                asm.aconst(null);
-            } else {
-                asm.visitLdcInsn(defVal);
-            }
-            asm.store(ctx.localSlotIndex(i), asmType(localType));
-        }
+        emitLocalsDefaultInit(ctx, type, body, asm);
 
         // allocate labels for all label targets
         Map<Long, Label> labels = new HashMap<>();
@@ -2205,64 +2239,115 @@ public final class Compiler {
 
         // compile the function body
         for (CompilerInstruction ins : instructions) {
-            switch (ins.opcode()) {
-                case LABEL:
-                    Label label = labels.get(ins.operand(0));
-                    if (label != null) {
-                        asm.mark(label);
-                        visitedTargets.add(ins.operand(0));
-                    }
-                    break;
-                case GOTO:
-                    if (visitedTargets.contains(ins.operand(0))) {
-                        emitInvokeStatic(asm, CHECK_INTERRUPTION);
-                    }
-                    asm.goTo(labels.get(ins.operand(0)));
-                    break;
-                case IFEQ:
-                    if (visitedTargets.contains(ins.operand(0))) {
-                        throw new WasmEngineException("Unexpected backward jump");
-                    }
-                    asm.ifeq(labels.get(ins.operand(0)));
-                    break;
-                case IFNE:
-                    if (visitedTargets.contains(ins.operand(0))) {
-                        Label skip = new Label();
-                        asm.ifeq(skip);
-                        emitInvokeStatic(asm, CHECK_INTERRUPTION);
-                        asm.goTo(labels.get(ins.operand(0)));
-                        asm.mark(skip);
+            emitInstruction(ctx, labels, visitedTargets, ins, asm);
+        }
+    }
 
-                    } else {
-                        asm.ifne(labels.get(ins.operand(0)));
-                    }
-                    break;
-                case SWITCH:
-                    if (ins.operands().anyMatch(visitedTargets::contains)) {
-                        emitInvokeStatic(asm, CHECK_INTERRUPTION);
-                    }
-                    // table switch using the last entry of the table as the default
-                    Label[] table = new Label[ins.operandCount() - 1];
-                    for (int i = 0; i < table.length; i++) {
-                        table[i] = labels.get(ins.operand(i));
-                    }
-                    Label defaultLabel = labels.get(ins.operand(table.length));
-                    asm.tableswitch(0, table.length - 1, defaultLabel, table);
-                    break;
-                case TRY_CATCH_BLOCK:
-                    asm.visitTryCatchBlock(
-                            labels.get(ins.operand(0)),
-                            labels.get(ins.operand(1)),
-                            labels.get(ins.operand(2)),
-                            getInternalName(WasmException.class));
-                    break;
-                default:
-                    var emitter = EMITTERS.get(ins.opcode());
-                    if (emitter == null) {
-                        throw new WasmEngineException("Unhandled opcode: " + ins.opcode());
-                    }
-                    emitter.emit(ctx, ins, asm);
+    private Context newContext(
+            int funcId,
+            FunctionType type,
+            FunctionBody body,
+            WasmAnalyzer.AnalysisResult analysis,
+            String internalClassName,
+            boolean forceFrameLayout) {
+        return new Context(
+                module,
+                internalClassName,
+                maxFunctionsPerClass,
+                analyzer.globalTypes(),
+                functionTypes,
+                funcId,
+                type,
+                body,
+                tailCallFunctions,
+                tailCallTypes,
+                useBridgeClasses ? callIndirectClassResolver : typeId -> internalClassName,
+                analysis.maxTempSlots(),
+                this::methodName,
+                forceFrameLayout);
+    }
+
+    // initialize local variables to their default values
+    static void emitLocalsDefaultInit(
+            Context ctx, FunctionType type, FunctionBody body, InstructionAdapter asm) {
+        int localsCount = hasTooManyParameters(type) ? 1 : type.params().size();
+        localsCount += body.localTypes().size();
+        for (int i = type.params().size(); i < localsCount; i++) {
+            var localType = localType(type, body, i);
+            var defVal = defaultValue(localType);
+            if (defVal == null) {
+                // GC ref types: default to null (Object)
+                asm.aconst(null);
+            } else {
+                asm.visitLdcInsn(defVal);
             }
+            asm.store(ctx.localSlotIndex(i), asmType(localType));
+        }
+    }
+
+    static void emitInstruction(
+            Context ctx,
+            Map<Long, Label> labels,
+            Set<Long> visitedTargets,
+            CompilerInstruction ins,
+            InstructionAdapter asm) {
+        switch (ins.opcode()) {
+            case LABEL:
+                Label label = labels.get(ins.operand(0));
+                if (label != null) {
+                    asm.mark(label);
+                    visitedTargets.add(ins.operand(0));
+                }
+                break;
+            case GOTO:
+                if (visitedTargets.contains(ins.operand(0))) {
+                    emitInvokeStatic(asm, CHECK_INTERRUPTION);
+                }
+                asm.goTo(labels.get(ins.operand(0)));
+                break;
+            case IFEQ:
+                if (visitedTargets.contains(ins.operand(0))) {
+                    throw new WasmEngineException("Unexpected backward jump");
+                }
+                asm.ifeq(labels.get(ins.operand(0)));
+                break;
+            case IFNE:
+                if (visitedTargets.contains(ins.operand(0))) {
+                    Label skip = new Label();
+                    asm.ifeq(skip);
+                    emitInvokeStatic(asm, CHECK_INTERRUPTION);
+                    asm.goTo(labels.get(ins.operand(0)));
+                    asm.mark(skip);
+
+                } else {
+                    asm.ifne(labels.get(ins.operand(0)));
+                }
+                break;
+            case SWITCH:
+                if (ins.operands().anyMatch(visitedTargets::contains)) {
+                    emitInvokeStatic(asm, CHECK_INTERRUPTION);
+                }
+                // table switch using the last entry of the table as the default
+                Label[] table = new Label[ins.operandCount() - 1];
+                for (int i = 0; i < table.length; i++) {
+                    table[i] = labels.get(ins.operand(i));
+                }
+                Label defaultLabel = labels.get(ins.operand(table.length));
+                asm.tableswitch(0, table.length - 1, defaultLabel, table);
+                break;
+            case TRY_CATCH_BLOCK:
+                asm.visitTryCatchBlock(
+                        labels.get(ins.operand(0)),
+                        labels.get(ins.operand(1)),
+                        labels.get(ins.operand(2)),
+                        getInternalName(WasmException.class));
+                break;
+            default:
+                var emitter = EMITTERS.get(ins.opcode());
+                if (emitter == null) {
+                    throw new WasmEngineException("Unhandled opcode: " + ins.opcode());
+                }
+                emitter.emit(ctx, ins, asm);
         }
     }
 }

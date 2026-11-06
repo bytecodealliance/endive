@@ -1357,7 +1357,7 @@ final class Emitters {
         emitDefaultReturn(ctx, asm);
     }
 
-    private static void emitDefaultReturn(Context ctx, InstructionAdapter asm) {
+    static void emitDefaultReturn(Context ctx, InstructionAdapter asm) {
         FunctionType type = ctx.getType();
         if (type.returns().isEmpty()) {
             asm.areturn(getType(void.class));

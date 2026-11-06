@@ -66,6 +66,7 @@
             <configuration>
               <name>run.endive.testing.ZigModule</name>
               <wasmFile>${project.basedir}/../zig-testsuite/test-opt.wasm</wasmFile>
+              <methodSplitting>true</methodSplitting>
               <!-- <interpreterFallback>WARN</interpreterFallback> -->
               <interpretedFunctions>
                 <function>1216</function>

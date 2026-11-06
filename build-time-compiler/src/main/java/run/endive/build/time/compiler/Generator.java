@@ -69,6 +69,7 @@ public class Generator {
                         .withInterpreterFallback(config.interpreterFallback())
                         .withInterpretedFunctions(config.interpretedFunctions())
                         .withMethodPrefixer(loadMethodPrefixer(config.methodPrefixer()))
+                        .withMethodSplitting(config.methodSplitting())
                         .build();
         var result = compiler.compile();
 

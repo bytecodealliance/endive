@@ -34,11 +34,13 @@ final class CompilerUtil {
 
     private CompilerUtil() {}
 
-    // The maximum number of wasm parameters that can be passed to a function before we box them
-    // since Java
-    // methods have a limit of 255 parameters, but we need to reserve a few for the Instance and
-    // Memory args.
-    private static final int MAX_PARAMETER_COUNT = 253;
+    // funcTableIdx, tableIdx, Memory and Instance: the most any generated method appends
+    private static final Class<?>[] CALL_INDIRECT_EXTRA_PARAMS = {
+        int.class, int.class, Memory.class, Instance.class
+    };
+
+    // wasm parameter slots above this are boxed, to stay within the JVM's 255
+    private static final int MAX_PARAMETER_COUNT = 255 - CALL_INDIRECT_EXTRA_PARAMS.length;
 
     private static final Method LONG_TO_F32;
     private static final Method LONG_TO_F64;
@@ -187,8 +189,7 @@ final class CompilerUtil {
     }
 
     public static MethodType callIndirectMethodType(FunctionType functionType) {
-        return rawMethodTypeFor(functionType)
-                .appendParameterTypes(int.class, int.class, Memory.class, Instance.class);
+        return rawMethodTypeFor(functionType).appendParameterTypes(CALL_INDIRECT_EXTRA_PARAMS);
     }
 
     public static MethodType methodTypeFor(FunctionType type) {
@@ -196,13 +197,48 @@ final class CompilerUtil {
     }
 
     public static boolean hasTooManyParameters(FunctionType type) {
-        return type.params().stream().mapToInt(CompilerUtil::slotCount).sum() > MAX_PARAMETER_COUNT;
+        return paramSlots(type) > MAX_PARAMETER_COUNT;
+    }
+
+    public static int paramSlots(FunctionType type) {
+        return type.params().stream().mapToInt(CompilerUtil::slotCount).sum();
+    }
+
+    // JVM slots taken by the wasm arguments in the method signature
+    public static int argumentSlots(FunctionType type) {
+        int slots = paramSlots(type);
+        if (slots > MAX_PARAMETER_COUNT) {
+            return type.hasObjectRefParams() ? 2 : 1;
+        }
+        return slots;
     }
 
     public static MethodType rawMethodTypeFor(FunctionType type) {
-        var paramsTypes =
-                hasTooManyParameters(type) ? new Class[] {long[].class} : jvmParameterTypes(type);
+        Class<?>[] paramsTypes;
+        if (!hasTooManyParameters(type)) {
+            paramsTypes = jvmParameterTypes(type);
+        } else if (type.hasObjectRefParams()) {
+            paramsTypes = new Class[] {long[].class, Object[].class};
+        } else {
+            paramsTypes = new Class[] {long[].class};
+        }
         return methodType(jvmReturnType(type), paramsTypes);
+    }
+
+    // loads the wasm arguments of a method whose signature starts with them
+    public static void emitLoadArguments(MethodVisitor asm, FunctionType type) {
+        if (hasTooManyParameters(type)) {
+            asm.visitVarInsn(Opcodes.ALOAD, 0); // long[]
+            if (type.hasObjectRefParams()) {
+                asm.visitVarInsn(Opcodes.ALOAD, 1); // Object[]
+            }
+            return;
+        }
+        int slot = 0;
+        for (ValType param : type.params()) {
+            asm.visitVarInsn(asmType(param).getOpcode(Opcodes.ILOAD), slot);
+            slot += slotCount(param);
+        }
     }
 
     public static Class<?>[] jvmTypes(List<ValType> types) {

@@ -190,13 +190,14 @@ final class Emitters {
         emitPop(asm, type);
     }
 
+    // stores the values in the temp slots from firstSlot on, then boxes them into a long[]
     private static void emitBoxValuesOnStack(
-            Context ctx, InstructionAdapter asm, List<ValType> types) {
+            Context ctx, InstructionAdapter asm, List<ValType> types, int firstSlot) {
 
         // Store values from stack to locals in reverse order
         int slotsNeeded = types.stream().mapToInt(CompilerUtil::slotCount).sum();
-        assertTempSlotInRange(ctx, slotsNeeded);
-        int slot = ctx.tempSlot() + slotsNeeded;
+        assertTempSlotInRange(ctx, firstSlot - ctx.tempSlot() + slotsNeeded);
+        int slot = firstSlot + slotsNeeded;
         for (int i = types.size() - 1; i >= 0; i--) {
             ValType valType = types.get(i);
             slot -= slotCount(valType);
@@ -208,7 +209,7 @@ final class Emitters {
         asm.newarray(LONG_TYPE);
 
         // Load from locals and store in array
-        slot = ctx.tempSlot();
+        slot = firstSlot;
         for (int i = 0; i < types.size(); i++) {
             ValType valType = types.get(i);
 
@@ -226,74 +227,6 @@ final class Emitters {
                 asm.astore(LONG_TYPE);
             }
             slot += slotCount(valType);
-        }
-    }
-
-    /**
-     * Boxes values from the JVM operand stack into dual long[] + Object[] arrays.
-     * Numeric values go into long[], GC ref values go into Object[].
-     * After this method, the stack has: [..., long[], Object[]]
-     *
-     * If no values are Object refs, Object[] will be null on stack (zero overhead).
-     */
-    private static void emitBoxValuesOnStackWithRefs(
-            Context ctx, InstructionAdapter asm, List<ValType> types) {
-
-        boolean hasObjectRefs = types.stream().anyMatch(ValType::isObjectRef);
-
-        // Store values from stack to locals in reverse order
-        int slotsNeeded = types.stream().mapToInt(CompilerUtil::slotCount).sum();
-        assertTempSlotInRange(ctx, slotsNeeded);
-        int slot = ctx.tempSlot() + slotsNeeded;
-        for (int i = types.size() - 1; i >= 0; i--) {
-            ValType valType = types.get(i);
-            slot -= slotCount(valType);
-            asm.store(slot, asmType(valType));
-        }
-
-        // Create the long[] array
-        asm.iconst(types.size());
-        asm.newarray(LONG_TYPE);
-
-        // Load from locals and store in long[] (skip Object refs — store 0L)
-        slot = ctx.tempSlot();
-        for (int i = 0; i < types.size(); i++) {
-            ValType valType = types.get(i);
-
-            if (valType.isObjectRef()) {
-                // Object refs can't be stored in long[] — store 0L as placeholder
-                asm.dup();
-                asm.iconst(i);
-                asm.lconst(0L);
-                asm.astore(LONG_TYPE);
-            } else {
-                asm.dup();
-                asm.iconst(i);
-                asm.load(slot, asmType(valType));
-                emitJvmToLong(asm, valType);
-                asm.astore(LONG_TYPE);
-            }
-            slot += slotCount(valType);
-        }
-
-        // Create the Object[] array (or push null if no Object refs)
-        if (hasObjectRefs) {
-            asm.iconst(types.size());
-            asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
-
-            slot = ctx.tempSlot();
-            for (int i = 0; i < types.size(); i++) {
-                ValType valType = types.get(i);
-                if (valType.isObjectRef()) {
-                    asm.dup();
-                    asm.iconst(i);
-                    asm.load(slot, asmType(valType));
-                    asm.astore(OBJECT_TYPE);
-                }
-                slot += slotCount(valType);
-            }
-        } else {
-            asm.aconst(null);
         }
     }
 
@@ -383,13 +316,37 @@ final class Emitters {
         }
     }
 
+    // leaves long[], plus Object[] if the type has object ref params
+    private static void emitBoxArguments(
+            Context ctx, InstructionAdapter asm, FunctionType type, int firstSlot) {
+        var types = type.params();
+        emitBoxValuesOnStack(ctx, asm, types, firstSlot);
+        if (!type.hasObjectRefParams()) {
+            return;
+        }
+        // the Object[] takes the refs from the same temp slots
+        asm.iconst(types.size());
+        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+        int slot = firstSlot;
+        for (int i = 0; i < types.size(); i++) {
+            ValType valType = types.get(i);
+            if (valType.isObjectRef()) {
+                asm.dup();
+                asm.iconst(i);
+                asm.load(slot, asmType(valType));
+                asm.astore(OBJECT_TYPE);
+            }
+            slot += slotCount(valType);
+        }
+    }
+
     public static void CALL(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int funcId = (int) ins.operand(0);
         FunctionType functionType = ctx.functionTypes().get(funcId);
 
         emitInvokeStatic(asm, ShadedRefs.CHECK_INTERRUPTION);
         if (hasTooManyParameters(functionType)) {
-            emitBoxValuesOnStack(ctx, asm, functionType.params());
+            emitBoxArguments(ctx, asm, functionType, ctx.tempSlot());
         }
 
         asm.load(ctx.memorySlot(), OBJECT_TYPE);
@@ -415,7 +372,10 @@ final class Emitters {
         FunctionType functionType = ctx.types()[typeId];
 
         if (hasTooManyParameters(functionType)) {
-            emitBoxValuesOnStack(ctx, asm, functionType.params());
+            int funcTableIdx = ctx.tempSlot();
+            asm.store(funcTableIdx, INT_TYPE);
+            emitBoxArguments(ctx, asm, functionType, funcTableIdx + 1);
+            asm.load(funcTableIdx, INT_TYPE);
         }
 
         // stack: arguments, funcTableIdx, tableIdx, memory, instance
@@ -1268,25 +1228,7 @@ final class Emitters {
         int funcId = (int) ins.operand(0);
         FunctionType calleeType = ctx.functionTypes().get(funcId);
 
-        if (calleeType.hasObjectRefParams()) {
-            // dual long[] + Object[]
-            emitBoxValuesOnStackWithRefs(ctx, asm, calleeType.params());
-            // stack: long[], Object[]
-            int refArgsSlot = ctx.tempSlot();
-            asm.store(refArgsSlot, OBJECT_TYPE); // save Object[]
-            // stack: long[]
-            asm.iconst(funcId);
-            asm.swap(); // funcId, long[]
-            asm.load(refArgsSlot, OBJECT_TYPE); // funcId, long[], Object[]
-            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-            emitInvokeStatic(asm, ShadedRefs.SET_TAIL_CALL_WITH_REFS);
-        } else {
-            emitBoxValuesOnStack(ctx, asm, calleeType.params());
-            asm.iconst(funcId);
-            asm.swap();
-            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-            emitInvokeStatic(asm, ShadedRefs.SET_TAIL_CALL);
-        }
+        emitSetTailCall(ctx, asm, calleeType, ctx.tempSlot(), () -> asm.iconst(funcId));
         emitDefaultReturn(ctx, asm);
     }
 
@@ -1296,26 +1238,18 @@ final class Emitters {
         int tableIdx = (int) ins.operand(1);
         FunctionType calleeType = ctx.types()[typeId];
 
-        int paramSlots = calleeType.params().stream().mapToInt(CompilerUtil::slotCount).sum();
-        int savedSlot = ctx.tempSlot() + paramSlots;
-        asm.store(savedSlot, INT_TYPE);
-
-        if (calleeType.hasObjectRefParams()) {
-            emitBoxValuesOnStackWithRefs(ctx, asm, calleeType.params());
-            // stack: long[], Object[]
-            asm.load(savedSlot, INT_TYPE);
-            asm.iconst(typeId);
-            asm.iconst(tableIdx);
-            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-            emitInvokeStatic(asm, ShadedRefs.SET_TAIL_CALL_INDIRECT_WITH_REFS);
-        } else {
-            emitBoxValuesOnStack(ctx, asm, calleeType.params());
-            asm.load(savedSlot, INT_TYPE);
-            asm.iconst(typeId);
-            asm.iconst(tableIdx);
-            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-            emitInvokeStatic(asm, ShadedRefs.SET_TAIL_CALL_INDIRECT);
-        }
+        int funcTableIdx = ctx.tempSlot();
+        asm.store(funcTableIdx, INT_TYPE);
+        emitBoxArguments(ctx, asm, calleeType, funcTableIdx + 1);
+        asm.load(funcTableIdx, INT_TYPE);
+        asm.iconst(typeId);
+        asm.iconst(tableIdx);
+        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+        emitInvokeStatic(
+                asm,
+                calleeType.hasObjectRefParams()
+                        ? ShadedRefs.SET_TAIL_CALL_INDIRECT_WITH_REFS
+                        : ShadedRefs.SET_TAIL_CALL_INDIRECT);
         emitDefaultReturn(ctx, asm);
     }
 
@@ -1324,12 +1258,11 @@ final class Emitters {
         int typeId = (int) ins.operand(0);
         FunctionType calleeType = ctx.types()[typeId];
 
-        int paramSlots = calleeType.params().stream().mapToInt(CompilerUtil::slotCount).sum();
-        int savedSlot = ctx.tempSlot() + paramSlots;
-        asm.store(savedSlot, INT_TYPE);
+        int funcRef = ctx.tempSlot();
+        asm.store(funcRef, INT_TYPE);
 
         // null check
-        asm.load(savedSlot, INT_TYPE);
+        asm.load(funcRef, INT_TYPE);
         asm.iconst(REF_NULL_VALUE);
         Label notNull = new Label();
         asm.ificmpne(notNull);
@@ -1337,24 +1270,30 @@ final class Emitters {
         asm.athrow();
         asm.mark(notNull);
 
-        if (calleeType.hasObjectRefParams()) {
-            emitBoxValuesOnStackWithRefs(ctx, asm, calleeType.params());
-            // stack: long[], Object[]
-            int refArgsSlot = ctx.tempSlot();
-            asm.store(refArgsSlot, OBJECT_TYPE); // save Object[]
-            asm.load(savedSlot, INT_TYPE);
-            asm.swap(); // funcId, long[]
-            asm.load(refArgsSlot, OBJECT_TYPE); // funcId, long[], Object[]
-            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-            emitInvokeStatic(asm, ShadedRefs.SET_TAIL_CALL_WITH_REFS);
-        } else {
-            emitBoxValuesOnStack(ctx, asm, calleeType.params());
-            asm.load(savedSlot, INT_TYPE);
-            asm.swap();
-            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
-            emitInvokeStatic(asm, ShadedRefs.SET_TAIL_CALL);
-        }
+        emitSetTailCall(ctx, asm, calleeType, funcRef + 1, () -> asm.load(funcRef, INT_TYPE));
         emitDefaultReturn(ctx, asm);
+    }
+
+    // Shaded.setTailCall(funcId, box(args...), instance), with the funcId from pushFuncId
+    private static void emitSetTailCall(
+            Context ctx,
+            InstructionAdapter asm,
+            FunctionType calleeType,
+            int firstSlot,
+            Runnable pushFuncId) {
+        boolean withRefs = calleeType.hasObjectRefParams();
+        emitBoxArguments(ctx, asm, calleeType, firstSlot);
+        if (withRefs) {
+            asm.store(firstSlot, OBJECT_TYPE); // Object[]
+        }
+        pushFuncId.run();
+        asm.swap(); // funcId, long[]
+        if (withRefs) {
+            asm.load(firstSlot, OBJECT_TYPE);
+        }
+        asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+        emitInvokeStatic(
+                asm, withRefs ? ShadedRefs.SET_TAIL_CALL_WITH_REFS : ShadedRefs.SET_TAIL_CALL);
     }
 
     static void emitDefaultReturn(Context ctx, InstructionAdapter asm) {
@@ -1555,7 +1494,7 @@ final class Emitters {
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
             emitInvokeStatic(asm, ShadedRefs.CREATE_WASM_EXCEPTION_GC);
         } else {
-            emitBoxValuesOnStack(ctx, asm, type.params());
+            emitBoxValuesOnStack(ctx, asm, type.params(), ctx.tempSlot());
             asm.iconst(tagNumber);
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
             emitInvokeStatic(asm, ShadedRefs.CREATE_WASM_EXCEPTION);
@@ -1711,10 +1650,11 @@ final class Emitters {
 
         // stack: [args..., funcref]
         // save funcref to temp
-        asm.store(ctx.tempSlot(), INT_TYPE);
+        int funcRef = ctx.tempSlot();
+        asm.store(funcRef, INT_TYPE);
 
         // null check
-        asm.load(ctx.tempSlot(), INT_TYPE);
+        asm.load(funcRef, INT_TYPE);
         asm.iconst(REF_NULL_VALUE);
         var notNull = new Label();
         asm.ificmpne(notNull);
@@ -1723,10 +1663,10 @@ final class Emitters {
         asm.mark(notNull);
 
         if (hasTooManyParameters(functionType)) {
-            emitBoxValuesOnStack(ctx, asm, functionType.params());
+            emitBoxArguments(ctx, asm, functionType, funcRef + 1);
         }
 
-        asm.load(ctx.tempSlot(), INT_TYPE); // funcref as tableIdx arg
+        asm.load(funcRef, INT_TYPE); // funcref as tableIdx arg
         asm.iconst(-1); // no table index (use -1 as sentinel)
         asm.load(ctx.memorySlot(), OBJECT_TYPE);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
@@ -1921,7 +1861,7 @@ final class Emitters {
             for (int i = 0; i < len; i++) {
                 types.add(elemType);
             }
-            emitBoxValuesOnStack(ctx, asm, types);
+            emitBoxValuesOnStack(ctx, asm, types, ctx.tempSlot());
             asm.iconst(typeIdx);
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
             emitInvokeStatic(asm, ShadedRefs.ARRAY_NEW_FIXED);

@@ -1,34 +1,31 @@
 ---
 sidebar_position: 3
-sidebar_label: WABT
-title: WABT
+sidebar_label: Tools
+title: Tools
 ---
-# Tools
+Endive publishes a few WebAssembly tools as Maven artifacts, compiled to Wasm and run with Endive itself.
 
 ## WebAssembly Binary Toolkit
 
-Since we use them in the build of the project, we publish a few [wabt](https://github.com/WebAssembly/wabt) tools compiled at build time with Endive.
-Adding support for more tools is easy and we welcome contributions in this direction.
-The relevant module can be added to the build with:
+A few [wabt](https://github.com/WebAssembly/wabt) tools, the ones Endive's own build uses:
 
 ```xml
 <dependency>
   <groupId>run.endive</groupId>
   <artifactId>wabt</artifactId>
-  <version>latest-release</version>
+  <version>${endive.version}</version>
 </dependency>
 ```
 
 ## Wasm Tools
 
-As we need it to catch up with the latest development of the Wasm spec we publish a few [wasm-tools](https://github.com/bytecodealliance/wasm-tools) compiled at build time with Endive.
-The relevant module can be added to the build with:
+A few [wasm-tools](https://github.com/bytecodealliance/wasm-tools) binaries, which track the latest Wasm proposals:
 
 ```xml
 <dependency>
   <groupId>run.endive</groupId>
   <artifactId>wasm-tools</artifactId>
-  <version>latest-release</version>
+  <version>${endive.version}</version>
 </dependency>
 ```
 
@@ -49,8 +46,7 @@ System.setOut(new PrintStream(
 
 ## wat2wasm
 
-In Endive, we don't have a Wasm text format parser just yet.
-To overcome this limitation you can use `wat2wasm`, for example:
+Endive does not parse the Wasm text format. Use `wat2wasm` to convert text to binary:
 
 ```java
 import run.endive.wabt.Wat2Wasm;

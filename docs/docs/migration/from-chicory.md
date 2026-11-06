@@ -4,8 +4,6 @@ sidebar_label: From Chicory
 title: Migrating from Chicory
 ---
 
-# Migrating from Chicory to Endive
-
 Endive is a fork of [Chicory](https://github.com/dylibso/chicory) by Dylibso, Inc.
 This guide documents all breaking changes for users migrating from Chicory.
 

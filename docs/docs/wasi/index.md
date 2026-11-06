@@ -1,14 +1,8 @@
 ---
 sidebar_position: 50
 sidebar_label: WASI P1
-title: Wasi Preview 1
+title: WASI Preview 1
 ---
-# WASI Preview 1
-
-:::warning[Security Consideration]
-WASI file access does not enforce path sandboxing by default. Always use a virtual filesystem (e.g., [ZeroFs](https://github.com/roastedroot/zerofs) or [Jimfs](https://github.com/google/jimfs)) to restrict guest access to pre-opened directories. Passing the host filesystem directly exposes all files the JVM process can access. See [Security Best Practices](/docs/security/best-practices).
-:::
-
 <!--
 ```java
 //DEPS run.endive:wasi:999-SNAPSHOT
@@ -30,17 +24,22 @@ to provide system-level capabilities, such as:
 All such capabilities are virtualized; i.e., the _guest_ will not have direct
 access to the corresponding _host_ resources, but they will be mediated by the WASI layer,
 which can be configured to limit their surface.
+
+:::warning[Security Consideration]
+Map only virtual file system directories (for example [ZeroFs](https://github.com/roastedroot/zerofs) or [Jimfs](https://github.com/google/jimfs)): a host directory exposes everything the JVM process can read. See [Security Best Practices](/docs/security/best-practices).
+:::
+
 Add the dependency to your build:
 
 ```xml
 <dependency>
   <groupId>run.endive</groupId>
   <artifactId>wasi</artifactId>
-  <version>latest-release</version>
+  <version>${endive.version}</version>
 </dependency>
 ```
 
-## How to use
+## Usage
 
 As a host who is running Wasm modules, WASI is just a collection of imports that you need to provide
 to a wasi-compiled module when instantiating it. You'll also need to configure some options for how
@@ -48,7 +47,7 @@ these functions behave and what the module can and cannot do.
 
 Remember that you have full control over those functions, you can use just part of provided implementation or swap in specific implementations to better control what is being executed.
 
-### WasiPreview1 Instantiation
+### Instantiation
 
 In order to instantiate a WASI module you need an instance of `WasiPreview1`. 
 
@@ -65,7 +64,6 @@ docs.FileOps.copyFromWasmCorpus("hello-wasi.wat.wasm", "hello-wasi.wasm");
 -->
 
 ```java
-import run.endive.log.SystemLogger;
 import run.endive.wasi.WasiOptions;
 import run.endive.wasi.WasiPreview1;
 import run.endive.wasm.Parser;
@@ -73,7 +71,6 @@ import run.endive.runtime.Store;
 
 import java.io.File;
 
-var logger = new SystemLogger();
 // let's just use the default options for now
 var options = WasiOptions.builder().build();
 // create our instance of wasip1
@@ -122,7 +119,7 @@ var wasi = WasiPreview1.builder().withOptions(wasiOpts).build();
 // greet-wasi is a rust program that greets the string passed in stdin
 var store = new Store().addFunction(wasi.toHostFunctions());
 // instantiating will execute the module if it's a WASI command-pattern module
-store.instantiate("hello-wasi", Parser.parse(new File("greet-wasi.wasm")));
+store.instantiate("greet-wasi", Parser.parse(new File("greet-wasi.wasm")));
 
 
 // check that we output the greeting
@@ -150,7 +147,7 @@ a convenient shorthand for doing the same is:
 var wasi = WasiOptions.builder().inheritSystemStreams().build()
 ```
 
-## arguments
+## Arguments
 
 Especially when using CLIs, it's useful to provide command line arguments to the Wasm Module.
 
@@ -160,7 +157,7 @@ You can do that by using:
 var wasi = WasiOptions.builder().withArguments(List.of("executable-name", "--more", "--options")).build();
 ```
 
-## environment variables
+## Environment variables
 
 To expose environment variables to your WASI module you can list them in the options:
 
@@ -171,11 +168,9 @@ var wasi = WasiOptions.builder().
     build();
 ```
 
-## disk
+## Disk
 
-We provide limited support for operations on the disk, we only test on a Virtual FileSystem and we encourage you to use the same. We use [Google's Jimfs](https://github.com/google/jimfs).
-
-Example code to use the disk looks like:
+File access goes through a virtual file system, which confines the guest to the directories you map. The example uses [Google's Jimfs](https://github.com/google/jimfs):
 
 <!--
 ```java
@@ -198,8 +193,7 @@ try (FileSystem fs = Jimfs.newFileSystem(Configuration.unix().toBuilder().setAtt
 }
 ```
 
-## Supported Features
-
+## Supported functions
 
 If your module calls a WASI function that we don't support, or uses a feature that we don't support, we will throw a `WasmRuntimeException`.
 

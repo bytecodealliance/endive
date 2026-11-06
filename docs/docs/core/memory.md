@@ -3,11 +3,8 @@ sidebar_position: 2
 sidebar_label: Memory
 title: Memory
 ---
-# Using Memory to share data
-
-Wasm only understands basic integer and float primitives.
-Passing more complex types across the boundaries involves passing low level pointers.
-To read, write, or allocate memory in a module, Endive provides the `Memory` class.
+`Memory` reads and writes a module's linear memory, which is how anything beyond integers and floats crosses the boundary.
+Wasm functions only take and return numbers, so more complex values are passed as pointers into that memory.
 Let's look at an example where we have a module `count_vowels.wasm`, written in Rust, that takes a string input and counts the number of vowels
 in the string:
 
@@ -23,6 +20,10 @@ curl https://raw.githubusercontent.com/bytecodealliance/endive/main/wasm-corpus/
 docs.FileOps.copyFromWasmCorpus("count_vowels.rs.wasm", "count_vowels.wasm");
 ```
 -->
+
+:::tip
+A module like this one is a Rust library built with `rustc --target=wasm32-unknown-unknown --crate-type=cdylib`. Use `--target=wasm32-wasip1` for programs that need [WASI](../wasi/index.md).
+:::
 
 Build and instantiate this module:
 
@@ -67,6 +68,25 @@ var result = countVowels.apply(ptr, len)[0];
 dealloc.apply(ptr, len);
 assert(3L == result); // 3 vowels in Hello, World!
 ```
+
+## Limiting memory growth
+
+A module declares the initial and maximum size of its memory in 64 KiB pages, and the maximum defaults to 4 GiB when it declares none.
+To cap how far an untrusted module can grow, override the limits of its memory when building the instance:
+
+```java
+import run.endive.wasm.types.MemoryLimits;
+
+// keep the declared 17 initial pages, allow growth up to 32 pages (2 MiB)
+var limited = Instance.builder(Parser.parse(new File("./count_vowels.wasm"))).
+        withMemoryLimits(new MemoryLimits(17, 32)).
+        build();
+```
+
+Past the maximum, `memory.grow` fails inside the module and the instance keeps running.
+The override applies to the first memory the module defines; an imported memory keeps the limits it was created with.
+Memory limits bound linear memory only: structs and arrays allocated by a [GC](gc-types.md) module live on the JVM heap and are bounded only by its size.
+To change which implementation backs the memory, see [Memory Customization](../advanced/memory-customization.md).
 
 <!--
 ```java

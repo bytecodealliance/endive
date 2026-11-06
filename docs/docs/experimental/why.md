@@ -3,8 +3,6 @@ sidebar_position: 1
 sidebar_label: Why
 title: Why
 ---
-# Why?
-
 Endive is a young project and we acknowledge that we are exploring and spearheading in many aspects the usage of Web Assembly on the JVM.
 
 Since there is (always) some degree of experimentation going on, and we want to have feedback by the community and early users, we decide to publish also `experimental` modules; everyone is welcome to try things out and report back the experience.

@@ -3,13 +3,13 @@ sidebar_position: 5
 sidebar_label: CLI
 title: CLI
 ---
-# Install and use the CLI
+The experimental Endive CLI runs a Wasm module from the command line.
 
 :::warning[Security Consideration]
-The experimental CLI uses `inheritSystemStreams()` by default, granting the Wasm module access to stdin, stdout and stderr of the host. Do not use it with untrusted modules in its current form.
+The CLI gives the module the host's stdin, stdout and stderr. Do not run untrusted modules with it.
 :::
 
-The experimental Endive CLI is available for download on Maven at the link:
+It is available for download on Maven at the link:
 
 ```
 https://repo1.maven.org/maven2/run/endive/cli-experimental/<version>/cli-experimental-<version>.sh

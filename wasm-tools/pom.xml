@@ -79,11 +79,10 @@
             <configuration>
               <name>run.endive.tools.wasm.WasmToolsModule</name>
               <wasmFile>${project.build.directory}/wasm-tools.wasm</wasmFile>
+              <methodSplitting>true</methodSplitting>
               <!-- <interpreterFallback>WARN</interpreterFallback> -->
               <interpretedFunctions>
-                <function>5197</function>
                 <function>5521</function>
-                <function>6096</function>
               </interpretedFunctions>
             </configuration>
           </execution>

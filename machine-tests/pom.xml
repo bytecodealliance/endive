@@ -71,6 +71,7 @@
             <configuration>
               <name>run.endive.testing.gen.QuickJS</name>
               <wasmFile>${project.basedir}/../wasm-corpus/src/main/resources/compiled/quickjs-provider.javy-dynamic.wasm</wasmFile>
+              <methodSplitting>true</methodSplitting>
             </configuration>
           </execution>
           <execution>
@@ -81,6 +82,7 @@
             <configuration>
               <name>run.endive.testing.gen.DynamicHelloJS</name>
               <wasmFile>${project.basedir}/../wasm-corpus/src/main/resources/compiled/hello-world.js.javy-dynamic.wasm</wasmFile>
+              <methodSplitting>true</methodSplitting>
             </configuration>
           </execution>
           <execution>
@@ -91,6 +93,7 @@
             <configuration>
               <name>run.endive.wabt.Wat2Wasm</name>
               <wasmFile>${project.basedir}/../wabt/src/main/resources/wat2wasm</wasmFile>
+              <methodSplitting>true</methodSplitting>
             </configuration>
           </execution>
           <execution>
@@ -101,6 +104,7 @@
             <configuration>
               <name>run.endive.testing.ThreadsExampleModule</name>
               <wasmFile>${project.basedir}/../wasm-corpus/src/main/resources/compiled/threads-example.wat.wasm</wasmFile>
+              <methodSplitting>true</methodSplitting>
             </configuration>
           </execution>
         </executions>

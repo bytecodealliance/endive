@@ -1019,6 +1019,24 @@ public final class Compiler {
                     "callWithRefs",
                     MACHINE_CALL_WITH_REFS_METHOD_TYPE.toMethodDescriptorString(),
                     false);
+            if (moduleHasTailCalls) {
+                // This bridge returns without running the long[] trampoline. A tail call must
+                // still notice interruption before returning its pending call to the caller.
+                asm.invokestatic(
+                        "java/lang/Thread", "currentThread", "()Ljava/lang/Thread;", false);
+                asm.invokevirtual("java/lang/Thread", "isInterrupted", "()Z", false);
+                Label notInterrupted = new Label();
+                asm.ifeq(notInterrupted);
+                asm.load(0, OBJECT_TYPE);
+                asm.getfield(internalClassName, "instance", getDescriptor(Instance.class));
+                asm.invokevirtual(
+                        getInternalName(Instance.class),
+                        "clearTailCall",
+                        getMethodDescriptor(VOID_TYPE),
+                        false);
+                emitInvokeStatic(asm, CHECK_INTERRUPTION);
+                asm.mark(notInterrupted);
+            }
             asm.areturn(OBJECT_TYPE);
 
             asm.mark(end);
@@ -1048,6 +1066,7 @@ public final class Compiler {
     // Generates a trampoline loop equivalent to:
     //
     //   Instance inst = this.instance;
+    //   Thread thread = Thread.currentThread();
     //   while (true) {
     //       try {
     //           long[] result = MachineCall.call(inst, inst.memory(), funcId, args);
@@ -1055,6 +1074,7 @@ public final class Compiler {
     //           funcId = inst.tailCallFuncId();
     //           args = inst.tailCallArgs();
     //           inst.clearTailCall();
+    //           if (thread.isInterrupted()) checkInterruption();
     //       } catch (StackOverflowError e) {
     //           throw throwCallStackExhausted(e);
     //       }
@@ -1072,6 +1092,10 @@ public final class Compiler {
         // instance stored at local 4 for 2-arg, local 5 for 3-arg
         int instanceLocal = refArgsSlot + 1;
         asm.store(instanceLocal, OBJECT_TYPE);
+        // Cache the thread only for this invocation: the same machine may have another caller.
+        int threadLocal = refArgsSlot + 2;
+        asm.invokestatic("java/lang/Thread", "currentThread", "()Ljava/lang/Thread;", false);
+        asm.store(threadLocal, OBJECT_TYPE);
 
         Label loopStart = new Label();
         asm.mark(loopStart);
@@ -1127,6 +1151,13 @@ public final class Compiler {
                 "clearTailCall",
                 getMethodDescriptor(VOID_TYPE),
                 false);
+        // Every trampoline hop passes here, so poll once per hop rather than in each setter.
+        // The thread identity is stable during this invocation; its interrupt flag is not.
+        // Keep reading the flag on every hop so the optimization does not delay cancellation.
+        asm.load(threadLocal, OBJECT_TYPE);
+        asm.invokevirtual("java/lang/Thread", "isInterrupted", "()Z", false);
+        asm.ifeq(loopStart);
+        emitInvokeStatic(asm, CHECK_INTERRUPTION);
         asm.goTo(loopStart);
 
         asm.mark(returnResult);

@@ -93,21 +93,18 @@ public final class Shaded {
         return imprt.handle().applyWithRefs(instance, args, refArgs);
     }
 
-    // a cycle of tail calls runs no backward branch or ordinary call, which poll otherwise
+    // Interruption is checked by the trampoline and when a caller resolves a pending tail call.
     public static void setTailCall(int funcId, long[] args, Instance instance) {
-        checkInterruption();
         instance.setTailCall(funcId, args);
     }
 
     public static void setTailCallWithRefs(
             int funcId, long[] args, Object[] refArgs, Instance instance) {
-        checkInterruption();
         instance.setTailCall(funcId, args, refArgs);
     }
 
     public static void setTailCallIndirect(
             long[] args, int funcTableIdx, int typeId, int tableIdx, Instance instance) {
-        checkInterruption();
         TableInstance table = instance.table(tableIdx);
         int funcId = table.requiredRef(funcTableIdx);
         Instance refInstance = table.instance(funcTableIdx);
@@ -131,7 +128,6 @@ public final class Shaded {
             int typeId,
             int tableIdx,
             Instance instance) {
-        checkInterruption();
         TableInstance table = instance.table(tableIdx);
         int funcId = table.requiredRef(funcTableIdx);
         Instance refInstance = table.instance(funcTableIdx);
@@ -157,6 +153,8 @@ public final class Shaded {
         long[] args = instance.tailCallArgs();
         Object[] refArgs = instance.tailCallRefArgs();
         instance.clearTailCall();
+        // A nested ordinary call can resolve a tail call before the outer trampoline sees it.
+        checkInterruption();
         if (refArgs == null) {
             return instance.getMachine().call(funcId, args);
         }
@@ -169,6 +167,7 @@ public final class Shaded {
         long[] args = instance.tailCallArgs();
         Object[] refArgs = instance.tailCallRefArgs();
         instance.clearTailCall();
+        checkInterruption();
         return instance.getMachine().callWithRefs(funcId, args, refArgs);
     }
 

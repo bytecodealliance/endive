@@ -1,9 +1,12 @@
 (module
   (type $t (func))
   (type $count (func (param i64) (result i64)))
+  (type $refs (func (param externref)))
   (table 2 funcref)
   (elem (i32.const 0) func $indirect $mutual_a)
   (elem declare func $by_ref)
+  (table $ref_table 1 funcref)
+  (elem (table $ref_table) (i32.const 0) func $indirect_refs)
 
   (func $direct (export "direct") return_call $direct)
   (func $mutual_a (export "mutual") (type $t) return_call $mutual_b)
@@ -12,6 +15,12 @@
     (return_call_indirect (type $t) (i32.const 0)))
   (func $by_ref (export "by_ref") (type $t)
     (return_call_ref $t (ref.func $by_ref)))
+  (func (export "ref_args") (return_call $refs (ref.null extern)))
+  (func $refs (type $refs) (return_call $refs (local.get 0)))
+  (func (export "indirect_ref_args")
+    (return_call_indirect $ref_table (type $refs) (ref.null extern) (i32.const 0)))
+  (func $indirect_refs (type $refs)
+    (return_call_indirect $ref_table (type $refs) (local.get 0) (i32.const 0)))
 
   (func $count_down (export "count_down") (type $count)
     (if (result i64) (i64.eqz (local.get 0))

@@ -26,6 +26,9 @@ import static run.endive.compiler.internal.CompilerUtil.classNameForCallIndirect
 import static run.endive.compiler.internal.CompilerUtil.classNameForCallWithRefsDispatch;
 import static run.endive.compiler.internal.CompilerUtil.classNameForDispatch;
 import static run.endive.compiler.internal.CompilerUtil.defaultValue;
+import static run.endive.compiler.internal.CompilerUtil.emitBoxRefs;
+import static run.endive.compiler.internal.CompilerUtil.emitBoxResults;
+import static run.endive.compiler.internal.CompilerUtil.emitBoxValues;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeFunction;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeStatic;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeVirtual;
@@ -41,7 +44,6 @@ import static run.endive.compiler.internal.CompilerUtil.methodNameForFunc;
 import static run.endive.compiler.internal.CompilerUtil.methodTypeFor;
 import static run.endive.compiler.internal.CompilerUtil.newClassWriter;
 import static run.endive.compiler.internal.CompilerUtil.rawMethodTypeFor;
-import static run.endive.compiler.internal.CompilerUtil.slotCount;
 import static run.endive.compiler.internal.CompilerUtil.valueMethodName;
 import static run.endive.compiler.internal.CompilerUtil.valueMethodType;
 import static run.endive.compiler.internal.EmitterMap.EMITTERS;
@@ -743,19 +745,13 @@ public final class Compiler {
             if (!seenValueMethods.add(methodName)) {
                 continue;
             }
-            boolean hasGcRef = types.stream().anyMatch(ValType::isObjectRef);
             emitFunction(
                     classWriter,
                     methodName,
                     valueMethodType(types),
                     true,
                     asm -> {
-                        if (hasGcRef) {
-                            // Object[] return: box numerics as Long, keep refs as Object
-                            emitBoxArgumentsAsObjectArray(asm, types);
-                        } else {
-                            emitBoxArguments(asm, types);
-                        }
+                        emitBoxResults(asm, types, 0);
                         asm.areturn(OBJECT_TYPE);
                     });
         }
@@ -1932,77 +1928,18 @@ public final class Compiler {
         if (hasTooManyParameters(type)) {
             asm.load(0, LONG_ARRAY_TYPE);
         } else {
-            emitBoxArguments(asm, type.params());
-        }
-    }
-
-    private static void emitBoxArguments(InstructionAdapter asm, List<ValType> types) {
-        int slot = 0;
-        asm.iconst(types.size());
-        asm.newarray(LONG_TYPE);
-        for (int i = 0; i < types.size(); i++) {
-            asm.dup();
-            asm.iconst(i);
-            ValType valType = types.get(i);
-            asm.load(slot, asmType(valType));
-            if (valType.isObjectRef()) {
-                asm.visitInsn(Opcodes.POP);
-                asm.lconst(0L);
-            } else {
-                emitJvmToLong(asm, valType);
-            }
-            asm.astore(LONG_TYPE);
-            slot += slotCount(valType);
-        }
-    }
-
-    /**
-     * Boxes JVM locals into a single Object[] array.
-     * Numeric values are boxed as Long, Object refs stay as Object.
-     * Used for multi-value returns (value_xxx methods) when any return is a GC ref.
-     */
-    private static void emitBoxArgumentsAsObjectArray(InstructionAdapter asm, List<ValType> types) {
-        int slot = 0;
-        asm.iconst(types.size());
-        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
-        for (int i = 0; i < types.size(); i++) {
-            asm.dup();
-            asm.iconst(i);
-            ValType valType = types.get(i);
-            asm.load(slot, asmType(valType));
-            if (valType.isObjectRef()) {
-                // Object ref: already on stack as Object
-            } else {
-                // Numeric: convert to long then box into Long
-                emitJvmToLong(asm, valType);
-                asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
-            }
-            asm.astore(OBJECT_TYPE);
-            slot += slotCount(valType);
+            emitBoxValues(asm, type.params(), 0);
         }
     }
 
     // leaves long[], Object[] (null without object ref params): the arguments, boxed if not already
     private static void emitBoxArgumentsWithRefs(InstructionAdapter asm, FunctionType type) {
-        var types = type.params();
         if (hasTooManyParameters(type)) {
             emitLoadArguments(asm, type);
         } else {
-            emitBoxArguments(asm, types);
+            emitBoxValues(asm, type.params(), 0);
             if (type.hasObjectRefParams()) {
-                asm.iconst(types.size());
-                asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
-                int slot = 0;
-                for (int i = 0; i < types.size(); i++) {
-                    ValType valType = types.get(i);
-                    if (valType.isObjectRef()) {
-                        asm.dup();
-                        asm.iconst(i);
-                        asm.load(slot, asmType(valType));
-                        asm.astore(OBJECT_TYPE);
-                    }
-                    slot += slotCount(valType);
-                }
+                emitBoxRefs(asm, type.params(), 0);
             }
         }
         if (!type.hasObjectRefParams()) {

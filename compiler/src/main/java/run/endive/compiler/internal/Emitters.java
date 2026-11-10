@@ -11,6 +11,8 @@ import static org.objectweb.asm.commons.InstructionAdapter.OBJECT_TYPE;
 import static run.endive.compiler.internal.CompilerUtil.asmType;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodName;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodType;
+import static run.endive.compiler.internal.CompilerUtil.emitBoxRefs;
+import static run.endive.compiler.internal.CompilerUtil.emitBoxResults;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeFunction;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeStatic;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeVirtual;
@@ -158,7 +160,9 @@ final class Emitters {
         var results = ctx.getType().returns();
         if (results.size() > 1) {
             if (hasTooManyResults(results)) {
-                emitBoxResults(ctx, asm, results);
+                // too wide for value_xxx's parameters: box at each return
+                emitStoreValuesOnStack(ctx, asm, results, ctx.tempSlot());
+                emitBoxResults(asm, results, ctx.tempSlot());
             } else {
                 asm.invokestatic(
                         ctx.internalClassName(),
@@ -168,31 +172,6 @@ final class Emitters {
             }
         }
         asm.areturn(getType(jvmReturnType(ctx.getType())));
-    }
-
-    // what value_xxx would return: a long[], or with object refs an Object[] with numbers as Long
-    private static void emitBoxResults(Context ctx, InstructionAdapter asm, List<ValType> types) {
-        int firstSlot = ctx.tempSlot();
-        if (types.stream().noneMatch(ValType::isObjectRef)) {
-            emitBoxValuesOnStack(ctx, asm, types, firstSlot);
-            return;
-        }
-        emitStoreValuesOnStack(ctx, asm, types, firstSlot);
-        asm.iconst(types.size());
-        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
-        int slot = firstSlot;
-        for (int i = 0; i < types.size(); i++) {
-            ValType valType = types.get(i);
-            asm.dup();
-            asm.iconst(i);
-            asm.load(slot, asmType(valType));
-            if (!valType.isObjectRef()) {
-                emitJvmToLong(asm, valType);
-                asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
-            }
-            asm.astore(OBJECT_TYPE);
-            slot += slotCount(valType);
-        }
     }
 
     public static void DROP(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
@@ -354,24 +333,10 @@ final class Emitters {
     // leaves long[], plus Object[] if the type has object ref params
     private static void emitBoxArguments(
             Context ctx, InstructionAdapter asm, FunctionType type, int firstSlot) {
-        var types = type.params();
-        emitBoxValuesOnStack(ctx, asm, types, firstSlot);
-        if (!type.hasObjectRefParams()) {
-            return;
-        }
-        // the Object[] takes the refs from the same temp slots
-        asm.iconst(types.size());
-        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
-        int slot = firstSlot;
-        for (int i = 0; i < types.size(); i++) {
-            ValType valType = types.get(i);
-            if (valType.isObjectRef()) {
-                asm.dup();
-                asm.iconst(i);
-                asm.load(slot, asmType(valType));
-                asm.astore(OBJECT_TYPE);
-            }
-            slot += slotCount(valType);
+        emitBoxValuesOnStack(ctx, asm, type.params(), firstSlot);
+        if (type.hasObjectRefParams()) {
+            // the Object[] takes the refs from the same temp slots
+            emitBoxRefs(asm, type.params(), firstSlot);
         }
     }
 

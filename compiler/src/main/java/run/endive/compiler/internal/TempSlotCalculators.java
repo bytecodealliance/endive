@@ -13,7 +13,7 @@ final class TempSlotCalculators {
 
     private TempSlotCalculators() {}
 
-    static int returnResult(
+    static int returnOp(
             CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
         // the operands are the function's result types
         int slots = ins.operands().mapToInt(CompilerUtil::slotCount).sum();

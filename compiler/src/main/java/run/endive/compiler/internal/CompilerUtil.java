@@ -8,6 +8,7 @@ import static org.objectweb.asm.Type.INT_TYPE;
 import static org.objectweb.asm.Type.LONG_TYPE;
 import static org.objectweb.asm.Type.getInternalName;
 import static org.objectweb.asm.Type.getMethodDescriptor;
+import static org.objectweb.asm.commons.InstructionAdapter.OBJECT_TYPE;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
 import java.lang.invoke.MethodType;
@@ -19,6 +20,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.commons.InstructionAdapter;
 import run.endive.compiler.MethodPrefixer;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Memory;
@@ -35,7 +37,7 @@ final class CompilerUtil {
     private CompilerUtil() {}
 
     // the JVM's limit on the parameter slots of a method descriptor
-    private static final int MAX_METHOD_PARAMETER_SLOTS = 255;
+    static final int MAX_METHOD_PARAMETER_SLOTS = 255;
 
     // funcTableIdx, tableIdx, Memory and Instance: the most any generated method appends
     private static final Class<?>[] CALL_INDIRECT_EXTRA_PARAMS = {
@@ -251,6 +253,67 @@ final class CompilerUtil {
         for (ValType param : type.params()) {
             asm.visitVarInsn(asmType(param).getOpcode(Opcodes.ILOAD), slot);
             slot += slotCount(param);
+        }
+    }
+
+    // leaves a long[] of the values in the locals from firstSlot on; object refs become 0
+    public static void emitBoxValues(InstructionAdapter asm, List<ValType> types, int firstSlot) {
+        int slot = firstSlot;
+        asm.iconst(types.size());
+        asm.newarray(LONG_TYPE);
+        for (int i = 0; i < types.size(); i++) {
+            asm.dup();
+            asm.iconst(i);
+            ValType valType = types.get(i);
+            asm.load(slot, asmType(valType));
+            if (valType.isObjectRef()) {
+                asm.visitInsn(Opcodes.POP);
+                asm.lconst(0L);
+            } else {
+                emitJvmToLong(asm, valType);
+            }
+            asm.astore(LONG_TYPE);
+            slot += slotCount(valType);
+        }
+    }
+
+    // leaves an Object[] with the object refs in the locals from firstSlot on, null elsewhere
+    public static void emitBoxRefs(InstructionAdapter asm, List<ValType> types, int firstSlot) {
+        int slot = firstSlot;
+        asm.iconst(types.size());
+        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+        for (int i = 0; i < types.size(); i++) {
+            ValType valType = types.get(i);
+            if (valType.isObjectRef()) {
+                asm.dup();
+                asm.iconst(i);
+                asm.load(slot, asmType(valType));
+                asm.astore(OBJECT_TYPE);
+            }
+            slot += slotCount(valType);
+        }
+    }
+
+    // leaves what value_xxx returns: a long[], or with object refs an Object[] with numbers as Long
+    public static void emitBoxResults(InstructionAdapter asm, List<ValType> types, int firstSlot) {
+        if (types.stream().noneMatch(ValType::isObjectRef)) {
+            emitBoxValues(asm, types, firstSlot);
+            return;
+        }
+        int slot = firstSlot;
+        asm.iconst(types.size());
+        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+        for (int i = 0; i < types.size(); i++) {
+            asm.dup();
+            asm.iconst(i);
+            ValType valType = types.get(i);
+            asm.load(slot, asmType(valType));
+            if (!valType.isObjectRef()) {
+                emitJvmToLong(asm, valType);
+                asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+            }
+            asm.astore(OBJECT_TYPE);
+            slot += slotCount(valType);
         }
     }
 

@@ -81,9 +81,6 @@
               <wasmFile>${project.build.directory}/wasm-tools.wasm</wasmFile>
               <methodSplitting>true</methodSplitting>
               <!-- <interpreterFallback>WARN</interpreterFallback> -->
-              <interpretedFunctions>
-                <function>5521</function>
-              </interpretedFunctions>
             </configuration>
           </execution>
         </executions>

@@ -5,6 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static run.endive.corpus.WatGenerator.wideResults;
+import static run.endive.corpus.WatGenerator.wideResultsMixed;
+import static run.endive.corpus.WatGenerator.wideResultsRef;
+import static run.endive.corpus.WatGenerator.wideResultsSplit;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +41,7 @@ public class WideMultiValueReturnTest {
     private static final List<String> CALLERS =
             List.of("call", "call_indirect", "call_ref", "return_call");
 
+    // wasm-tools, as wabt has no call_ref and no default return_call
     private static WasmModule parse(String wat) {
         return Parser.parse(Wat2Wasm.parse(wat));
     }
@@ -55,27 +60,6 @@ public class WideMultiValueReturnTest {
         return Instance.builder(module).withMachineFactory(machine).build();
     }
 
-    private static String results(int i32s, int i64s) {
-        return " i32".repeat(i32s) + " i64".repeat(i64s);
-    }
-
-    // $leaf returns i32s i32 and i64s i64 results, which each export gets in a different way
-    private static WasmModule tupleModule(int i32s, int i64s) {
-        var wat = new StringBuilder("(module (type $t (func (result");
-        wat.append(results(i32s, i64s)).append("))) (table funcref (elem $leaf))");
-        wat.append(" (func $leaf (type $t)").append(" i32.const 42".repeat(i32s));
-        for (int i = 0; i < i64s; i++) {
-            wat.append(" i64.const ").append(i - 64);
-        }
-        wat.append(")");
-        wat.append(" (func (export \"call\") (type $t) call $leaf)");
-        wat.append(
-                " (func (export \"call_indirect\") (type $t) i32.const 0 call_indirect (type $t))");
-        wat.append(" (func (export \"call_ref\") (type $t) ref.func $leaf call_ref $t)");
-        wat.append(" (func (export \"return_call\") (type $t) return_call $leaf))");
-        return parse(wat.toString());
-    }
-
     private static void assertSameResults(Instance expected, Instance actual) {
         for (var caller : CALLERS) {
             assertArrayEquals(
@@ -87,13 +71,13 @@ public class WideMultiValueReturnTest {
     @ParameterizedTest
     @CsvSource({"1, 127", "0, 128", "1, 128", "1, 130"})
     public void wideI64Tuples(int i32s, int i64s) {
-        var module = tupleModule(i32s, i64s);
+        var module = parse(wideResults(i32s, i64s));
         assertSameResults(interpreted(module), compiled(module));
     }
 
     @Test
     public void wideTupleFromInterpretedFunction() {
-        var module = tupleModule(1, 128);
+        var module = parse(wideResults(1, 128));
         var machine =
                 MachineFactoryCompiler.builder(module)
                         .withInterpretedFunctions(Set.of(0))
@@ -101,36 +85,18 @@ public class WideMultiValueReturnTest {
         assertSameResults(interpreted(module), compiled(module, machine));
     }
 
-    // Floating-point results are stored as their raw bits, as with the packing method.
     @Test
     public void wideMixedNumericTuple() {
-        int count = 127;
-        var wat = new StringBuilder("(module (func $leaf (result i32 f32 f64");
-        wat.append(" i64".repeat(count))
-                .append(") i32.const -7 f32.const -1.5 f64.const nan:0x4000000000001");
-        for (int i = 0; i < count; i++) {
-            wat.append(" i64.const ").append(Long.MIN_VALUE + i);
-        }
-        wat.append(") (func (export \"run\") (result i32 f32 f64");
-        wat.append(" i64".repeat(count)).append(") call $leaf))");
-        var module = parse(wat.toString());
+        var module = parse(wideResultsMixed(127));
         assertArrayEquals(
                 interpreted(module).export("run").apply(), compiled(module).export("run").apply());
     }
 
-    // A wide result tuple that includes a reference uses the Object[] representation and must
-    // keep the reference's identity.
+    // a reference makes it an Object[]
     @Test
     public void wideTupleWithReference() {
         int count = 127;
-        var wat = new StringBuilder("(module (func $leaf (param externref) (result i32 externref");
-        wat.append(" i64".repeat(count)).append(") i32.const 5 local.get 0");
-        for (int i = 0; i < count; i++) {
-            wat.append(" i64.const ").append(i * 3 - 100);
-        }
-        wat.append(") (func (export \"run\") (param externref) (result i32 externref");
-        wat.append(" i64".repeat(count)).append(") local.get 0 call $leaf))");
-        var module = parse(wat.toString());
+        var module = parse(wideResultsRef(count));
         Object marker = new Object();
         var expected =
                 interpreted(module)
@@ -143,35 +109,6 @@ public class WideMultiValueReturnTest {
         assertSame(marker, actual.refResult(1));
         assertEquals(5, actual.longResult(0));
         assertEquals(278, actual.longResult(count + 1));
-    }
-
-    // too large for one method: split at its blocks, or around a loop through the trampoline
-    private static WasmModule splitModule(boolean loop) {
-        int count = 128;
-        var wat = new StringBuilder("(module (func $leaf (param $p i32) (result");
-        wat.append(results(1, count)).append(") (local $acc i64)");
-        if (loop) {
-            wat.append(" (loop $l");
-        }
-        for (int block = 0; block < 8; block++) {
-            wat.append(" (block (br_if 0 (local.get $p))");
-            for (int i = 0; i < 200; i++) {
-                wat.append(" (local.set $acc (i64.add (local.get $acc) (i64.const ")
-                        .append(block * 1000 + i)
-                        .append(")))");
-            }
-            wat.append(")");
-        }
-        if (loop) {
-            wat.append(" (br_if $l (local.get $p)))");
-        }
-        wat.append(" i32.const 42");
-        for (int i = 0; i < count; i++) {
-            wat.append(" (i64.add (local.get $acc) (i64.const ").append(i).append("))");
-        }
-        wat.append(") (func (export \"run\") (param i32) (result").append(results(1, count));
-        wat.append(") local.get 0 call $leaf))");
-        return parse(wat.toString());
     }
 
     private static List<String> chunkDescriptors(WasmModule module) {
@@ -208,7 +145,7 @@ public class WideMultiValueReturnTest {
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     public void wideTupleFromSplitFunction(boolean trampoline) {
-        var module = splitModule(trampoline);
+        var module = parse(wideResultsSplit(128, trampoline));
         var chunks = chunkDescriptors(module);
         assertFalse(chunks.isEmpty());
         // direct chunks take the parameters, trampoline chunks the long[] frame

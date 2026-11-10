@@ -79,12 +79,6 @@ public class Instance implements AutoCloseable {
         final long[] args;
         final Object[] refArgs;
 
-        TailCallPending(int funcId, long[] args) {
-            this.funcId = funcId;
-            this.args = args;
-            this.refArgs = null;
-        }
-
         TailCallPending(int funcId, long[] args, Object[] refArgs) {
             this.funcId = funcId;
             this.args = args;
@@ -606,10 +600,14 @@ public class Instance implements AutoCloseable {
     }
 
     public void setTailCall(int funcId, long[] args) {
-        this.tailCallPending = new TailCallPending(funcId, args);
+        setTailCall(funcId, args, null);
     }
 
     public void setTailCall(int funcId, long[] args, Object[] refArgs) {
+        // a cycle of compiled tail calls runs no backward branch or ordinary call, which poll
+        if (Thread.currentThread().isInterrupted()) {
+            throw new WasmInterruptedException("Thread interrupted");
+        }
         this.tailCallPending = new TailCallPending(funcId, args, refArgs);
     }
 

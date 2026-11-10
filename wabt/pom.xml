@@ -61,6 +61,7 @@
             <configuration>
               <name>run.endive.wabt.Wast2JsonModule</name>
               <wasmFile>src/main/resources/wast2json</wasmFile>
+              <methodSplitting>true</methodSplitting>
             </configuration>
           </execution>
           <execution>
@@ -71,6 +72,7 @@
             <configuration>
               <name>run.endive.wabt.Wat2WasmModule</name>
               <wasmFile>src/main/resources/wat2wasm</wasmFile>
+              <methodSplitting>true</methodSplitting>
             </configuration>
           </execution>
         </executions>

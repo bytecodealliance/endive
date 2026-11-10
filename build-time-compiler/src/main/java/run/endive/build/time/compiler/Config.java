@@ -48,6 +48,11 @@ public final class Config {
     private final String methodPrefixer;
 
     /**
+     * whether functions too large for the JVM to JIT-compile are split into smaller methods
+     */
+    private final boolean methodSplitting;
+
+    /**
      * the fully qualified name of the user's class for which to generate module interface wrappers
      */
     private final String moduleInterface;
@@ -66,6 +71,7 @@ public final class Config {
             InterpreterFallback interpreterFallback,
             Set<Integer> interpretedFunctions,
             String methodPrefixer,
+            boolean methodSplitting,
             String moduleInterface,
             List<String> redlineTargets) {
         this.wasmFile = wasmFile;
@@ -76,6 +82,7 @@ public final class Config {
         this.interpreterFallback = interpreterFallback;
         this.interpretedFunctions = interpretedFunctions;
         this.methodPrefixer = methodPrefixer;
+        this.methodSplitting = methodSplitting;
         this.moduleInterface = moduleInterface;
         this.redlineTargets = redlineTargets;
     }
@@ -110,6 +117,10 @@ public final class Config {
 
     public String methodPrefixer() {
         return methodPrefixer;
+    }
+
+    public boolean methodSplitting() {
+        return methodSplitting;
     }
 
     public String moduleInterface() {
@@ -153,6 +164,7 @@ public final class Config {
         private InterpreterFallback interpreterFallback = InterpreterFallback.FAIL;
         private Set<Integer> interpretedFunctions;
         private String methodPrefixer;
+        private boolean methodSplitting;
         private String moduleInterface;
         private List<String> redlineTargets = List.of();
 
@@ -198,6 +210,11 @@ public final class Config {
             return this;
         }
 
+        public Builder withMethodSplitting(boolean methodSplitting) {
+            this.methodSplitting = methodSplitting;
+            return this;
+        }
+
         public Builder withModuleInterface(String moduleInterface) {
             this.moduleInterface = moduleInterface;
             return this;
@@ -218,6 +235,7 @@ public final class Config {
                     interpreterFallback,
                     interpretedFunctions,
                     methodPrefixer,
+                    methodSplitting,
                     moduleInterface,
                     redlineTargets);
         }

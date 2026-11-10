@@ -134,8 +134,9 @@
                 <argument>${project.build.directory}/generated-resources/endive-compiler</argument>
                 <argument>${project.build.directory}/generated-sources/endive-compiler</argument>
                 <argument>${project.build.directory}/generated-resources/endive-compiler</argument>
-                <argument>WARN</argument>
+                <argument>FAIL</argument>
                 <argument>run.endive.redline.experimental.bridge.internal.CraneliftBridge</argument>
+                <argument>true</argument>
               </arguments>
               <includePluginDependencies>true</includePluginDependencies>
               <includeProjectDependencies>false</includeProjectDependencies>

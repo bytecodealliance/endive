@@ -203,13 +203,13 @@ final class MethodSplitter {
     }
 
     private boolean analyze(MethodNode method) {
-        // the Analyzer needs bounds; a function exceeding them is not split
-        method.visitMaxs(512, ctx.trySaveBaseSlot() + 256);
         method.visitEnd();
         Frame<BasicValue>[] frames;
         try {
-            frames =
-                    new Analyzer<>(new BasicInterpreter()).analyze(ctx.internalClassName(), method);
+            var analyzer = new Analyzer<>(new BasicInterpreter());
+            // ASM's operation count is quadratic in the method size; keep only its memory cap
+            analyzer.setComputeLimits(400 << 20, Long.MAX_VALUE);
+            frames = analyzer.analyzeAndComputeMaxs(ctx.internalClassName(), method);
         } catch (AnalyzerException | RuntimeException e) {
             return false;
         }

@@ -13,7 +13,7 @@ public final class GeneratorMain {
             throw new IllegalArgumentException(
                     "Usage: GeneratorMain <wasmFile> <name> <targetClassFolder>"
                             + " <targetSourceFolder> <targetWasmFolder>"
-                            + " [interpreterFallback] [moduleInterface]");
+                            + " [interpreterFallback] [moduleInterface] [methodSplitting]");
         }
         var configBuilder =
                 Config.builder()
@@ -27,6 +27,9 @@ public final class GeneratorMain {
         }
         if (args.length > 6 && !args[6].isEmpty()) {
             configBuilder.withModuleInterface(args[6]);
+        }
+        if (args.length > 7) {
+            configBuilder.withMethodSplitting(Boolean.parseBoolean(args[7]));
         }
         var config = configBuilder.build();
         var generator = new Generator(config);

@@ -82,6 +82,14 @@ public class Cli implements Runnable {
 
     @CommandLine.Option(
             order = 8,
+            names = "--method-splitting",
+            description =
+                    "Split functions too large for the JVM to JIT-compile into several smaller"
+                            + " methods (experimental)")
+    boolean methodSplitting;
+
+    @CommandLine.Option(
+            order = 9,
             names = "--module-interface",
             description =
                     "Fully qualified class name for which to generate _ModuleExports and"
@@ -100,6 +108,7 @@ public class Cli implements Runnable {
                         .withInterpreterFallback(interpreterFallback)
                         .withInterpretedFunctions(interpretedFunctions)
                         .withMethodPrefixer(methodPrefixer)
+                        .withMethodSplitting(methodSplitting)
                         .withModuleInterface(moduleInterface)
                         .build();
 

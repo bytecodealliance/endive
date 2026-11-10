@@ -104,6 +104,7 @@ mvn surefire:test -pl runtime-tests -Dtest=SpecV1GcStructTest
 ## Code style
 
 - No wildcard imports (configure your IDE accordingly)
+- Never inline or assemble WAT in Java: put test modules in `wasm-corpus`, as a `.wat` in `src/main/resources/wat` (compiled with `compile.sh`, loaded through `CorpusResources`) or, when generated, a Velocity template in `src/main/resources/run/endive/corpus` rendered by `WatGenerator`
 - Run `mvn spotless:apply` before committing
 - Approval tests: set `APPROVAL_TESTS_USE_REPORTER=AutoApproveReporter` to auto-approve golden samples
 

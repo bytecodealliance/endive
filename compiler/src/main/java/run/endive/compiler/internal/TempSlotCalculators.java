@@ -1,6 +1,8 @@
 package run.endive.compiler.internal;
 
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
+import static run.endive.compiler.internal.CompilerUtil.hasTooManyResults;
+import static run.endive.compiler.internal.CompilerUtil.paramSlots;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
 
 import java.util.List;
@@ -10,6 +12,13 @@ import run.endive.wasm.types.FunctionType;
 final class TempSlotCalculators {
 
     private TempSlotCalculators() {}
+
+    static int returnOp(
+            CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
+        // the operands are the function's result types
+        int slots = ins.operands().mapToInt(CompilerUtil::slotCount).sum();
+        return hasTooManyResults(slots) ? slots : 0;
+    }
 
     static int dropKeep(
             CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
@@ -33,7 +42,7 @@ final class TempSlotCalculators {
             CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
         var type = module.typeSection().getType((int) ins.operand(0));
         if (hasTooManyParameters(type)) {
-            return paramSlots(type);
+            return 1 + paramSlots(type); // funcTableIdx, then the boxed arguments
         }
         return 0;
     }
@@ -80,11 +89,8 @@ final class TempSlotCalculators {
     static int callRef(
             CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
         var type = module.typeSection().getType((int) ins.operand(0));
-        int slots = 1;
-        if (hasTooManyParameters(type)) {
-            slots = Math.max(slots, paramSlots(type));
-        }
-        return slots;
+        // funcref, then the boxed arguments
+        return 1 + (hasTooManyParameters(type) ? paramSlots(type) : 0);
     }
 
     static int structNew(
@@ -119,9 +125,5 @@ final class TempSlotCalculators {
 
     static int one(CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
         return 1;
-    }
-
-    private static int paramSlots(FunctionType type) {
-        return type.params().stream().mapToInt(CompilerUtil::slotCount).sum();
     }
 }

@@ -8,6 +8,7 @@ import static org.objectweb.asm.Type.INT_TYPE;
 import static org.objectweb.asm.Type.LONG_TYPE;
 import static org.objectweb.asm.Type.getInternalName;
 import static org.objectweb.asm.Type.getMethodDescriptor;
+import static org.objectweb.asm.commons.InstructionAdapter.OBJECT_TYPE;
 import static run.endive.wasm.types.Value.REF_NULL_VALUE;
 
 import java.lang.invoke.MethodType;
@@ -19,6 +20,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.commons.InstructionAdapter;
 import run.endive.compiler.MethodPrefixer;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Memory;
@@ -34,11 +36,17 @@ final class CompilerUtil {
 
     private CompilerUtil() {}
 
-    // The maximum number of wasm parameters that can be passed to a function before we box them
-    // since Java
-    // methods have a limit of 255 parameters, but we need to reserve a few for the Instance and
-    // Memory args.
-    private static final int MAX_PARAMETER_COUNT = 253;
+    // the JVM's limit on the parameter slots of a method descriptor
+    static final int MAX_METHOD_PARAMETER_SLOTS = 255;
+
+    // funcTableIdx, tableIdx, Memory and Instance: the most any generated method appends
+    private static final Class<?>[] CALL_INDIRECT_EXTRA_PARAMS = {
+        int.class, int.class, Memory.class, Instance.class
+    };
+
+    // wasm parameter slots above this are boxed, to stay within the JVM's limit
+    private static final int MAX_PARAMETER_COUNT =
+            MAX_METHOD_PARAMETER_SLOTS - CALL_INDIRECT_EXTRA_PARAMS.length;
 
     private static final Method LONG_TO_F32;
     private static final Method LONG_TO_F64;
@@ -186,9 +194,17 @@ final class CompilerUtil {
         return methodType(returnType, jvmTypes(types));
     }
 
+    // value_xxx takes the results as its only parameters; wider results are boxed inline
+    public static boolean hasTooManyResults(List<ValType> types) {
+        return hasTooManyResults(types.stream().mapToInt(CompilerUtil::slotCount).sum());
+    }
+
+    public static boolean hasTooManyResults(int resultSlots) {
+        return resultSlots > MAX_METHOD_PARAMETER_SLOTS;
+    }
+
     public static MethodType callIndirectMethodType(FunctionType functionType) {
-        return rawMethodTypeFor(functionType)
-                .appendParameterTypes(int.class, int.class, Memory.class, Instance.class);
+        return rawMethodTypeFor(functionType).appendParameterTypes(CALL_INDIRECT_EXTRA_PARAMS);
     }
 
     public static MethodType methodTypeFor(FunctionType type) {
@@ -196,13 +212,109 @@ final class CompilerUtil {
     }
 
     public static boolean hasTooManyParameters(FunctionType type) {
-        return type.params().stream().mapToInt(CompilerUtil::slotCount).sum() > MAX_PARAMETER_COUNT;
+        return paramSlots(type) > MAX_PARAMETER_COUNT;
+    }
+
+    public static int paramSlots(FunctionType type) {
+        return type.params().stream().mapToInt(CompilerUtil::slotCount).sum();
+    }
+
+    // JVM slots taken by the wasm arguments in the method signature
+    public static int argumentSlots(FunctionType type) {
+        int slots = paramSlots(type);
+        if (slots > MAX_PARAMETER_COUNT) {
+            return type.hasObjectRefParams() ? 2 : 1;
+        }
+        return slots;
     }
 
     public static MethodType rawMethodTypeFor(FunctionType type) {
-        var paramsTypes =
-                hasTooManyParameters(type) ? new Class[] {long[].class} : jvmParameterTypes(type);
+        Class<?>[] paramsTypes;
+        if (!hasTooManyParameters(type)) {
+            paramsTypes = jvmParameterTypes(type);
+        } else if (type.hasObjectRefParams()) {
+            paramsTypes = new Class[] {long[].class, Object[].class};
+        } else {
+            paramsTypes = new Class[] {long[].class};
+        }
         return methodType(jvmReturnType(type), paramsTypes);
+    }
+
+    // loads the wasm arguments of a method whose signature starts with them
+    public static void emitLoadArguments(MethodVisitor asm, FunctionType type) {
+        if (hasTooManyParameters(type)) {
+            asm.visitVarInsn(Opcodes.ALOAD, 0); // long[]
+            if (type.hasObjectRefParams()) {
+                asm.visitVarInsn(Opcodes.ALOAD, 1); // Object[]
+            }
+            return;
+        }
+        int slot = 0;
+        for (ValType param : type.params()) {
+            asm.visitVarInsn(asmType(param).getOpcode(Opcodes.ILOAD), slot);
+            slot += slotCount(param);
+        }
+    }
+
+    // leaves a long[] of the values in the locals from firstSlot on; object refs become 0
+    public static void emitBoxValues(InstructionAdapter asm, List<ValType> types, int firstSlot) {
+        int slot = firstSlot;
+        asm.iconst(types.size());
+        asm.newarray(LONG_TYPE);
+        for (int i = 0; i < types.size(); i++) {
+            asm.dup();
+            asm.iconst(i);
+            ValType valType = types.get(i);
+            asm.load(slot, asmType(valType));
+            if (valType.isObjectRef()) {
+                asm.visitInsn(Opcodes.POP);
+                asm.lconst(0L);
+            } else {
+                emitJvmToLong(asm, valType);
+            }
+            asm.astore(LONG_TYPE);
+            slot += slotCount(valType);
+        }
+    }
+
+    // leaves an Object[] with the object refs in the locals from firstSlot on, null elsewhere
+    public static void emitBoxRefs(InstructionAdapter asm, List<ValType> types, int firstSlot) {
+        int slot = firstSlot;
+        asm.iconst(types.size());
+        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+        for (int i = 0; i < types.size(); i++) {
+            ValType valType = types.get(i);
+            if (valType.isObjectRef()) {
+                asm.dup();
+                asm.iconst(i);
+                asm.load(slot, asmType(valType));
+                asm.astore(OBJECT_TYPE);
+            }
+            slot += slotCount(valType);
+        }
+    }
+
+    // leaves what value_xxx returns: a long[], or with object refs an Object[] with numbers as Long
+    public static void emitBoxResults(InstructionAdapter asm, List<ValType> types, int firstSlot) {
+        if (types.stream().noneMatch(ValType::isObjectRef)) {
+            emitBoxValues(asm, types, firstSlot);
+            return;
+        }
+        int slot = firstSlot;
+        asm.iconst(types.size());
+        asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+        for (int i = 0; i < types.size(); i++) {
+            asm.dup();
+            asm.iconst(i);
+            ValType valType = types.get(i);
+            asm.load(slot, asmType(valType));
+            if (!valType.isObjectRef()) {
+                emitJvmToLong(asm, valType);
+                asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+            }
+            asm.astore(OBJECT_TYPE);
+            slot += slotCount(valType);
+        }
     }
 
     public static Class<?>[] jvmTypes(List<ValType> types) {

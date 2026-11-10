@@ -8,6 +8,7 @@ import static org.objectweb.asm.commons.InstructionAdapter.OBJECT_TYPE;
 import static run.endive.compiler.internal.Compiler.emitFunction;
 import static run.endive.compiler.internal.Compiler.emitInstruction;
 import static run.endive.compiler.internal.Compiler.emitLocalsDefaultInit;
+import static run.endive.compiler.internal.CompilerUtil.MAX_METHOD_PARAMETER_SLOTS;
 import static run.endive.compiler.internal.CompilerUtil.asmType;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeStatic;
 import static run.endive.compiler.internal.CompilerUtil.emitJvmToLong;
@@ -91,7 +92,6 @@ final class MethodSplitter {
     // Sizes are estimates, so stay well under the JVM's 64 KB even with a raised limit.
     private static final int MAX_CHUNK_SIZE = Math.min(Compiler.HUGE_METHOD_LIMIT, 48000);
     private static final int SWITCH_CUT_MIN_TARGETS = 8;
-    private static final int MAX_ARGUMENT_SLOTS = 255;
     private static final int MAX_TRAMPOLINE_CHUNKS = 4096;
     private static final int MAX_SPILL = 8;
     private static final int CHUNK_BASE_COST = 64;
@@ -257,7 +257,7 @@ final class MethodSplitter {
         for (ValType local : body.localTypes()) {
             slots += slotCount(local);
         }
-        return slots <= MAX_ARGUMENT_SLOTS
+        return slots <= MAX_METHOD_PARAMETER_SLOTS
                 && instructions.stream()
                         .noneMatch(ins -> ins.opcode() == CompilerOpCode.TRY_CATCH_BLOCK);
     }

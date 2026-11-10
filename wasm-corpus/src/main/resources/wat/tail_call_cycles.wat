@@ -1,0 +1,27 @@
+(module
+  ;; Each export calls $started from inside Wasm, then enters a tail call cycle.
+  (import "env" "started" (func $started))
+  (type $t (func))
+  (type $tr (func (param externref)))
+  (table 3 funcref)
+  (elem (i32.const 0) func $indirect $mutual_a $indirect_refs)
+  (elem declare func $by_ref)
+
+  (func $direct return_call $direct)
+  (func $mutual_a (type $t) return_call $mutual_b)
+  (func $mutual_b (type $t) (return_call_indirect (type $t) (i32.const 1)))
+  (func $indirect (type $t) (return_call_indirect (type $t) (i32.const 0)))
+  (func $by_ref (type $t) (return_call_ref $t (ref.func $by_ref)))
+  (func $direct_refs (type $tr) (return_call $direct_refs (local.get 0)))
+  (func $indirect_refs (type $tr)
+    (return_call_indirect (type $tr) (local.get 0) (i32.const 2)))
+
+  (func (export "direct") (call $started) (return_call $direct))
+  (func (export "mutual") (call $started) (return_call $mutual_a))
+  (func (export "indirect") (call $started) (return_call $indirect))
+  (func (export "by_ref") (call $started) (return_call $by_ref))
+  (func (export "direct_refs") (type $tr)
+    (call $started) (return_call $direct_refs (local.get 0)))
+  (func (export "indirect_refs") (type $tr)
+    (call $started) (return_call $indirect_refs (local.get 0)))
+)

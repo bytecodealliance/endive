@@ -919,7 +919,12 @@ public final class Compiler {
         }
 
         if (moduleHasTailCalls) {
-            compileMachineCallWithTailCalls(internalClassName, asm, refArgsSlot);
+            compileMachineCallWithTailCalls(
+                    internalClassName,
+                    asm,
+                    refArgsSlot,
+                    "call",
+                    MACHINE_CALL_METHOD_TYPE_WITH_REFS);
         } else {
             compileMachineCallSimple(internalClassName, asm, refArgsSlot);
         }
@@ -998,7 +1003,10 @@ public final class Compiler {
             asm.mark(invalid);
         }
 
-        if (moduleHasObjectRefs) {
+        if (moduleHasObjectRefs && moduleHasTailCalls) {
+            compileMachineCallWithTailCalls(
+                    internalClassName, asm, 3, "callWithRefs", MACHINE_CALL_WITH_REFS_METHOD_TYPE);
+        } else if (moduleHasObjectRefs) {
             // Module has Object refs: dispatch through MachineCall.callWithRefs()
             // which routes to callWithRefs_N for ref functions and wraps call_N for non-ref
             Label start = new Label();
@@ -1060,7 +1068,11 @@ public final class Compiler {
     //       }
     //   }
     private void compileMachineCallWithTailCalls(
-            String internalClassName, InstructionAdapter asm, int refArgsSlot) {
+            String internalClassName,
+            InstructionAdapter asm,
+            int refArgsSlot,
+            String machineCall,
+            MethodType machineCallType) {
         Label start = new Label();
         Label end = new Label();
         Label soeCatch = new Label();
@@ -1085,8 +1097,8 @@ public final class Compiler {
 
         asm.invokestatic(
                 internalClassName + "MachineCall",
-                "call",
-                MACHINE_CALL_METHOD_TYPE_WITH_REFS.toMethodDescriptorString(),
+                machineCall,
+                machineCallType.toMethodDescriptorString(),
                 false);
 
         asm.load(instanceLocal, OBJECT_TYPE);

@@ -3,7 +3,10 @@ sidebar_position: 2
 sidebar_label: Native Compilation (Redline)
 title: Native Compilation with Redline
 ---
-## Overview
+Redline compiles your Wasm module to native machine code using [Cranelift](https://cranelift.dev/),
+instead of to JVM bytecode. Compilation happens at build time for every supported platform, and the
+right one is selected at runtime. Nothing is compiled at runtime: the runners only load the
+precompiled code, and Cranelift is not one of their dependencies.
 
 :::warning[Experimental]
 Redline is experimental, see [Why](why.md) for what that means for stability.
@@ -11,13 +14,8 @@ It also supports less of the WebAssembly specification than the other execution
 modes, so check [Feature support](#feature-support) before adopting it.
 :::
 
-Redline compiles your Wasm module to native machine code using [Cranelift](https://cranelift.dev/),
-instead of to JVM bytecode. Compilation happens at build time for every supported platform, and the
-right one is selected at runtime. Nothing is compiled at runtime: the runners only load the
-precompiled code, and Cranelift is not one of their dependencies.
-
-It is a substitute for the [Build Time Compiler](../execution/build-time-compiler.md) only, not for
-the interpreter or the [Runtime Compiler](../execution/runtime-compiler.md), and it is enabled on
+It is a substitute for the [build-time compiler](../execution/build-time-compiler.md) only, not for
+the interpreter or the [runtime compiler](../execution/runtime-compiler.md), and it is enabled on
 the same Maven plugin. The bytecode is still generated, and is used at runtime when the
 architecture or operating system is not supported.
 
@@ -150,7 +148,7 @@ may keep some for a while after their entries are overwritten.
 ## Falling back
 
 When native code cannot be used, `builder()` falls back to the bytecode produced by the
-[Build Time Compiler](../execution/build-time-compiler.md), which is always generated alongside it.
+[build-time compiler](../execution/build-time-compiler.md), which is always generated alongside it.
 This happens on platforms outside the table above, or when no runner is on the classpath. A jffi
 runner without jffi is an error, not a fallback.
 
@@ -181,7 +179,7 @@ The available triples are `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu
 `x86_64-apple-darwin`, `aarch64-apple-darwin`, `x86_64-pc-windows-msvc` and
 `aarch64-pc-windows-msvc`.
 
-**Build time.** Compiling for every platform takes noticeably longer than the build time compiler
+**Build time.** Compiling for every platform takes noticeably longer than the build-time compiler
 alone. Narrowing the target list helps here too.
 
 **Imported memories, tables and globals.** Create anything you pass in through `ImportValues` from

@@ -1,14 +1,12 @@
 ---
 sidebar_position: 3
-sidebar_label: Runtime Compiler Cache
-title: Runtime Compiler Cache
+sidebar_label: Compiler Cache
+title: Compiler Cache
 ---
 
-# Overview of the Runtime Compiler Cache
+The compiler cache stores the bytecode produced by the [runtime compiler](runtime-compiler.md), so later runs skip compilation and start faster.
 
-The runtime compiler cache lets the Endive runtime compiler store the results of compiling WASM modules to Java bytecode. Subsequent executions can skip compilation and start faster.
-
-Use the experimental directory-based cache, or implement the simple `run.endive.compiler.Cache` interface:
+Use the experimental directory cache below, or implement the `run.endive.compiler.Cache` interface:
 
 ```java
 public interface Cache {
@@ -19,34 +17,15 @@ public interface Cache {
 
 The compiler uses the module digest (default SHA-256) as the cache key. For example, `"sha-256:KRgyTkCm43c34ksqtA8gmdDw4YCfquC2G0qfIFCpb+w="` could be a key. The cached value is a JAR containing the module's compiled bytecode.
 
-## The Directory Cache
+## The directory cache
 
 :::warning[Security Consideration]
-The directory cache stores compiled bytecode on disk without integrity verification. Ensure the cache directory has restrictive permissions (`chmod 700`) and is not writable by untrusted users. Do not share caches across trust boundaries.
+The cache stores bytecode on disk without integrity checks. Keep the directory private (`chmod 700`) and never share it across trust boundaries.
 :::
 
-The directory cache stores entries as files under a configured directory.   For example, 
-if the cache directory is `/cache`, and you store the following cache key: 
+`DirectoryCache` stores one jar per module under a directory of your choice. Writes are atomic, so several processes can share a cache. Nothing is ever evicted: delete files to free disk space.
 
-`sha-256:KRgyTkCm43c34ksqtA8gmdDw4YCfquC2G0qfIFCpb+w=`
- 
-then that will create the following file: 
-
-`/cache/sha-256/kr/gytkcm43c34ksqta8gmddw4ycfquc2g0qfifcpb-w.jar` 
-
-It transforms the key to:
-* translate characters to be file-system-friendly
-* use a two-character subdirectory prefix to avoid directory scaling issues
-
-The implementation uses file system atomic moves (write to a temp file, then move to the final location). This makes the cache thread-safe and safe to share across processes and avoids partial-write failures. Temp files are written under `/cache/.tmp`. Partially written temp files may be left after a crash; there is no automatic cleanup or eviction. The cache size is not limited — delete files manually to free disk space.
-
-### Using the Directory Cache
-
-We assume you already use the runtime compiler. If not, see the [Runtime Compiler](../execution/runtime-compiler) guide first.
-
-### Add the Maven Dependency
-
-Add the following dependency:
+Add the dependency:
 
 ```xml
 <dependency>
@@ -54,8 +33,6 @@ Add the following dependency:
   <artifactId>dircache-experimental</artifactId>
 </dependency>
 ```
-
-### Code
 
 Create the cache:
 

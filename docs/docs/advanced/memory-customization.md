@@ -35,7 +35,7 @@ var instance = Instance.builder(module).
 | `ByteArrayMemory` | Fastest on every JDK | Lock-free up to JDK 21, locked from JDK 23 | Every JDK |
 
 Atomic instructions only matter for modules built with the threads proposal that share their memory between threads.
-For everything else `ByteArrayMemory` is the faster choice on a standard JVM, and `ByteBufferMemory` is the safe default where that cannot be assumed, such as Android.
+`ByteArrayMemory` is the faster choice on a standard JVM, and `ByteBufferMemory` is the safe default where that cannot be assumed, such as Android.
 From JDK 23 the JDK no longer provides lock-free multi-byte atomics on byte arrays, so a shared memory performs the same with either implementation there.
 
 Workloads use memory in very different ways, so benchmark before changing the default.

@@ -101,8 +101,6 @@
             <excludes>
               <!-- Linux and Jimfs always append with APPEND -->
               <exclude>tests/c/testsuite/wasm32-wasip1/pwrite-with-append.wasm</exclude>
-              <!-- dangling symlinks are not supported -->
-              <exclude>tests/rust/testsuite/wasm32-wasip1/dangling_symlink.wasm</exclude>
               <!-- fd_fdstat_set_rights is not implemented -->
               <exclude>tests/rust/testsuite/wasm32-wasip1/fd_fdstat_set_rights.wasm</exclude>
               <exclude>tests/rust/testsuite/wasm32-wasip1/truncation_rights.wasm</exclude>

@@ -1509,10 +1509,6 @@ public final class WasiPreview1 implements Closeable {
             return wasiResult(WasiErrno.EPERM);
         }
 
-        if (newRawPath.endsWith("/")) {
-            return wasiResult(WasiErrno.EEXIST);
-        }
-
         var newResolved = resolvePath(directory, newRawPath, false);
         if (newResolved.isError()) {
             return newResolved.error();
@@ -1521,6 +1517,9 @@ public final class WasiPreview1 implements Closeable {
 
         if (Files.exists(newPath)) {
             return wasiResult(WasiErrno.EEXIST);
+        }
+        if (newRawPath.endsWith("/")) {
+            return wasiResult(WasiErrno.ENOENT);
         }
 
         try {

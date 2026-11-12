@@ -1943,8 +1943,8 @@ public final class WasiPreview1 implements Closeable {
                 }
 
                 Path next = current.resolve(name);
-                BasicFileAttributes attributes = lstat(next);
                 boolean last = pending.isEmpty();
+                BasicFileAttributes attributes = last && !followFinal ? null : lstat(next);
                 if (attributes != null && attributes.isSymbolicLink() && (!last || followFinal)) {
                     if (++symlinks > MAX_SYMLINKS) {
                         return new ResolvedPath(wasiResult(WasiErrno.ELOOP));

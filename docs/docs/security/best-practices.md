@@ -38,7 +38,7 @@ WasmFunctionHandle readMemory = (Instance instance, long... args) -> {
 ## WASI Sandboxing
 
 :::warning[Security Consideration]
-WASI file access does not enforce path sandboxing by default. Passing the host filesystem directly exposes all files the JVM process can access.
+WASI resolves guest paths, including `..` and symbolic links, inside the pre-opened directories. Changes made to those directories by other processes while the guest runs are not guarded against.
 :::
 
 **Use a virtual filesystem:**

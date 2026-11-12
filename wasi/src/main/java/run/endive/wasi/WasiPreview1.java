@@ -40,7 +40,9 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -76,6 +78,7 @@ public final class WasiPreview1 implements Closeable {
     private static final String FILESTAT_ATTRIBUTES =
             "unix:dev,ino,nlink,size,lastAccessTime,lastModifiedTime,ctime,"
                     + "isSymbolicLink,isDirectory,isRegularFile";
+    private static final int MAX_SYMLINKS = 40;
 
     private final Logger logger;
     private final Random random;
@@ -458,18 +461,14 @@ public final class WasiPreview1 implements Closeable {
             return wasiResult(WasiErrno.ESUCCESS);
         }
 
-        Path path;
-        if (descriptor instanceof OpenFile) {
-            path = ((OpenFile) descriptor).path();
-        } else if (descriptor instanceof OpenDirectory) {
-            path = ((OpenDirectory) descriptor).path();
-        } else {
-            throw unhandledDescriptor(descriptor);
+        var resolved = descriptorPath(descriptor);
+        if (resolved.isError()) {
+            return resolved.error();
         }
 
         Map<String, Object> attributes;
         try {
-            attributes = readFileStatAttributes(path);
+            attributes = readFileStatAttributes(resolved.path(), LinkOption.NOFOLLOW_LINKS);
         } catch (UnsupportedOperationException e) {
             return wasiResult(WasiErrno.ENOTSUP);
         } catch (IOException e) {
@@ -534,16 +533,18 @@ public final class WasiPreview1 implements Closeable {
             return wasiResult(WasiErrno.EINVAL);
         }
 
-        Path path;
-        if (descriptor instanceof OpenFile) {
-            path = ((OpenFile) descriptor).path();
-        } else if (descriptor instanceof Directory) {
-            path = ((Directory) descriptor).path();
-        } else {
-            throw unhandledDescriptor(descriptor);
+        var resolved = descriptorPath(descriptor);
+        if (resolved.isError()) {
+            return resolved.error();
         }
 
-        return wasiResult(setFileTimes(path, modifiedTime, accessTime, fstFlags));
+        return wasiResult(
+                setFileTimes(
+                        resolved.path(),
+                        modifiedTime,
+                        accessTime,
+                        fstFlags,
+                        LinkOption.NOFOLLOW_LINKS));
     }
 
     @WasmExport
@@ -768,7 +769,11 @@ public final class WasiPreview1 implements Closeable {
         if (!(descriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path directory = ((Directory) descriptor).path();
+        var resolved = descriptorPath(descriptor);
+        if (resolved.isError()) {
+            return resolved.error();
+        }
+        Path directory = resolved.path();
 
         int used = 0;
         try (Stream<Path> stream = Files.list(directory)) {
@@ -987,15 +992,16 @@ public final class WasiPreview1 implements Closeable {
         if (!(descriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path directory = ((Directory) descriptor).path();
+        Directory directory = (Directory) descriptor;
 
         if (rawPath.isEmpty()) {
             return wasiResult(WasiErrno.ENOENT);
         }
-        Path path = resolvePath(directory, rawPath);
-        if (path == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var resolved = resolvePath(directory, rawPath, false);
+        if (resolved.isError()) {
+            return resolved.error();
         }
+        Path path = resolved.path();
 
         try {
             Files.createDirectory(path);
@@ -1021,28 +1027,23 @@ public final class WasiPreview1 implements Closeable {
         if (!(descriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path directory = ((Directory) descriptor).path();
+        Directory directory = (Directory) descriptor;
 
         if (rawPath.isEmpty()) {
             return wasiResult(WasiErrno.ENOENT);
         }
-        Path path = resolvePath(directory, rawPath);
-        if (path == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var resolved =
+                resolvePath(
+                        directory, rawPath, flagSet(lookupFlags, WasiLookupFlags.SYMLINK_FOLLOW));
+        if (resolved.isError()) {
+            return resolved.error();
         }
+        Path path = resolved.path();
 
         LinkOption[] linkOptions = toLinkOptions(lookupFlags);
 
         Map<String, Object> attributes;
         try {
-            if (flagSet(lookupFlags, WasiLookupFlags.SYMLINK_FOLLOW)) {
-                var resolved = resolveSymlinks(path, directory);
-                if (resolved.isError()) {
-                    return resolved.error();
-                } else {
-                    path = resolved.resolved();
-                }
-            }
             attributes = readFileStatAttributes(path, linkOptions);
         } catch (UnsupportedOperationException e) {
             return wasiResult(WasiErrno.ENOTSUP);
@@ -1077,88 +1078,21 @@ public final class WasiPreview1 implements Closeable {
         if (!(descriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path directory = ((Directory) descriptor).path();
+        Directory directory = (Directory) descriptor;
 
         if (rawPath.isEmpty()) {
             return wasiResult(WasiErrno.ENOENT);
         }
-        Path path = resolvePath(directory, rawPath);
-        if (path == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var resolved =
+                resolvePath(
+                        directory, rawPath, flagSet(lookupFlags, WasiLookupFlags.SYMLINK_FOLLOW));
+        if (resolved.isError()) {
+            return resolved.error();
         }
+        Path path = resolved.path();
 
         return wasiResult(
                 setFileTimes(path, modifiedTime, accessTime, fstFlags, toLinkOptions(lookupFlags)));
-    }
-
-    private static final class ResolvedSymlink {
-        private final Path resolved;
-        private final int errorcode;
-
-        ResolvedSymlink(Path resolved) {
-            this.resolved = resolved;
-            this.errorcode = 0;
-        }
-
-        ResolvedSymlink(int errcode) {
-            this.resolved = null;
-            this.errorcode = errcode;
-        }
-
-        boolean isError() {
-            return (this.resolved == null);
-        }
-
-        int error() {
-            return errorcode;
-        }
-
-        Path resolved() {
-            return resolved;
-        }
-    }
-
-    private ResolvedSymlink resolveSymlinks(Path path, Path directory) {
-        List<Path> visited = new ArrayList<>();
-        while (Files.isSymbolicLink(path)) {
-            if (visited.contains(path)) {
-                return new ResolvedSymlink(wasiResult(WasiErrno.ELOOP));
-            } else {
-                visited.add(path);
-            }
-
-            try {
-                path = Files.readSymbolicLink(path);
-            } catch (IOException e) {
-                return new ResolvedSymlink(wasiResult(WasiErrno.EIO));
-            }
-        }
-
-        try {
-            Path dirReal = directory.toRealPath();
-            if (!realPath(path).startsWith(dirReal)) {
-                return new ResolvedSymlink(wasiResult(WasiErrno.EACCES));
-            }
-        } catch (IOException e) {
-            return new ResolvedSymlink(wasiResult(WasiErrno.EIO));
-        }
-
-        return new ResolvedSymlink(path);
-    }
-
-    // The real path of the nearest existing ancestor, followed by the missing names.
-    private static Path realPath(Path path) throws IOException {
-        Path existing = path.toAbsolutePath().normalize();
-        Path missing = existing.getFileSystem().getPath("");
-        while (!Files.exists(existing)) {
-            Path parent = existing.getParent();
-            if (parent == null) {
-                return path.toAbsolutePath().normalize();
-            }
-            missing = existing.getFileName().resolve(missing);
-            existing = parent;
-        }
-        return existing.toRealPath().resolve(missing);
     }
 
     @WasmExport
@@ -1178,7 +1112,7 @@ public final class WasiPreview1 implements Closeable {
         if (!(oldDescriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path oldDirectory = ((Directory) oldDescriptor).path();
+        Directory oldDirectory = (Directory) oldDescriptor;
 
         var newDescriptor = descriptors.get(newFd);
         if (newDescriptor == null) {
@@ -1187,23 +1121,29 @@ public final class WasiPreview1 implements Closeable {
         if (!(newDescriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path newDirectory = ((Directory) newDescriptor).path();
+        Directory newDirectory = (Directory) newDescriptor;
 
         if (rawOldPath.isEmpty() || rawNewPath.isEmpty()) {
             return wasiResult(WasiErrno.ENOENT);
         }
-        Path oldPath = resolvePath(oldDirectory, rawOldPath);
-        if (oldPath == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var oldResolved =
+                resolvePath(
+                        oldDirectory,
+                        rawOldPath,
+                        flagSet(oldFlags, WasiLookupFlags.SYMLINK_FOLLOW));
+        if (oldResolved.isError()) {
+            return oldResolved.error();
         }
+        Path oldPath = oldResolved.path();
 
         if (rawNewPath.endsWith("/")) {
             return wasiResult(WasiErrno.ENOENT);
         }
-        Path newPath = resolvePath(newDirectory, rawNewPath);
-        if (newPath == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var newResolved = resolvePath(newDirectory, rawNewPath, false);
+        if (newResolved.isError()) {
+            return newResolved.error();
         }
+        Path newPath = newResolved.path();
         if (Files.exists(newPath)) {
             return wasiResult(WasiErrno.EEXIST);
         }
@@ -1218,15 +1158,13 @@ public final class WasiPreview1 implements Closeable {
             return wasiResult(WasiErrno.EISDIR);
         }
 
+        // some providers (ZeroFs, macOS) link the target of a symlink
+        if (Files.isSymbolicLink(oldPath)
+                && resolvePath(oldDirectory, rawOldPath, true).error() == WasiErrno.EPERM.value()) {
+            return wasiResult(WasiErrno.EPERM);
+        }
+
         try {
-            if (flagSet(oldFlags, WasiLookupFlags.SYMLINK_FOLLOW)) {
-                var resolved = resolveSymlinks(oldPath, oldDirectory);
-                if (resolved.isError()) {
-                    return resolved.error();
-                } else {
-                    oldPath = resolved.resolved();
-                }
-            }
             Files.createLink(newPath, oldPath);
         } catch (UnsupportedOperationException | AtomicMoveNotSupportedException e) {
             return wasiResult(WasiErrno.ENOTSUP);
@@ -1269,7 +1207,7 @@ public final class WasiPreview1 implements Closeable {
         if (!(descriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path directory = ((Directory) descriptor).path();
+        Directory directory = (Directory) descriptor;
 
         if (rawPath.endsWith("\0")) {
             return wasiResult(WasiErrno.EINVAL);
@@ -1278,10 +1216,13 @@ public final class WasiPreview1 implements Closeable {
             return wasiResult(WasiErrno.ENOENT);
         }
 
-        Path path = resolvePath(directory, rawPath);
-        if (path == null) {
-            return wasiResult(WasiErrno.EPERM);
+        var resolved =
+                resolvePath(
+                        directory, rawPath, flagSet(lookupFlags, WasiLookupFlags.SYMLINK_FOLLOW));
+        if (resolved.isError()) {
+            return resolved.error();
         }
+        Path path = resolved.path();
 
         if (flagSet(openFlags, WasiOpenFlags.DIRECTORY)
                 && !flagSet(lookupFlags, WasiLookupFlags.SYMLINK_FOLLOW)
@@ -1293,20 +1234,11 @@ public final class WasiPreview1 implements Closeable {
             return wasiResult(WasiErrno.ELOOP);
         }
 
-        if (flagSet(lookupFlags, WasiLookupFlags.SYMLINK_FOLLOW)) {
-            var resolved = resolveSymlinks(path, directory);
-            if (resolved.isError()) {
-                return resolved.error();
-            } else {
-                path = resolved.resolved();
-            }
-        }
-
         if (Files.isDirectory(path)) {
             if (flagSet(rightsBase, WasiRights.FD_WRITE)) {
                 return wasiResult(WasiErrno.EISDIR);
             }
-            int fd = descriptors.allocate(new OpenDirectory(path));
+            int fd = descriptors.allocate(new OpenDirectory(directory.root(), resolved.names()));
             memory.writeI32(fdPtr, fd);
             return wasiResult(WasiErrno.ESUCCESS);
         }
@@ -1368,7 +1300,13 @@ public final class WasiPreview1 implements Closeable {
             }
             fd =
                     descriptors.allocate(
-                            new OpenFile(path, channel, channelAppends, fdFlags, rightsBase));
+                            new OpenFile(
+                                    directory.root(),
+                                    resolved.names(),
+                                    channel,
+                                    channelAppends,
+                                    fdFlags,
+                                    rightsBase));
         } catch (FileAlreadyExistsException e) {
             return wasiResult(WasiErrno.EEXIST);
         } catch (NoSuchFileException e) {
@@ -1395,15 +1333,16 @@ public final class WasiPreview1 implements Closeable {
         if (!(descriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path directory = ((Directory) descriptor).path();
+        Directory directory = (Directory) descriptor;
 
         if (rawPath.isEmpty()) {
             return wasiResult(WasiErrno.ENOENT);
         }
-        Path path = resolvePath(directory, rawPath);
-        if (path == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var resolved = resolvePath(directory, rawPath, false);
+        if (resolved.isError()) {
+            return resolved.error();
         }
+        Path path = resolved.path();
 
         Path link;
         try {
@@ -1418,7 +1357,8 @@ public final class WasiPreview1 implements Closeable {
             return wasiResult(WasiErrno.EIO);
         }
 
-        byte[] name = link.getFileName().toString().getBytes(UTF_8);
+        String separator = link.getFileSystem().getSeparator();
+        byte[] name = link.toString().replace(separator, "/").getBytes(UTF_8);
         int used = min(name.length, bufLen);
         memory.write(buf, name, 0, used);
         memory.writeI32(bufUsedPtr, used);
@@ -1437,16 +1377,17 @@ public final class WasiPreview1 implements Closeable {
         if (!(descriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path directory = ((Directory) descriptor).path();
+        Directory directory = (Directory) descriptor;
 
         if (rawPath.isEmpty()) {
             return wasiResult(WasiErrno.ENOENT);
         }
-        Path path = resolvePath(directory, rawPath);
-        if (path == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var resolved = resolvePath(directory, rawPath, false);
+        if (resolved.isError()) {
+            return resolved.error();
         }
-        if (path.equals(directory)) {
+        Path path = resolved.path();
+        if (resolved.names().size() == directory.names().size()) {
             return wasiResult(WasiErrno.EINVAL);
         }
 
@@ -1480,7 +1421,7 @@ public final class WasiPreview1 implements Closeable {
         if (!(oldDescriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path oldDirectory = ((Directory) oldDescriptor).path();
+        Directory oldDirectory = (Directory) oldDescriptor;
 
         var newDescriptor = descriptors.get(newFd);
         if (newDescriptor == null) {
@@ -1489,23 +1430,25 @@ public final class WasiPreview1 implements Closeable {
         if (!(newDescriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path newDirectory = ((Directory) newDescriptor).path();
+        Directory newDirectory = (Directory) newDescriptor;
 
         if (oldRawPath.isEmpty() || newRawPath.isEmpty()) {
             return wasiResult(WasiErrno.ENOENT);
         }
-        Path oldPath = resolvePath(oldDirectory, oldRawPath);
-        if (oldPath == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var oldResolved = resolvePath(oldDirectory, oldRawPath, false);
+        if (oldResolved.isError()) {
+            return oldResolved.error();
         }
-
-        Path newPath = resolvePath(newDirectory, newRawPath);
-        if (newPath == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var newResolved = resolvePath(newDirectory, newRawPath, false);
+        if (newResolved.isError()) {
+            return newResolved.error();
         }
-        if (oldPath.equals(oldDirectory) || newPath.equals(newDirectory)) {
+        if (oldResolved.names().size() == oldDirectory.names().size()
+                || newResolved.names().size() == newDirectory.names().size()) {
             return wasiResult(WasiErrno.EBUSY);
         }
+        Path oldPath = oldResolved.path();
+        Path newPath = newResolved.path();
 
         if (Files.isDirectory(oldPath) && Files.isRegularFile(newPath, LinkOption.NOFOLLOW_LINKS)) {
             return wasiResult(WasiErrno.ENOTDIR);
@@ -1556,38 +1499,32 @@ public final class WasiPreview1 implements Closeable {
         if (!(descriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path directory = ((Directory) descriptor).path();
+        Directory directory = (Directory) descriptor;
 
         if (oldRawPath.isEmpty() || newRawPath.isEmpty()) {
             return wasiResult(WasiErrno.ENOENT);
         }
-        Path oldPath = resolvePath(directory, oldRawPath);
-        if (oldPath == null) {
-            return wasiResult(WasiErrno.EACCES);
+        Path target = relativePath(directory.root(), oldRawPath);
+        if (target == null) {
+            return wasiResult(WasiErrno.EPERM);
         }
 
         if (newRawPath.endsWith("/")) {
             return wasiResult(WasiErrno.EEXIST);
         }
 
-        Path newPath = resolvePath(directory, newRawPath);
-        if (newPath == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var newResolved = resolvePath(directory, newRawPath, false);
+        if (newResolved.isError()) {
+            return newResolved.error();
         }
+        Path newPath = newResolved.path();
 
         if (Files.exists(newPath)) {
             return wasiResult(WasiErrno.EEXIST);
         }
 
-        if (Files.isDirectory(oldPath) && Files.isRegularFile(newPath, LinkOption.NOFOLLOW_LINKS)) {
-            return wasiResult(WasiErrno.ENOTDIR);
-        }
-        if (Files.isRegularFile(oldPath, LinkOption.NOFOLLOW_LINKS) && Files.isDirectory(newPath)) {
-            return wasiResult(WasiErrno.EISDIR);
-        }
-
         try {
-            Files.createSymbolicLink(newPath, oldPath);
+            Files.createSymbolicLink(newPath, target);
         } catch (UnsupportedOperationException | AtomicMoveNotSupportedException e) {
             return wasiResult(WasiErrno.ENOTSUP);
         } catch (NoSuchFileException e) {
@@ -1611,15 +1548,16 @@ public final class WasiPreview1 implements Closeable {
         if (!(descriptor instanceof Directory)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        Path directory = ((Directory) descriptor).path();
+        Directory directory = (Directory) descriptor;
 
         if (rawPath.isEmpty()) {
             return wasiResult(WasiErrno.ENOENT);
         }
-        Path path = resolvePath(directory, rawPath);
-        if (path == null) {
-            return wasiResult(WasiErrno.EACCES);
+        var resolved = resolvePath(directory, rawPath, false);
+        if (resolved.isError()) {
+            return resolved.error();
         }
+        Path path = resolved.path();
 
         try {
             var attributes =
@@ -1932,25 +1870,166 @@ public final class WasiPreview1 implements Closeable {
         return WasiErrno.ESUCCESS;
     }
 
-    private static Path resolvePath(Path directory, String rawPathString) {
-        Path rawPath;
+    private static final class ResolvedPath {
+        private final Path path;
+        private final List<String> names;
+        private final int error;
+
+        ResolvedPath(Path path, List<String> names) {
+            this.path = path;
+            this.names = names;
+            this.error = 0;
+        }
+
+        ResolvedPath(int error) {
+            this.path = null;
+            this.names = null;
+            this.error = error;
+        }
+
+        boolean isError() {
+            return path == null;
+        }
+
+        int error() {
+            return error;
+        }
+
+        Path path() {
+            return path;
+        }
+
+        /** The names from the preopened directory to the path. */
+        List<String> names() {
+            return names;
+        }
+    }
+
+    /** Resolves a guest path name by name, keeping ".." and symbolic links inside the directory. */
+    private ResolvedPath resolvePath(Directory directory, String rawPath, boolean followFinal) {
+        Path guestPath = relativePath(directory.root(), rawPath);
+        if (guestPath == null) {
+            return new ResolvedPath(wasiResult(WasiErrno.EPERM));
+        }
+
+        var start = walkDirectories(directory.root(), directory.names());
+        if (start.isError()) {
+            return start;
+        }
+        Path current = start.path();
+        List<String> names = new ArrayList<>(start.names());
+        Deque<Path> parents = new ArrayDeque<>();
+        Deque<String> pending = names(guestPath);
+        int symlinks = 0;
         try {
-            rawPath = directory.getFileSystem().getPath(rawPathString);
+            while (!pending.isEmpty()) {
+                String name = pending.pollFirst();
+                if (name.equals(".")) {
+                    continue;
+                }
+                if (name.equals("..")) {
+                    if (parents.isEmpty()) {
+                        return new ResolvedPath(wasiResult(WasiErrno.EPERM));
+                    }
+                    current = parents.pop();
+                    names.remove(names.size() - 1);
+                    continue;
+                }
+
+                Path next = current.resolve(name);
+                BasicFileAttributes attributes = lstat(next);
+                boolean last = pending.isEmpty();
+                if (attributes != null && attributes.isSymbolicLink() && (!last || followFinal)) {
+                    if (++symlinks > MAX_SYMLINKS) {
+                        return new ResolvedPath(wasiResult(WasiErrno.ELOOP));
+                    }
+                    Path target = Files.readSymbolicLink(next);
+                    if (target.getRoot() != null) {
+                        return new ResolvedPath(wasiResult(WasiErrno.EPERM));
+                    }
+                    Deque<String> expanded = names(target);
+                    expanded.addAll(pending);
+                    pending = expanded;
+                    continue;
+                }
+                if (!last && attributes == null) {
+                    return new ResolvedPath(wasiResult(WasiErrno.ENOENT));
+                }
+                if (!last && !attributes.isDirectory()) {
+                    return new ResolvedPath(wasiResult(WasiErrno.ENOTDIR));
+                }
+                parents.push(current);
+                names.add(name);
+                current = next;
+            }
+        } catch (IOException e) {
+            return new ResolvedPath(wasiResult(WasiErrno.EIO));
+        }
+        return new ResolvedPath(current, names);
+    }
+
+    /** Resolves a descriptor again, so that a replaced name cannot lead elsewhere. */
+    private ResolvedPath descriptorPath(Descriptor descriptor) {
+        if (descriptor instanceof OpenFile) {
+            var file = (OpenFile) descriptor;
+            List<String> names = file.names();
+            var parent = walkDirectories(file.root(), names.subList(0, names.size() - 1));
+            if (parent.isError()) {
+                return parent;
+            }
+            return new ResolvedPath(parent.path().resolve(names.get(names.size() - 1)), names);
+        }
+        if (descriptor instanceof Directory) {
+            var directory = (Directory) descriptor;
+            return walkDirectories(directory.root(), directory.names());
+        }
+        throw unhandledDescriptor(descriptor);
+    }
+
+    /** Checks that the names below the root are still real directories. */
+    private ResolvedPath walkDirectories(Path root, List<String> names) {
+        Path path = root;
+        try {
+            for (String name : names) {
+                path = path.resolve(name);
+                var attributes = lstat(path);
+                if (attributes == null || !attributes.isDirectory()) {
+                    return new ResolvedPath(wasiResult(WasiErrno.ENOENT));
+                }
+            }
+        } catch (IOException e) {
+            return new ResolvedPath(wasiResult(WasiErrno.EIO));
+        }
+        return new ResolvedPath(path, names);
+    }
+
+    // null if the path is invalid or absolute; on Windows a root can also be "\" or a drive
+    private static Path relativePath(Path root, String path) {
+        Path parsed;
+        try {
+            parsed = root.getFileSystem().getPath(path);
         } catch (InvalidPathException e) {
             return null;
         }
+        return parsed.getRoot() == null ? parsed : null;
+    }
 
-        // on Windows a root can also be "\" or a drive
-        if (rawPath.getRoot() != null) {
+    private static BasicFileAttributes lstat(Path path) throws IOException {
+        try {
+            return Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        } catch (NoSuchFileException e) {
             return null;
         }
+    }
 
-        Path normalized = rawPath.normalize();
-        if (normalized.getNameCount() > 0 && normalized.getName(0).toString().equals("..")) {
-            return null;
+    private static Deque<String> names(Path path) {
+        Deque<String> names = new ArrayDeque<>();
+        for (Path name : path) {
+            if (!name.toString().isEmpty()) {
+                names.add(name.toString());
+            }
         }
-
-        return directory.resolve(normalized);
+        return names;
     }
 
     private static Map<String, Object> readFileStatAttributes(Path path, LinkOption... options)

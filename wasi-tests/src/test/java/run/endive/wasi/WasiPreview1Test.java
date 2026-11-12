@@ -530,7 +530,7 @@ public class WasiPreview1Test {
     }
 
     @Test
-    public void symlinkEscapeShouldReturnEacces() throws IOException {
+    public void symlinkEscapeShouldReturnEperm() throws IOException {
         Path tmpDir = java.nio.file.Files.createTempDirectory("wasi-symlink-test");
         try {
             Path sandbox = tmpDir.resolve("sandbox");
@@ -546,7 +546,7 @@ public class WasiPreview1Test {
                 int result =
                         wasi.pathFilestatGet(
                                 memory, 3, WasiLookupFlags.SYMLINK_FOLLOW, "escape", buf);
-                assertEquals(WasiErrno.EACCES.value(), result);
+                assertEquals(WasiErrno.EPERM.value(), result);
             }
         } finally {
             deleteRecursively(tmpDir);
@@ -603,6 +603,7 @@ public class WasiPreview1Test {
         try (var fs = ZeroFs.newFileSystem(Configuration.windows())) {
             Path dir = java.nio.file.Files.createDirectories(fs.getPath("C:\\work\\dir"));
             writeString(dir.resolve("file.txt"), "hello");
+            createDirectory(dir.resolve("sub"));
             writeString(fs.getPath("C:\\work\\outside.txt"), "outside");
             try (var wasi = wasiWithDirectory("dir", dir)) {
                 var memory = new ByteBufferMemory(new MemoryLimits(1));
@@ -621,7 +622,12 @@ public class WasiPreview1Test {
                 assertEquals(
                         WasiErrno.ESUCCESS.value(),
                         wasi.pathOpen(memory, 3, 0, "sub\\..\\file.txt", 0, 0, 0, 0, 0));
-                assertEquals(WasiErrno.EACCES.value(), wasi.pathSymlink("..\\outside.txt", 3, "l"));
+                assertEquals(
+                        WasiErrno.ESUCCESS.value(), wasi.pathSymlink("..\\outside.txt", 3, "l"));
+                assertEquals(
+                        WasiErrno.EPERM.value(),
+                        wasi.pathOpen(
+                                memory, 3, WasiLookupFlags.SYMLINK_FOLLOW, "l", 0, 0, 0, 0, 0));
             }
         }
     }

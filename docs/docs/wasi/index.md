@@ -26,7 +26,7 @@ access to the corresponding _host_ resources, but they will be mediated by the W
 which can be configured to limit their surface.
 
 :::warning[Security Consideration]
-Map only virtual file system directories (for example [ZeroFs](https://github.com/roastedroot/zerofs) or [Jimfs](https://github.com/google/jimfs)): a host directory exposes everything the JVM process can read. See [Security Best Practices](/docs/security/best-practices).
+Guest paths, including `..` and symbolic links, are resolved inside the mapped directories. Changes made to those directories by other processes while the guest runs are not guarded against, so for untrusted guests prefer a virtual file system (for example [ZeroFs](https://github.com/roastedroot/zerofs) or [Jimfs](https://github.com/google/jimfs)) holding a copy of the data they need. See [Security Best Practices](/docs/security/best-practices).
 :::
 
 Add the dependency to your build:
@@ -170,7 +170,7 @@ var wasi = WasiOptions.builder().
 
 ## Disk
 
-File access goes through a virtual file system, which confines the guest to the directories you map. The example uses [Google's Jimfs](https://github.com/google/jimfs):
+The guest only reaches the directories you map. Paths are resolved one name at a time, symbolic links are followed only inside the directory a path starts from, and a path leading outside of it fails with `EPERM`. The example uses [Google's Jimfs](https://github.com/google/jimfs):
 
 <!--
 ```java
@@ -237,7 +237,7 @@ For the most up-to-date info, and to see what specific functions we support, see
 | path_readlink           | ✅         |                                                                           |
 | path_remove_directory   | ✅         |                                                                           |
 | path_rename             | ✅         |                                                                           |
-| path_symlink            | 🟡         | Dangling symlinks are not supported.                                      |
+| path_symlink            | 🟡         | Absolute targets are not allowed.                                         |
 | path_unlink_file        | ✅         |                                                                           |
 | poll_oneoff             | ✅         |                                                                           |
 | proc_exit               | ✅         |                                                                           |

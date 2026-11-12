@@ -133,6 +133,20 @@ public class WasiPathResolutionTest {
                 });
     }
 
+    @Test
+    public void invalidUtf8PathsAreRejected(@TempDir Path tempDir) throws IOException {
+        onBothFileSystems(
+                tempDir,
+                (sandbox, outside) -> {
+                    int eilseq = WasiErrno.EILSEQ.value();
+                    try (var wasi = wasi(sandbox)) {
+                        assertEquals(eilseq, wasi.pathCreateDirectory(3, "\uFFFD"));
+                        assertEquals(eilseq, wasi.pathSymlink("\uFFFD", 3, "link"));
+                        assertEquals(eilseq, wasi.pathReadlink(memory, 3, "\uFFFD", 0, 0, 128));
+                    }
+                });
+    }
+
     private static void onBothFileSystems(Path tempDir, Body body) throws IOException {
         run(tempDir, body);
         try (FileSystem fs =

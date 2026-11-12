@@ -1504,6 +1504,9 @@ public final class WasiPreview1 implements Closeable {
         if (oldRawPath.isEmpty() || newRawPath.isEmpty()) {
             return wasiResult(WasiErrno.ENOENT);
         }
+        if (oldRawPath.indexOf('\uFFFD') >= 0) {
+            return wasiResult(WasiErrno.EILSEQ);
+        }
         Path target = relativePath(directory.root(), oldRawPath);
         if (target == null) {
             return wasiResult(WasiErrno.EPERM);
@@ -1906,6 +1909,10 @@ public final class WasiPreview1 implements Closeable {
 
     /** Resolves a guest path name by name, keeping ".." and symbolic links inside the directory. */
     private ResolvedPath resolvePath(Directory directory, String rawPath, boolean followFinal) {
+        // invalid UTF-8 is decoded as U+FFFD
+        if (rawPath.indexOf('\uFFFD') >= 0) {
+            return new ResolvedPath(wasiResult(WasiErrno.EILSEQ));
+        }
         Path guestPath = relativePath(directory.root(), rawPath);
         if (guestPath == null) {
             return new ResolvedPath(wasiResult(WasiErrno.EPERM));

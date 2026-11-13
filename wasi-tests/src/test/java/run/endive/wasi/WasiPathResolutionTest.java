@@ -26,6 +26,7 @@ import run.endive.wasm.types.MemoryLimits;
 public class WasiPathResolutionTest {
     private static final int EPERM = WasiErrno.EPERM.value();
     private static final int ENOENT = WasiErrno.ENOENT.value();
+    private static final int EEXIST = WasiErrno.EEXIST.value();
     private static final int SUCCESS = WasiErrno.ESUCCESS.value();
     private static final int FOLLOW = WasiLookupFlags.SYMLINK_FOLLOW;
 
@@ -61,6 +62,7 @@ public class WasiPathResolutionTest {
                             assertEquals(EPERM, wasi.pathRename(3, secret, 3, "moved"));
                             assertEquals(EPERM, wasi.pathRename(3, "file.txt", 3, link + "/x"));
                             assertEquals(EPERM, wasi.pathLink(3, 0, secret, 3, "hard"));
+                            assertEquals(EPERM, wasi.pathLink(3, 0, link, 3, "hard"));
                             assertEquals(EPERM, wasi.pathLink(3, 0, "file.txt", 3, link + "/x"));
                             assertEquals(EPERM, wasi.pathSymlink("x", 3, link + "/x"));
                             assertEquals(EPERM, wasi.pathFilestatGet(memory, 3, 0, secret, 0));
@@ -73,6 +75,10 @@ public class WasiPathResolutionTest {
                         }
                         assertEquals(EPERM, open(wasi, 3, 0, "../outside/secret.txt"));
                         assertEquals(EPERM, wasi.pathLink(3, 0, "secret", 3, "hard"));
+
+                        assertEquals(SUCCESS, wasi.pathSymlink("../outside/missing", 3, "gone"));
+                        assertEquals(EEXIST, wasi.pathSymlink("x", 3, "gone"));
+                        assertEquals(EEXIST, wasi.pathLink(3, 0, "file.txt", 3, "gone"));
                     }
 
                     assertEquals("secret", readString(outside.resolve("secret.txt")));

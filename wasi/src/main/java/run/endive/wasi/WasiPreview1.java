@@ -1144,18 +1144,11 @@ public final class WasiPreview1 implements Closeable {
             return newResolved.error();
         }
         Path newPath = newResolved.path();
-        if (Files.exists(newPath)) {
+        if (Files.exists(newPath, LinkOption.NOFOLLOW_LINKS)) {
             return wasiResult(WasiErrno.EEXIST);
         }
-        if (Files.isDirectory(oldPath)) {
+        if (Files.isDirectory(oldPath, LinkOption.NOFOLLOW_LINKS)) {
             return wasiResult(WasiErrno.EACCES);
-        }
-
-        if (Files.isDirectory(oldPath) && Files.isRegularFile(newPath, LinkOption.NOFOLLOW_LINKS)) {
-            return wasiResult(WasiErrno.ENOTDIR);
-        }
-        if (Files.isRegularFile(oldPath, LinkOption.NOFOLLOW_LINKS) && Files.isDirectory(newPath)) {
-            return wasiResult(WasiErrno.EISDIR);
         }
 
         // some providers (ZeroFs, macOS) link the target of a symlink
@@ -1450,10 +1443,12 @@ public final class WasiPreview1 implements Closeable {
         Path oldPath = oldResolved.path();
         Path newPath = newResolved.path();
 
-        if (Files.isDirectory(oldPath) && Files.isRegularFile(newPath, LinkOption.NOFOLLOW_LINKS)) {
+        if (Files.isDirectory(oldPath, LinkOption.NOFOLLOW_LINKS)
+                && Files.isRegularFile(newPath, LinkOption.NOFOLLOW_LINKS)) {
             return wasiResult(WasiErrno.ENOTDIR);
         }
-        if (Files.isRegularFile(oldPath, LinkOption.NOFOLLOW_LINKS) && Files.isDirectory(newPath)) {
+        if (Files.isRegularFile(oldPath, LinkOption.NOFOLLOW_LINKS)
+                && Files.isDirectory(newPath, LinkOption.NOFOLLOW_LINKS)) {
             return wasiResult(WasiErrno.EISDIR);
         }
 
@@ -1518,7 +1513,7 @@ public final class WasiPreview1 implements Closeable {
         }
         Path newPath = newResolved.path();
 
-        if (Files.exists(newPath)) {
+        if (Files.exists(newPath, LinkOption.NOFOLLOW_LINKS)) {
             return wasiResult(WasiErrno.EEXIST);
         }
         if (newRawPath.endsWith("/")) {

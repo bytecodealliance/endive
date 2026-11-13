@@ -4,7 +4,7 @@ set -eoux pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 ZIG_INSTALL="zig-install"
-ZIG_VERSION="0.14.0"
+ZIG_VERSION="0.17.1"
 
 ZIG_SOURCE="zig-source"
 
@@ -13,15 +13,15 @@ BINARYEN_INSTALL="binaryen-install"
 
 ZIG_TESTSUITE="zig-testsuite"
 
-ZIG_MIRROR=$(${SCRIPT_DIR}/pick-zig-mirror.sh)
+ZIG_MIRROR=$(${SCRIPT_DIR}/pick-zig-mirror.sh ${ZIG_VERSION})
 
 # Install Zig 
 if [ ! -d "$ZIG_INSTALL" ]; then
     mkdir -p ${ZIG_INSTALL}
 
-    ARCHIVE=zig-linux-x86_64-${ZIG_VERSION}.tar.xz
+    ARCHIVE=zig-x86_64-linux-${ZIG_VERSION}.tar.xz
     curl -sSL "${ZIG_MIRROR}/${ARCHIVE}?source=github-endive-nightly" -o "${ARCHIVE}"
-    echo "473ec26806133cf4d1918caf1a410f8403a13d979726a9045b421b685031a982 ${ARCHIVE}" | sha256sum -c -
+    echo "3581863e3cbcfd0fce0efc682ce7e9e93da96668a977791d356a26d2a7e9b17a ${ARCHIVE}" | sha256sum -c -
     tar -xJ --strip-components=1 -C "${ZIG_INSTALL}" -f "${ARCHIVE}"
 fi
 
@@ -31,7 +31,7 @@ if [ ! -d "$ZIG_SOURCE" ]; then
 
     ARCHIVE=zig-${ZIG_VERSION}.tar.xz
     curl -sSL "${ZIG_MIRROR}/${ARCHIVE}?source=github-endive-nightly" -o "${ARCHIVE}"
-    echo "c76638c03eb204c4432ae092f6fa07c208567e110fbd4d862d131a7332584046 ${ARCHIVE}" | sha256sum -c -
+    echo "1e89bf06610b769a8c77676c6c8d54b093a0db60f4891f2f91014829012f0e24 ${ARCHIVE}" | sha256sum -c -
     tar -xJ --strip-components=1 -C "${ZIG_SOURCE}" -f "${ARCHIVE}"
 fi
 

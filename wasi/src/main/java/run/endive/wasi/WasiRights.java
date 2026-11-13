@@ -66,7 +66,6 @@ final class WasiRights {
                     | PATH_RENAME_SOURCE
                     | PATH_RENAME_TARGET
                     | PATH_FILESTAT_GET
-                    | PATH_FILESTAT_SET_SIZE
                     | PATH_FILESTAT_SET_TIMES
                     | FD_FILESTAT_GET
                     | FD_FILESTAT_SET_TIMES

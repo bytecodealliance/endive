@@ -11,4 +11,4 @@ for url in $(echo "$mirrors" | shuf); do
   fi
 done
 
-echo "https://ziglang.org/download"
+echo "https://ziglang.org/download/$1"

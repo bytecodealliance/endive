@@ -25,6 +25,8 @@ public class ZigTestsuiteTest {
             var wasiOpts =
                     WasiOptions.builder()
                             .inheritSystemStreams()
+                            // the test runner prints one line per test when not on a tty
+                            .withStderr(System.err, false)
                             .withArguments(List.of("test.wasm"))
                             .withDirectory(target.toString(), target)
                             .build();

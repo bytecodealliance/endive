@@ -83,8 +83,8 @@ public final class WasiTestRunner {
                         .withArguments(allArgs);
 
         env.forEach(options::withEnvironment);
-        // TODO: dangling filesystem is not supported
-        if (!test.getName().contains("environ")) {
+        // ZeroFs and some link(2) implementations hard link the target of a symlink
+        if (test.getName().equals("path_link.wasm")) {
             options.withEnvironment("NO_DANGLING_FILESYSTEM", "true");
         }
 

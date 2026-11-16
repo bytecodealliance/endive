@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +75,9 @@ final class Descriptors {
     }
 
     interface Directory {
-        Path path();
+        Path root();
+
+        List<String> names();
     }
 
     static final class InStream implements Descriptor, DataReader {
@@ -130,11 +133,23 @@ final class Descriptors {
 
     static final class PreopenedDirectory implements Descriptor, Directory {
         private final byte[] name;
-        private final Path path;
+        private final Path root;
 
         public PreopenedDirectory(byte[] name, Path path) {
             this.name = requireNonNull(name);
-            this.path = requireNonNull(path);
+            this.root = followLink(path);
+        }
+
+        // a symlinked preopen is followed once, as opening the directory would
+        private static Path followLink(Path path) {
+            if (!Files.isSymbolicLink(path)) {
+                return path;
+            }
+            try {
+                return path.toRealPath();
+            } catch (IOException e) {
+                return path;
+            }
         }
 
         public byte[] name() {
@@ -142,42 +157,65 @@ final class Descriptors {
         }
 
         @Override
-        public Path path() {
-            return path;
+        public Path root() {
+            return root;
+        }
+
+        @Override
+        public List<String> names() {
+            return List.of();
         }
     }
 
     static final class OpenDirectory implements Descriptor, Directory {
-        private final Path path;
+        private final Path root;
+        private final List<String> names;
 
-        public OpenDirectory(Path path) {
-            this.path = requireNonNull(path);
+        public OpenDirectory(Path root, List<String> names) {
+            this.root = requireNonNull(root);
+            this.names = List.copyOf(names);
         }
 
         @Override
-        public Path path() {
-            return path;
+        public Path root() {
+            return root;
+        }
+
+        @Override
+        public List<String> names() {
+            return names;
         }
     }
 
     static final class OpenFile implements Descriptor, Closeable, DataReader, DataWriter {
-        private final Path path;
+        private final Path root;
+        private final List<String> names;
         private final FileChannel channel;
         private final boolean channelAppends;
         private int fdFlags;
         private final long rights;
 
         public OpenFile(
-                Path path, FileChannel channel, boolean channelAppends, int fdFlags, long rights) {
-            this.path = requireNonNull(path);
+                Path root,
+                List<String> names,
+                FileChannel channel,
+                boolean channelAppends,
+                int fdFlags,
+                long rights) {
+            this.root = requireNonNull(root);
+            this.names = List.copyOf(names);
             this.channel = requireNonNull(channel);
             this.channelAppends = channelAppends;
             this.fdFlags = fdFlags;
             this.rights = rights;
         }
 
-        public Path path() {
-            return path;
+        public Path root() {
+            return root;
+        }
+
+        public List<String> names() {
+            return names;
         }
 
         public FileChannel channel() {

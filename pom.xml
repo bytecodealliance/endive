@@ -107,7 +107,7 @@
     <templating-maven-plugin.version>3.1.1</templating-maven-plugin.version>
     <maven-file-management.version>3.2.0</maven-file-management.version>
     <google-compile-testing.version>0.24.0</google-compile-testing.version>
-    <license-maven-plugin.version>2.8.0</license-maven-plugin.version>
+    <license-maven-plugin.version>2.9.0</license-maven-plugin.version>
     <wagon-maven-plugin.version>3.0.0</wagon-maven-plugin.version>
     <zerofs.version>0.2.0</zerofs.version>
   </properties>

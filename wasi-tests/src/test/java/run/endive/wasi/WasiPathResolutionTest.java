@@ -8,6 +8,7 @@ import static java.nio.file.Files.readString;
 import static java.nio.file.Files.writeString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.roastedroot.zerofs.Configuration;
 import io.roastedroot.zerofs.ZeroFs;
@@ -85,6 +86,87 @@ public class WasiPathResolutionTest {
                     assertEquals(secretTime, getLastModifiedTime(outside.resolve("secret.txt")));
                     try (Stream<Path> entries = java.nio.file.Files.list(outside)) {
                         assertEquals(2, entries.count());
+                    }
+                });
+    }
+
+    @Test
+    public void absoluteLinksAreFollowedInside(@TempDir Path tempDir) throws IOException {
+        onBothFileSystems(
+                tempDir,
+                (sandbox, outside) -> {
+                    Path root = sandbox.toAbsolutePath();
+                    createDirectory(sandbox.resolve("d"));
+                    createDirectory(sandbox.resolve("sibling"));
+                    writeString(sandbox.resolve("d/file.txt"), "inside");
+                    writeString(sandbox.resolve("sibling/file.txt"), "sibling");
+                    createSymbolicLink(sandbox.resolve("dir"), root.resolve("d"));
+                    createSymbolicLink(sandbox.resolve("file"), root.resolve("d/file.txt"));
+                    createSymbolicLink(sandbox.resolve("chain"), root.resolve("dir"));
+                    createSymbolicLink(sandbox.resolve("itself"), root);
+                    createSymbolicLink(sandbox.resolve("around"), root.resolve("d/../dir"));
+                    createSymbolicLink(sandbox.resolve("out"), outside.toAbsolutePath());
+                    createSymbolicLink(sandbox.resolve("up"), root.resolve("../outside"));
+                    createSymbolicLink(sandbox.resolve("d/sibling"), root.resolve("sibling"));
+                    createSymbolicLink(sandbox.resolve("d/same"), root.resolve("d/file.txt"));
+
+                    try (var wasi = wasi(sandbox)) {
+                        assertEquals(SUCCESS, open(wasi, 3, 0, "dir/file.txt"));
+                        assertEquals(SUCCESS, open(wasi, 3, FOLLOW, "file"));
+                        assertEquals(SUCCESS, open(wasi, 3, 0, "chain/file.txt"));
+                        assertEquals(SUCCESS, open(wasi, 3, 0, "itself/d/file.txt"));
+                        assertEquals(SUCCESS, open(wasi, 3, 0, "around/file.txt"));
+                        assertEquals(SUCCESS, open(wasi, 3, 0, "d/sibling/file.txt"));
+                        assertEquals(SUCCESS, wasi.pathFilestatGet(memory, 3, FOLLOW, "file", 0));
+                        assertEquals(WasiFileType.REGULAR_FILE.value(), memory.read(16));
+                        assertEquals(SUCCESS, wasi.pathCreateDirectory(3, "dir/created"));
+
+                        // ".." after the walk started again cannot leave the directory either
+                        assertEquals(EPERM, open(wasi, 3, 0, "itself/../outside/secret.txt"));
+                        assertEquals(EPERM, open(wasi, 3, 0, "out/secret.txt"));
+                        assertEquals(EPERM, open(wasi, 3, 0, "up/secret.txt"));
+                        assertEquals(EPERM, wasi.pathCreateDirectory(3, "up/created"));
+
+                        // a directory's descriptor is confined to that directory
+                        int dirFd = openFd(wasi, "d", WasiOpenFlags.DIRECTORY);
+                        assertEquals(SUCCESS, open(wasi, dirFd, FOLLOW, "same"));
+                        assertEquals(EPERM, open(wasi, dirFd, 0, "sibling/file.txt"));
+                        assertEquals(EPERM, open(wasi, dirFd, FOLLOW, "sibling"));
+
+                        // a guest cannot create one: its paths are not host paths
+                        assertEquals(
+                                EPERM, wasi.pathSymlink(root.resolve("d").toString(), 3, "new"));
+                    }
+
+                    assertTrue(exists(sandbox.resolve("d/created")));
+                    assertFalse(exists(outside.resolve("created")));
+                });
+    }
+
+    @Test
+    public void absoluteLinksMayNameTheRealDirectory(@TempDir Path tempDir) throws IOException {
+        onBothFileSystems(
+                tempDir,
+                (sandbox, outside) -> {
+                    // the directory is mapped through a link in its parents: its configured
+                    // path and its real path differ
+                    Path real = sandbox.toRealPath();
+                    Path via =
+                            createSymbolicLink(
+                                    sandbox.resolveSibling("via"),
+                                    sandbox.toAbsolutePath().getParent());
+                    Path configured = via.resolve("sandbox").toAbsolutePath();
+                    writeString(sandbox.resolve("file.txt"), "inside");
+                    createSymbolicLink(sandbox.resolve("real"), real.resolve("file.txt"));
+                    createSymbolicLink(
+                            sandbox.resolve("configured"), configured.resolve("file.txt"));
+                    createSymbolicLink(
+                            sandbox.resolve("out"), via.toAbsolutePath().resolve("outside"));
+
+                    try (var wasi = wasi(via.resolve("sandbox"))) {
+                        assertEquals(SUCCESS, open(wasi, 3, FOLLOW, "real"));
+                        assertEquals(SUCCESS, open(wasi, 3, FOLLOW, "configured"));
+                        assertEquals(EPERM, open(wasi, 3, 0, "out/secret.txt"));
                     }
                 });
     }

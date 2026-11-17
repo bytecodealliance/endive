@@ -1990,13 +1990,22 @@ public final class WasiPreview1 implements Closeable {
         }
         Path configured = directory.toAbsolutePath();
         if (target.startsWith(configured)) {
-            return names(configured.relativize(target));
+            return namesAfter(configured, target);
         }
         Path real = directory.toRealPath();
         if (target.startsWith(real)) {
-            return names(real.relativize(target));
+            return namesAfter(real, target);
         }
         return null;
+    }
+
+    // not Path.relativize: it drops ".." lexically on the default file system
+    private static Deque<String> namesAfter(Path base, Path target) {
+        Deque<String> names = names(target);
+        for (int i = 0; i < base.getNameCount(); i++) {
+            names.removeFirst();
+        }
+        return names;
     }
 
     /** Resolves a descriptor again, so that a replaced name cannot lead elsewhere. */

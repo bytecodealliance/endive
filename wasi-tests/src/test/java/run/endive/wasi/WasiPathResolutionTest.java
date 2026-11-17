@@ -5,6 +5,7 @@ import static java.nio.file.Files.createSymbolicLink;
 import static java.nio.file.Files.exists;
 import static java.nio.file.Files.getLastModifiedTime;
 import static java.nio.file.Files.readString;
+import static java.nio.file.Files.readSymbolicLink;
 import static java.nio.file.Files.writeString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -125,9 +126,12 @@ public class WasiPathResolutionTest {
                         assertEquals(SUCCESS, wasi.pathFilestatGet(memory, 3, FOLLOW, "file", 0));
                         assertEquals(WasiFileType.REGULAR_FILE.value(), memory.read(16));
                         assertEquals(SUCCESS, wasi.pathCreateDirectory(3, "dir/created"));
-                        // ".." in a target applies to the name before it, as in the kernel
-                        assertEquals(ENOENT, open(wasi, 3, 0, "gone/file.txt"));
-                        assertEquals(SUCCESS, open(wasi, 3, FOLLOW, "twisted"));
+                        // ".." applies to the name before it; Windows drops it from the link
+                        if (readSymbolicLink(sandbox.resolve("gone"))
+                                .equals(root.resolve("missing/../d"))) {
+                            assertEquals(ENOENT, open(wasi, 3, 0, "gone/file.txt"));
+                            assertEquals(SUCCESS, open(wasi, 3, FOLLOW, "twisted"));
+                        }
 
                         // ".." after the walk started again cannot leave the directory either
                         assertEquals(EPERM, open(wasi, 3, 0, "itself/../outside/secret.txt"));

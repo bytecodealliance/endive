@@ -1945,10 +1945,20 @@ public final class WasiPreview1 implements Closeable {
                         return new ResolvedPath(wasiResult(WasiErrno.ELOOP));
                     }
                     Path target = Files.readSymbolicLink(next);
-                    if (target.getRoot() != null) {
-                        return new ResolvedPath(wasiResult(WasiErrno.EPERM));
+                    Deque<String> expanded;
+                    if (target.getRoot() == null) {
+                        expanded = names(target);
+                    } else {
+                        // an absolute target is a host path: followed only below the directory
+                        // the walk started from, where the walk starts again
+                        expanded = namesBelow(start.path(), target);
+                        if (expanded == null) {
+                            return new ResolvedPath(wasiResult(WasiErrno.EPERM));
+                        }
+                        current = start.path();
+                        names = new ArrayList<>(start.names());
+                        parents.clear();
                     }
-                    Deque<String> expanded = names(target);
                     expanded.addAll(pending);
                     pending = expanded;
                     continue;
@@ -1967,6 +1977,35 @@ public final class WasiPreview1 implements Closeable {
             return new ResolvedPath(wasiResult(WasiErrno.EIO));
         }
         return new ResolvedPath(current, names);
+    }
+
+    /**
+     * The names that lead from a directory to an absolute link target, or null if the target is
+     * not below it. The directory is compared both as it was configured and as its real path:
+     * links are often written with the real one (macOS /private/var, Silverblue /var/home).
+     */
+    private static Deque<String> namesBelow(Path directory, Path target) throws IOException {
+        if (!target.isAbsolute()) {
+            return null;
+        }
+        Path configured = directory.toAbsolutePath();
+        if (target.startsWith(configured)) {
+            return namesAfter(configured, target);
+        }
+        Path real = directory.toRealPath();
+        if (target.startsWith(real)) {
+            return namesAfter(real, target);
+        }
+        return null;
+    }
+
+    // not Path.relativize: it drops ".." lexically on the default file system
+    private static Deque<String> namesAfter(Path base, Path target) {
+        Deque<String> names = names(target);
+        for (int i = 0; i < base.getNameCount(); i++) {
+            names.removeFirst();
+        }
+        return names;
     }
 
     /** Resolves a descriptor again, so that a replaced name cannot lead elsewhere. */

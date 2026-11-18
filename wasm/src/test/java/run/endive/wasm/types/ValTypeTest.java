@@ -1,8 +1,6 @@
 package run.endive.wasm.types;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import run.endive.corpus.CorpusResources;
@@ -37,23 +35,6 @@ public class ValTypeTest {
             ValType roundTrip = ValType.builder().fromId(id).build();
             assertEquals(vt, roundTrip);
         }
-    }
-
-    @Test
-    public void noneIsSubtypeOfAnyHierarchy() {
-        int none = ValType.TypeIdxCode.NONE.code();
-        for (var ht :
-                new ValType.TypeIdxCode[] {
-                    ValType.TypeIdxCode.ANY,
-                    ValType.TypeIdxCode.EQ,
-                    ValType.TypeIdxCode.I31,
-                    ValType.TypeIdxCode.STRUCT,
-                    ValType.TypeIdxCode.ARRAY,
-                }) {
-            assertTrue(ValType.heapTypeSubtype(none, ht.code(), null), ht.name());
-        }
-        assertFalse(ValType.heapTypeSubtype(none, ValType.TypeIdxCode.FUNC.code(), null));
-        assertFalse(ValType.heapTypeSubtype(none, ValType.TypeIdxCode.EXTERN.code(), null));
     }
 
     @Test

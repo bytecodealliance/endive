@@ -8,6 +8,7 @@ import static run.endive.compiler.internal.CompilerUtil.slotCount;
 import java.util.List;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.FunctionType;
+import run.endive.wasm.types.ValType;
 
 final class TempSlotCalculators {
 
@@ -18,6 +19,18 @@ final class TempSlotCalculators {
         // the operands are the function's result types
         int slots = ins.operands().mapToInt(CompilerUtil::slotCount).sum();
         return hasTooManyResults(slots) ? slots : 0;
+    }
+
+    // a v128 select keeps both operands and the condition in temps
+    static int select(
+            CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
+        int slots = slotCount(ins.operand(0));
+        return slots == slotCount(ValType.V128) ? 2 * slots + 1 : 0;
+    }
+
+    static int v128Op(
+            CompilerInstruction ins, WasmModule module, List<FunctionType> functionTypes) {
+        return V128Emitter.TEMP_SLOTS;
     }
 
     static int dropKeep(

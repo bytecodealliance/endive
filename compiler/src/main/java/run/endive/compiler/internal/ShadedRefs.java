@@ -22,6 +22,8 @@ public final class ShadedRefs {
     static final Method READ_GLOBAL;
     static final Method READ_GLOBAL_REF;
     static final Method WRITE_GLOBAL;
+    static final Method READ_GLOBAL_HIGH;
+    static final Method WRITE_GLOBAL_V128;
     static final Method WRITE_GLOBAL_REF;
     static final Method INSTANCE_SET_ELEMENT;
     static final Method INSTANCE_TABLE;
@@ -236,6 +238,10 @@ public final class ShadedRefs {
                     Shaded.class.getMethod(
                             "callHostFunction", Instance.class, int.class, long[].class);
             READ_GLOBAL = Shaded.class.getMethod("readGlobal", int.class, Instance.class);
+            READ_GLOBAL_HIGH = Shaded.class.getMethod("readGlobalHigh", int.class, Instance.class);
+            WRITE_GLOBAL_V128 =
+                    Shaded.class.getMethod(
+                            "writeGlobalV128", long.class, long.class, int.class, Instance.class);
             READ_GLOBAL_REF = Shaded.class.getMethod("readGlobalRef", int.class, Instance.class);
             WRITE_GLOBAL =
                     Shaded.class.getMethod("writeGlobal", long.class, int.class, Instance.class);

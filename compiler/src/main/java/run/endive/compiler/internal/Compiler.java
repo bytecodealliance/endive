@@ -14,8 +14,9 @@ import static org.objectweb.asm.Type.getInternalName;
 import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getType;
 import static org.objectweb.asm.commons.InstructionAdapter.OBJECT_TYPE;
+import static run.endive.compiler.internal.CompilerUtil.abiEntries;
+import static run.endive.compiler.internal.CompilerUtil.abiEntryTypes;
 import static run.endive.compiler.internal.CompilerUtil.argumentSlots;
-import static run.endive.compiler.internal.CompilerUtil.asmType;
 import static run.endive.compiler.internal.CompilerUtil.callDispatchMethodName;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodName;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodType;
@@ -33,8 +34,10 @@ import static run.endive.compiler.internal.CompilerUtil.emitInvokeFunction;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeStatic;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeVirtual;
 import static run.endive.compiler.internal.CompilerUtil.emitJvmToLong;
+import static run.endive.compiler.internal.CompilerUtil.emitLoadAbiValue;
 import static run.endive.compiler.internal.CompilerUtil.emitLoadArguments;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
+import static run.endive.compiler.internal.CompilerUtil.emitStoreValue;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyResults;
 import static run.endive.compiler.internal.CompilerUtil.internalClassName;
@@ -737,7 +740,7 @@ public final class Compiler {
         var returnTypes =
                 functionTypes.stream()
                         .map(FunctionType::returns)
-                        .filter(types -> types.size() > 1)
+                        .filter(CompilerUtil::boxesResults)
                         .filter(types -> !hasTooManyResults(types))
                         .collect(toSet());
         for (var types : returnTypes) {
@@ -1470,19 +1473,19 @@ public final class Compiler {
             }
             return;
         }
-        for (int i = 0; i < type.params().size(); i++) {
-            emitUnboxArgument(asm, type.params().get(i), i, 2, 3);
+        int index = 0;
+        for (var param : type.params()) {
+            emitUnboxArgument(asm, param, index, 2, 3);
+            index += abiEntries(param);
         }
     }
 
-    // pushes argument i from the long[] and Object[] in the given slots; a null Object[] gives null
+    // pushes the argument at index of the long[] or Object[] in the given slots, null if no
+    // Object[]
     private static void emitUnboxArgument(
             InstructionAdapter asm, ValType param, int i, int argsSlot, int refArgsSlot) {
         if (!param.isObjectRef()) {
-            asm.load(argsSlot, OBJECT_TYPE);
-            asm.iconst(i);
-            asm.aload(LONG_TYPE);
-            emitLongToJvm(asm, param);
+            emitLoadAbiValue(asm, param, () -> asm.load(argsSlot, OBJECT_TYPE), i);
             return;
         }
         Label hasRefArgs = new Label();
@@ -1539,11 +1542,12 @@ public final class Compiler {
             // Multi-value with GC refs: the internal function returns Object[],
             // but the bridge must return long[]. Convert: longs for numerics, 0L for refs.
             int objArraySlot = 4;
+            var entries = abiEntryTypes(type.returns());
             asm.store(objArraySlot, OBJECT_TYPE); // save Object[]
-            asm.iconst(type.returns().size());
+            asm.iconst(entries.size());
             asm.newarray(LONG_TYPE); // create long[]
-            for (int i = 0; i < type.returns().size(); i++) {
-                var retType = type.returns().get(i);
+            for (int i = 0; i < entries.size(); i++) {
+                var retType = entries.get(i);
                 asm.dup();
                 asm.iconst(i);
                 if (retType.isObjectRef()) {
@@ -1602,7 +1606,8 @@ public final class Compiler {
             // Multi-value with GC refs: split Object[] into positional long[] + Object[]
             // Both arrays use type.returns().size() as length, matching the interpreter
             // convention where index i corresponds to result position i.
-            int totalResults = type.returns().size();
+            var entries = abiEntryTypes(type.returns());
+            int totalResults = entries.size();
             int objArraySlot = 4;
             asm.store(objArraySlot, OBJECT_TYPE); // save Object[]
 
@@ -1611,7 +1616,7 @@ public final class Compiler {
             asm.iconst(totalResults);
             asm.newarray(LONG_TYPE);
             for (int i = 0; i < totalResults; i++) {
-                var retType = type.returns().get(i);
+                var retType = entries.get(i);
                 if (!retType.isObjectRef()) {
                     asm.dup();
                     asm.iconst(i);
@@ -1630,7 +1635,7 @@ public final class Compiler {
             asm.iconst(totalResults);
             asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
             for (int i = 0; i < totalResults; i++) {
-                var retType = type.returns().get(i);
+                var retType = entries.get(i);
                 if (retType.isObjectRef()) {
                     asm.dup();
                     asm.iconst(i);
@@ -2007,32 +2012,21 @@ public final class Compiler {
             int crSlot = argumentSlots(type) + 2;
             asm.store(crSlot, OBJECT_TYPE);
 
-            asm.iconst(type.returns().size());
+            var entries = abiEntryTypes(type.returns());
+            asm.iconst(entries.size());
             asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
 
-            int slot = 0;
-            for (int i = 0; i < type.returns().size(); i++) {
+            for (int i = 0; i < entries.size(); i++) {
                 asm.dup();
                 asm.iconst(i);
-                ValType retType = type.returns().get(i);
-                if (retType.isObjectRef()) {
-                    asm.load(crSlot, OBJECT_TYPE);
-                    asm.iconst(slot);
+                asm.load(crSlot, OBJECT_TYPE);
+                asm.iconst(i);
+                if (entries.get(i).isObjectRef()) {
                     asm.invokevirtual(
                             CALL_RESULT_INTERNAL_NAME, "refResult", "(I)Ljava/lang/Object;", false);
-                    slot++;
-                } else if (retType.equals(ValType.V128)) {
-                    asm.load(crSlot, OBJECT_TYPE);
-                    asm.iconst(slot);
-                    asm.invokevirtual(CALL_RESULT_INTERNAL_NAME, "longResult", "(I)J", false);
-                    asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
-                    slot += 2;
                 } else {
-                    asm.load(crSlot, OBJECT_TYPE);
-                    asm.iconst(slot);
                     asm.invokevirtual(CALL_RESULT_INTERNAL_NAME, "longResult", "(I)J", false);
                     asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
-                    slot++;
                 }
                 asm.astore(OBJECT_TYPE);
             }
@@ -2091,10 +2085,12 @@ public final class Compiler {
 
         if (hasTooManyParameters(type)) {
             // unbox the arguments from long[] and Object[]
+            int index = 0;
             for (int i = 0; i < type.params().size(); i++) {
                 var param = type.params().get(i);
-                emitUnboxArgument(asm, param, i, 0, 1);
-                asm.store(ctx.localSlotIndex(i), asmType(param));
+                emitUnboxArgument(asm, param, index, 0, 1);
+                emitStoreValue(asm, ctx.localSlotIndex(i), param);
+                index += abiEntries(param);
             }
         }
 
@@ -2147,6 +2143,11 @@ public final class Compiler {
         int localsEnd = type.params().size() + body.localTypes().size();
         for (int i = type.params().size(); i < localsEnd; i++) {
             var localType = localType(type, body, i);
+            if (localType.equals(ValType.V128)) {
+                V128Emitter.zero(asm);
+                emitStoreValue(asm, ctx.localSlotIndex(i), localType);
+                continue;
+            }
             var defVal = defaultValue(localType);
             if (defVal == null) {
                 // GC ref types: default to null (Object)
@@ -2154,7 +2155,7 @@ public final class Compiler {
             } else {
                 asm.visitLdcInsn(defVal);
             }
-            asm.store(ctx.localSlotIndex(i), asmType(localType));
+            emitStoreValue(asm, ctx.localSlotIndex(i), localType);
         }
     }
 

@@ -7,6 +7,7 @@ import run.endive.wasm.types.OpCode;
 
 enum CompilerOpCode {
     LABEL,
+    V128_OP,
     DROP_KEEP,
     TRAP,
     GOTO,

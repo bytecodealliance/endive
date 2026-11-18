@@ -26,6 +26,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.corpus.CorpusResources;
+import run.endive.runtime.CallResult;
 import run.endive.runtime.HostFunction;
 import run.endive.runtime.ImportTable;
 import run.endive.runtime.ImportValues;
@@ -35,6 +36,8 @@ import run.endive.runtime.Machine;
 import run.endive.runtime.Store;
 import run.endive.runtime.TableInstance;
 import run.endive.runtime.TrapException;
+import run.endive.runtime.WasmArray;
+import run.endive.runtime.WasmFunctionHandle;
 import run.endive.testing.gen.DynamicHelloJS;
 import run.endive.testing.gen.QuickJS;
 import run.endive.wabt.Wat2Wasm;
@@ -313,6 +316,60 @@ public final class MachinesTest {
                 Instance.builder(module).withMachineFactory(MachineFactoryCompiler::compile));
 
         assertKotlinWasiOutput(stdout.toString(UTF_8));
+    }
+
+    private String runScalaJsWasm(Instance.Builder instanceBuilder) {
+        var stdout = new ByteArrayOutputStream();
+        var printType =
+                FunctionType.of(
+                        List.of(
+                                ValType.builder()
+                                        .withOpcode(ValType.ID.Ref)
+                                        .withTypeIdx(0)
+                                        .build()),
+                        List.of());
+        var print =
+                new WasmFunctionHandle() {
+                    @Override
+                    public long[] apply(Instance instance, long... args) {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public CallResult applyWithRefs(
+                            Instance instance, long[] args, Object[] refArgs) {
+                        for (long b : ((WasmArray) refArgs[0]).elements()) {
+                            stdout.write((int) b);
+                        }
+                        return CallResult.of(null, null);
+                    }
+                };
+
+        instanceBuilder
+                .withImportValues(
+                        ImportValues.builder()
+                                .addFunction(new HostFunction("env", "print", printType, print))
+                                .build())
+                .build();
+        return stdout.toString(UTF_8);
+    }
+
+    @Test
+    public void shouldRunScalaJsWasmInterpreted() {
+        var module = loadModule("compiled/hello-world.scalajs.wasm");
+
+        assertEquals("Hello from Scala.js!", runScalaJsWasm(Instance.builder(module)));
+    }
+
+    @Test
+    public void shouldRunScalaJsWasmCompiled() {
+        var module = loadModule("compiled/hello-world.scalajs.wasm");
+
+        assertEquals(
+                "Hello from Scala.js!",
+                runScalaJsWasm(
+                        Instance.builder(module)
+                                .withMachineFactory(MachineFactoryCompiler::compile)));
     }
 
     @Test

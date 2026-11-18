@@ -69,6 +69,11 @@ ENV PATH="/opt/wabt/bin:~/.local/share/swiftly/bin:${PATH}"
 # Install wasm-tools
 RUN cargo install wasm-tools
 
+# Install sbt
+RUN curl -L https://github.com/sbt/sbt/releases/download/v1.12.5/sbt-1.12.5.tgz | tar xz -C /opt
+
+ENV PATH="/opt/sbt/bin:${PATH}"
+
 WORKDIR /usr/code
 
 ENTRYPOINT ["./compile.sh"]

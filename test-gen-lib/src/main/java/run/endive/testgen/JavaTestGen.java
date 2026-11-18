@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import run.endive.testgen.wast.ActionType;
 import run.endive.testgen.wast.Command;
 import run.endive.testgen.wast.CommandType;
+import run.endive.testgen.wast.LaneType;
 import run.endive.testgen.wast.WasmValue;
 import run.endive.testgen.wast.WasmValueType;
 import run.endive.testgen.wast.Wast;
@@ -487,46 +488,50 @@ public class JavaTestGen {
                     exprs.add(expected.toRefAssertion(resultVar, moduleName));
                 }
             } else {
-                var resVarName = (cmd.action().type() == ActionType.INVOKE) ? "results" : "result";
+                boolean invoke = cmd.action().type() == ActionType.INVOKE;
+                var resVarName = invoke ? "results" : "result";
                 exprs.add(new NameExpr("var " + resVarName + " = " + varName + invocationMethod));
 
+                // results holds one slot per value and two (low, high) per v128
+                int slot = 0;
                 for (int i = 0; i < cmd.expected().length; i++) {
                     var expected = cmd.expected()[i];
-                    var resultVar =
-                            (cmd.action().type() == ActionType.INVOKE)
-                                    ? expected.toResultValue(resVarName + "[" + i + "]")
-                                    : expected.toResultValue(resVarName);
-
                     if (expected.type().equals(WasmValueType.V128)) {
-                        exprs.add(new NameExpr("var expected = " + resultVar));
-                        switch (expected.laneType()) {
-                            case I8:
-                                exprs.add(
-                                        new NameExpr(
-                                                "assertArrayEquals(expected,"
-                                                        + " vecTo8(results))"));
-                                break;
-                            case I16:
-                                exprs.add(
-                                        new NameExpr(
-                                                "assertArrayEquals(expected,"
-                                                        + " vecTo16(results))"));
-                                break;
-                            case I32:
-                                exprs.add(
-                                        new NameExpr(
-                                                "assertArrayEquals(expected,"
-                                                        + " vecTo32(results))"));
-                                break;
-                            case F32:
-                                exprs.add(
-                                        new NameExpr(
-                                                "assertArrayEquals(expected,"
-                                                        + " vecToF32(results))"));
-                                break;
-                        }
+                        var words =
+                                invoke
+                                        ? "new long[] {"
+                                                + resVarName
+                                                + "["
+                                                + slot
+                                                + "], "
+                                                + resVarName
+                                                + "["
+                                                + (slot + 1)
+                                                + "]}"
+                                        : "new long[] {"
+                                                + varName
+                                                + ".getValueLow(), "
+                                                + varName
+                                                + ".getValueHigh()}";
+                        var expectedVar = "expected" + i;
+                        exprs.add(
+                                new NameExpr(
+                                        "var " + expectedVar + " = " + expected.toResultValue("")));
+                        exprs.add(
+                                new NameExpr(
+                                        "assertArrayEquals("
+                                                + expectedVar
+                                                + ", "
+                                                + laneView(expected.laneType(), words)
+                                                + ")"));
+                        slot += 2;
                     } else {
+                        var resultVar =
+                                invoke
+                                        ? expected.toResultValue(resVarName + "[" + slot + "]")
+                                        : expected.toResultValue(resVarName);
                         exprs.add(expected.toAssertion(resultVar, moduleName));
+                        slot++;
                     }
                 }
             }
@@ -534,6 +539,25 @@ public class JavaTestGen {
             return exprs;
         } else {
             throw new IllegalArgumentException("Unhandled command type " + cmd.type());
+        }
+    }
+
+    private static String laneView(LaneType laneType, String words) {
+        switch (laneType) {
+            case I8:
+                return "vecTo8(" + words + ")";
+            case I16:
+                return "vecTo16(" + words + ")";
+            case I32:
+                return "vecTo32(" + words + ")";
+            case I64:
+                return words;
+            case F32:
+                return "vecToF32(" + words + ")";
+            case F64:
+                return "vecToF64(" + words + ")";
+            default:
+                throw new IllegalArgumentException("Unhandled lane type " + laneType);
         }
     }
 

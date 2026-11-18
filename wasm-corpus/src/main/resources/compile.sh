@@ -74,6 +74,12 @@ compileKotlin() {
     "../../compiled/$filename.kt.wasm")
 }
 
+compileScalaJs() {
+  filename=$(basename "$1")
+  (set -x; cd $1 && sbt -batch fullLinkJS && \
+    cp ./target/scala-2.13/$filename-opt/main.wasm "../../compiled/$filename.scalajs.wasm")
+}
+
 compile() {
   lang=$1
   case "$lang" in
@@ -110,6 +116,9 @@ compile() {
     kotlin)
       compileKotlin $2
       ;;
+    scalajs)
+      compileScalaJs $2
+      ;;
     *)
       echo "Don't know how to compile language [$lang]"
       exit 1
@@ -121,7 +130,7 @@ lang="${1:-all}"
 path="${2:-all}"
 
 if [[ "$lang" == "all" ]]; then
-  langs=("wat" "rust" "c" "javy" "javy-dynamic" "tinygo" "go" "dotnet" "swift" "kotlin")
+  langs=("wat" "rust" "c" "javy" "javy-dynamic" "tinygo" "go" "dotnet" "swift" "kotlin" "scalajs")
 else
   langs=("$lang")
 fi

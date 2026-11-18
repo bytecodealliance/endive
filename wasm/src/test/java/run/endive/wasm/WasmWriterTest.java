@@ -16,7 +16,8 @@ public class WasmWriterTest {
         for (var file : wasmCorpusFiles()) {
             // uses non-canonical size encodings
             if (file.getName().endsWith("main.go.wasm")
-                    || file.getName().endsWith("trap.kt.wasm")) {
+                    || file.getName().endsWith("trap.kt.wasm")
+                    || file.getName().endsWith(".scalajs.wasm")) {
                 continue;
             }
 

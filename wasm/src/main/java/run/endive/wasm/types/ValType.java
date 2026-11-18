@@ -403,8 +403,11 @@ public final class ValType {
 
         // none <: all types in the "any" subtree
         if (ht1 == TypeIdxCode.NONE.code()) {
-            return heapTypeSubtype(TypeIdxCode.ANY.code(), ht2, ts)
-                    || ht2 == TypeIdxCode.ANY.code()
+            return ht2 == TypeIdxCode.ANY.code()
+                    || ht2 == TypeIdxCode.EQ.code()
+                    || ht2 == TypeIdxCode.I31.code()
+                    || ht2 == TypeIdxCode.STRUCT.code()
+                    || ht2 == TypeIdxCode.ARRAY.code()
                     || (ht2 >= 0 && ts != null && isConcreteInAnyHierarchy(ht2, ts));
         }
         // nofunc <: all types in the "func" subtree

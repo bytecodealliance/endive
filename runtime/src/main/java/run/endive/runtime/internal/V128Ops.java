@@ -1526,12 +1526,19 @@ public final class V128Ops {
         extmul(stack, 16, false, true);
     }
 
+    // whole words: unaryInt trained on narrower lanes gave abs(-1) = 0xffffffff on macOS aarch64
     private static void I64X2_ABS(MStack stack) {
-        unaryInt(stack, 64, ABS);
+        long[] words = stack.array();
+        int offset = stack.size() - 2;
+        words[offset] = Math.abs(words[offset]);
+        words[offset + 1] = Math.abs(words[offset + 1]);
     }
 
     private static void I64X2_NEG(MStack stack) {
-        unaryInt(stack, 64, NEG);
+        long[] words = stack.array();
+        int offset = stack.size() - 2;
+        words[offset] = -words[offset];
+        words[offset + 1] = -words[offset + 1];
     }
 
     private static void I64X2_ALL_TRUE(MStack stack) {

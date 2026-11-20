@@ -74,6 +74,13 @@ RUN curl -L https://github.com/sbt/sbt/releases/download/v1.12.5/sbt-1.12.5.tgz 
 
 ENV PATH="/opt/sbt/bin:${PATH}"
 
+# Install Dart
+RUN curl -L -O https://storage.googleapis.com/dart-archive/channels/stable/release/3.14.1/sdk/dartsdk-linux-x64-release.zip && \
+    unzip -q dartsdk-linux-x64-release.zip -d /opt && \
+    rm dartsdk-linux-x64-release.zip
+
+ENV PATH="/opt/dart-sdk/bin:${PATH}"
+
 WORKDIR /usr/code
 
 ENTRYPOINT ["./compile.sh"]

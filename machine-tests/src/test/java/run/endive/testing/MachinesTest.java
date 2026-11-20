@@ -46,6 +46,7 @@ import run.endive.wasi.WasiPreview1;
 import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.ExternalType;
+import run.endive.wasm.types.FunctionImport;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.Table;
 import run.endive.wasm.types.TableLimits;
@@ -370,6 +371,76 @@ public final class MachinesTest {
                 runScalaJsWasm(
                         Instance.builder(module)
                                 .withMachineFactory(MachineFactoryCompiler::compile)));
+    }
+
+    // the subset of Dart's standalone embedder imports used by the hello world
+    private static CallResult dartImport(
+            String name, long[] args, Object[] refArgs, StringBuilder stdout) {
+        switch (name) {
+            case "stringFromAsciiBytes":
+                var bytes = ((WasmArray) refArgs[0]).elements();
+                var string = new StringBuilder();
+                for (int i = 0; i < args[2]; i++) {
+                    string.append((char) bytes[(int) args[1] + i]);
+                }
+                return CallResult.of(null, new Object[] {string.toString()});
+            case "print":
+                stdout.append(refArgs[0]);
+                return CallResult.of(null, null);
+            default:
+                throw new UnsupportedOperationException(name);
+        }
+    }
+
+    private String runDartWasm(Function<Instance, Machine> machineFactory) {
+        var module = loadModule("compiled/hello-world.dart.wasm");
+        var stdout = new StringBuilder();
+        var imports = ImportValues.builder();
+        for (int i = 0; i < module.importSection().importCount(); i++) {
+            var function = (FunctionImport) module.importSection().getImport(i);
+            var name = function.name();
+            imports.addFunction(
+                    new HostFunction(
+                            function.module(),
+                            name,
+                            module.typeSection().getType(function.typeIndex()),
+                            new WasmFunctionHandle() {
+                                @Override
+                                public long[] apply(Instance instance, long... args) {
+                                    throw new UnsupportedOperationException();
+                                }
+
+                                @Override
+                                public CallResult applyWithRefs(
+                                        Instance instance, long[] args, Object[] refArgs) {
+                                    return dartImport(name, args, refArgs, stdout);
+                                }
+                            }));
+        }
+        var instance =
+                Instance.builder(module)
+                        .withImportValues(imports.build())
+                        .withMachineFactory(machineFactory)
+                        .build();
+
+        var argsType = instance.exportType("$invokeMain").params().get(0).typeIdx();
+        instance.export("$invokeMain")
+                .applyWithRefs(
+                        new long[1],
+                        new Object[] {
+                            WasmArray.builder().typeIdx(argsType).elements(new long[0]).build()
+                        });
+        return stdout.toString();
+    }
+
+    @Test
+    public void shouldRunDartWasmInterpreted() {
+        assertEquals("Hello from Dart!", runDartWasm(InterpreterMachine::new));
+    }
+
+    @Test
+    public void shouldRunDartWasmCompiled() {
+        assertEquals("Hello from Dart!", runDartWasm(MachineFactoryCompiler::compile));
     }
 
     @Test

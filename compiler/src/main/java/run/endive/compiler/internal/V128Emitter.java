@@ -143,7 +143,7 @@ final class V128Emitter {
                 asm.lconst(ins.operand(1));
                 return;
             case LOAD:
-                load(simd.op);
+                emitLoad(simd.op);
                 return;
             case LOAD_LANE:
                 loadLane(simd.op);
@@ -424,7 +424,7 @@ final class V128Emitter {
     }
 
     // [base] -> [v]
-    private void load(OpCode op) {
+    private void emitLoad(OpCode op) {
         switch (op) {
             case V128_LOAD:
                 {

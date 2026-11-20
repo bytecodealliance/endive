@@ -8,6 +8,7 @@ import static run.endive.compiler.internal.CompilerUtil.slotCount;
 import static run.endive.compiler.internal.TypeStack.FUNCTION_SCOPE;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1589,6 +1590,21 @@ final class WasmAnalyzer {
                                 .build());
                 break;
             default:
+                if (SimdOp.isV128(ins.opcode())) {
+                    var simd = SimdOp.of(ins.opcode());
+                    for (ValType t : reversed(simd.inputs())) {
+                        stack.pop(t);
+                    }
+                    if (simd.output() != null) {
+                        stack.push(simd.output());
+                    }
+                    // the immediates, then the wasm opcode
+                    long[] immediates = ins.operands();
+                    long[] operands = Arrays.copyOf(immediates, immediates.length + 1);
+                    operands[immediates.length] = ins.opcode().opcode();
+                    out.add(new CompilerInstruction(CompilerOpCode.V128_OP, operands));
+                    return;
+                }
                 throw new WasmEngineException("Unhandled opcode: " + ins.opcode());
         }
         out.add(new CompilerInstruction(CompilerOpCode.of(ins.opcode()), ins.operands()));

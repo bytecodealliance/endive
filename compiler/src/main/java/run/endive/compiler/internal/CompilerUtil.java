@@ -16,6 +16,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
@@ -188,6 +190,80 @@ final class CompilerUtil {
         }
     }
 
+    // [] -> [value] from a local
+    public static void emitLoadValue(InstructionAdapter asm, int slot, ValType type) {
+        if (type.equals(ValType.V128)) {
+            V128Emitter.load(asm, slot);
+        } else {
+            asm.load(slot, asmType(type));
+        }
+    }
+
+    // [value] -> [], into a local
+    public static void emitStoreValue(InstructionAdapter asm, int slot, ValType type) {
+        if (type.equals(ValType.V128)) {
+            V128Emitter.store(asm, slot);
+        } else {
+            asm.store(slot, asmType(type));
+        }
+    }
+
+    // entries a value takes in the long[] and Object[] of the call ABI: a v128 two, low word first
+    public static int abiEntries(ValType type) {
+        return type.equals(ValType.V128) ? 2 : 1;
+    }
+
+    public static int abiEntries(List<ValType> types) {
+        return types.stream().mapToInt(CompilerUtil::abiEntries).sum();
+    }
+
+    // the type of each entry the values take in the call ABI: a v128 is two i64
+    public static List<ValType> abiEntryTypes(List<ValType> types) {
+        return types.stream()
+                .flatMap(
+                        t ->
+                                t.equals(ValType.V128)
+                                        ? Stream.of(ValType.I64, ValType.I64)
+                                        : Stream.of(t))
+                .collect(Collectors.toList());
+    }
+
+    // [] -> [value] from the entries at index of the long[] that loadArray pushes
+    public static void emitLoadAbiValue(
+            InstructionAdapter asm, ValType type, Runnable loadArray, int index) {
+        for (int word = 0; word < abiEntries(type); word++) {
+            loadArray.run();
+            asm.iconst(index + word);
+            asm.aload(LONG_TYPE);
+        }
+        if (!type.equals(ValType.V128)) {
+            emitLongToJvm(asm, type);
+        }
+    }
+
+    // [long[]] -> [long[]], the value in the local at slot stored from index; object refs become 0
+    public static void emitStoreAbiValue(
+            InstructionAdapter asm, ValType type, int slot, int index) {
+        for (int word = 0; word < abiEntries(type); word++) {
+            asm.dup();
+            asm.iconst(index + word);
+            if (type.equals(ValType.V128)) {
+                asm.load(slot + 2 * word, LONG_TYPE);
+            } else if (type.isObjectRef()) {
+                asm.lconst(0L);
+            } else {
+                asm.load(slot, asmType(type));
+                emitJvmToLong(asm, type);
+            }
+            asm.astore(LONG_TYPE);
+        }
+    }
+
+    // a v128 or more than one result: the function returns them boxed
+    public static boolean boxesResults(List<ValType> results) {
+        return results.size() > 1 || results.contains(ValType.V128);
+    }
+
     public static MethodType valueMethodType(List<ValType> types) {
         boolean hasGcRef = types.stream().anyMatch(t -> t.isObjectRef());
         Class<?> returnType = hasGcRef ? Object[].class : long[].class;
@@ -251,7 +327,10 @@ final class CompilerUtil {
         }
         int slot = 0;
         for (ValType param : type.params()) {
-            asm.visitVarInsn(asmType(param).getOpcode(Opcodes.ILOAD), slot);
+            for (int word = 0; word < abiEntries(param); word++) {
+                Type jvm = param.equals(ValType.V128) ? LONG_TYPE : asmType(param);
+                asm.visitVarInsn(jvm.getOpcode(Opcodes.ILOAD), slot + 2 * word);
+            }
             slot += slotCount(param);
         }
     }
@@ -259,38 +338,31 @@ final class CompilerUtil {
     // leaves a long[] of the values in the locals from firstSlot on; object refs become 0
     public static void emitBoxValues(InstructionAdapter asm, List<ValType> types, int firstSlot) {
         int slot = firstSlot;
-        asm.iconst(types.size());
+        int index = 0;
+        asm.iconst(abiEntries(types));
         asm.newarray(LONG_TYPE);
-        for (int i = 0; i < types.size(); i++) {
-            asm.dup();
-            asm.iconst(i);
-            ValType valType = types.get(i);
-            asm.load(slot, asmType(valType));
-            if (valType.isObjectRef()) {
-                asm.visitInsn(Opcodes.POP);
-                asm.lconst(0L);
-            } else {
-                emitJvmToLong(asm, valType);
-            }
-            asm.astore(LONG_TYPE);
+        for (ValType valType : types) {
+            emitStoreAbiValue(asm, valType, slot, index);
             slot += slotCount(valType);
+            index += abiEntries(valType);
         }
     }
 
     // leaves an Object[] with the object refs in the locals from firstSlot on, null elsewhere
     public static void emitBoxRefs(InstructionAdapter asm, List<ValType> types, int firstSlot) {
         int slot = firstSlot;
-        asm.iconst(types.size());
+        int index = 0;
+        asm.iconst(abiEntries(types));
         asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
-        for (int i = 0; i < types.size(); i++) {
-            ValType valType = types.get(i);
+        for (ValType valType : types) {
             if (valType.isObjectRef()) {
                 asm.dup();
-                asm.iconst(i);
+                asm.iconst(index);
                 asm.load(slot, asmType(valType));
                 asm.astore(OBJECT_TYPE);
             }
             slot += slotCount(valType);
+            index += abiEntries(valType);
         }
     }
 
@@ -301,24 +373,40 @@ final class CompilerUtil {
             return;
         }
         int slot = firstSlot;
-        asm.iconst(types.size());
+        int index = 0;
+        asm.iconst(abiEntries(types));
         asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
-        for (int i = 0; i < types.size(); i++) {
-            asm.dup();
-            asm.iconst(i);
-            ValType valType = types.get(i);
-            asm.load(slot, asmType(valType));
-            if (!valType.isObjectRef()) {
-                emitJvmToLong(asm, valType);
-                asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+        for (ValType valType : types) {
+            for (int word = 0; word < abiEntries(valType); word++) {
+                asm.dup();
+                asm.iconst(index + word);
+                if (valType.equals(ValType.V128)) {
+                    asm.load(slot + 2 * word, LONG_TYPE);
+                } else {
+                    asm.load(slot, asmType(valType));
+                }
+                if (!valType.isObjectRef()) {
+                    if (!valType.equals(ValType.V128)) {
+                        emitJvmToLong(asm, valType);
+                    }
+                    asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+                }
+                asm.astore(OBJECT_TYPE);
             }
-            asm.astore(OBJECT_TYPE);
             slot += slotCount(valType);
+            index += abiEntries(valType);
         }
     }
 
+    // a v128 is two longs
     public static Class<?>[] jvmTypes(List<ValType> types) {
-        return types.stream().map(t -> jvmType(t)).toArray(Class[]::new);
+        return types.stream()
+                .flatMap(
+                        t ->
+                                t.equals(ValType.V128)
+                                        ? Stream.of(long.class, long.class)
+                                        : Stream.of(jvmType(t)))
+                .toArray(Class[]::new);
     }
 
     public static Class<?>[] jvmParameterTypes(FunctionType type) {
@@ -326,20 +414,19 @@ final class CompilerUtil {
     }
 
     public static Class<?> jvmReturnType(FunctionType type) {
-        switch (type.returns().size()) {
-            case 0:
-                return void.class;
-            case 1:
-                return jvmType(type.returns().get(0));
-            default:
-                // If any return value is a GC ref (Object), use Object[] instead of long[]
-                for (ValType ret : type.returns()) {
-                    if (ret.isObjectRef()) {
-                        return Object[].class;
-                    }
-                }
-                return long[].class;
+        if (type.returns().isEmpty()) {
+            return void.class;
         }
+        if (!boxesResults(type.returns())) {
+            return jvmType(type.returns().get(0));
+        }
+        // If any return value is a GC ref (Object), use Object[] instead of long[]
+        for (ValType ret : type.returns()) {
+            if (ret.isObjectRef()) {
+                return Object[].class;
+            }
+        }
+        return long[].class;
     }
 
     public static Object defaultValue(ValType type) {
@@ -379,13 +466,18 @@ final class CompilerUtil {
             case ValType.ID.I64:
             case ValType.ID.F64:
                 return 2;
+            case ValType.ID.V128:
+                return 4;
             default:
                 throw new IllegalArgumentException("Unsupported type id: " + valTypeId);
         }
     }
 
     public static void emitPop(MethodVisitor asm, ValType type) {
-        if (type.isObjectRef()) {
+        if (type.equals(ValType.V128)) {
+            asm.visitInsn(Opcodes.POP2);
+            asm.visitInsn(Opcodes.POP2);
+        } else if (type.isObjectRef()) {
             asm.visitInsn(Opcodes.POP); // Object refs are always 1 slot
         } else {
             asm.visitInsn(slotCount(type) == 1 ? Opcodes.POP : Opcodes.POP2);

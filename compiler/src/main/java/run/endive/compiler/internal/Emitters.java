@@ -8,17 +8,23 @@ import static org.objectweb.asm.Type.getInternalName;
 import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getType;
 import static org.objectweb.asm.commons.InstructionAdapter.OBJECT_TYPE;
+import static run.endive.compiler.internal.CompilerUtil.abiEntries;
 import static run.endive.compiler.internal.CompilerUtil.asmType;
+import static run.endive.compiler.internal.CompilerUtil.boxesResults;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodName;
 import static run.endive.compiler.internal.CompilerUtil.callIndirectMethodType;
 import static run.endive.compiler.internal.CompilerUtil.emitBoxRefs;
 import static run.endive.compiler.internal.CompilerUtil.emitBoxResults;
+import static run.endive.compiler.internal.CompilerUtil.emitBoxValues;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeFunction;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeStatic;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeVirtual;
 import static run.endive.compiler.internal.CompilerUtil.emitJvmToLong;
+import static run.endive.compiler.internal.CompilerUtil.emitLoadAbiValue;
+import static run.endive.compiler.internal.CompilerUtil.emitLoadValue;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
 import static run.endive.compiler.internal.CompilerUtil.emitPop;
+import static run.endive.compiler.internal.CompilerUtil.emitStoreValue;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyResults;
 import static run.endive.compiler.internal.CompilerUtil.jvmReturnType;
@@ -139,7 +145,7 @@ final class Emitters {
         int slot = ctx.tempSlot();
         for (int i = ins.operandCount() - 1; i >= keepStart; i--) {
             var type = valType(ins.operand(i), ctx);
-            asm.store(slot, asmType(type));
+            emitStoreValue(asm, slot, type);
             slot += slotCount(type);
         }
 
@@ -152,13 +158,13 @@ final class Emitters {
         for (int i = keepStart; i < ins.operandCount(); i++) {
             var type = valType(ins.operand(i), ctx);
             slot -= slotCount(type);
-            asm.load(slot, asmType(type));
+            emitLoadValue(asm, slot, type);
         }
     }
 
     public static void RETURN(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         var results = ctx.getType().returns();
-        if (results.size() > 1) {
+        if (boxesResults(results)) {
             if (hasTooManyResults(results)) {
                 // too wide for value_xxx's parameters: box at each return
                 emitStoreValuesOnStack(ctx, asm, results, ctx.tempSlot());
@@ -189,6 +195,21 @@ final class Emitters {
     public static void SELECT(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         var type = valType(ins.operand(0), ctx);
         var endLabel = new Label();
+        if (type.equals(ValType.V128)) {
+            int t = ctx.tempSlot();
+            asm.store(t + 8, INT_TYPE);
+            V128Emitter.store(asm, t + 4);
+            V128Emitter.store(asm, t);
+            var second = new Label();
+            asm.load(t + 8, INT_TYPE);
+            asm.ifeq(second);
+            V128Emitter.load(asm, t);
+            asm.goTo(endLabel);
+            asm.mark(second);
+            V128Emitter.load(asm, t + 4);
+            asm.mark(endLabel);
+            return;
+        }
         asm.ifne(endLabel);
         if (slotCount(type) == 1) {
             asm.swap();
@@ -209,7 +230,7 @@ final class Emitters {
         for (int i = types.size() - 1; i >= 0; i--) {
             ValType valType = types.get(i);
             slot -= slotCount(valType);
-            asm.store(slot, asmType(valType));
+            emitStoreValue(asm, slot, valType);
         }
     }
 
@@ -218,30 +239,8 @@ final class Emitters {
             Context ctx, InstructionAdapter asm, List<ValType> types, int firstSlot) {
         emitStoreValuesOnStack(ctx, asm, types, firstSlot);
 
-        // Create the array
-        asm.iconst(types.size());
-        asm.newarray(LONG_TYPE);
-
-        // Load from locals and store in array
-        int slot = firstSlot;
-        for (int i = 0; i < types.size(); i++) {
-            ValType valType = types.get(i);
-
-            if (valType.isObjectRef()) {
-                // Object refs can't be stored in long[] — store 0L as placeholder
-                asm.dup();
-                asm.iconst(i);
-                asm.lconst(0L);
-                asm.astore(LONG_TYPE);
-            } else {
-                asm.dup();
-                asm.iconst(i);
-                asm.load(slot, asmType(valType));
-                emitJvmToLong(asm, valType);
-                asm.astore(LONG_TYPE);
-            }
-            slot += slotCount(valType);
-        }
+        // Object refs can't be stored in long[]: they take 0L as placeholder
+        emitBoxValues(asm, types, firstSlot);
     }
 
     /**
@@ -361,7 +360,7 @@ final class Emitters {
             emitTailCallCheck(ctx, asm, functionType);
         }
 
-        if (functionType.returns().size() > 1) {
+        if (boxesResults(functionType.returns())) {
             emitUnboxResult(asm, ctx, functionType.returns());
         }
     }
@@ -393,7 +392,7 @@ final class Emitters {
             emitTailCallCheck(ctx, asm, functionType);
         }
 
-        if (functionType.returns().size() > 1) {
+        if (boxesResults(functionType.returns())) {
             emitUnboxResult(asm, ctx, functionType.returns());
         }
     }
@@ -445,16 +444,21 @@ final class Emitters {
     public static void LOCAL_GET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         var loadIndex = (int) ins.operand(0);
         var localType = localType(ctx.getType(), ctx.getBody(), loadIndex);
-        asm.load(ctx.localSlotIndex(loadIndex), asmType(localType));
+        emitLoadValue(asm, ctx.localSlotIndex(loadIndex), localType);
     }
 
     public static void LOCAL_SET(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         int index = (int) ins.operand(0);
         var localType = localType(ctx.getType(), ctx.getBody(), index);
-        asm.store(ctx.localSlotIndex(index), asmType(localType));
+        emitStoreValue(asm, ctx.localSlotIndex(index), localType);
     }
 
     public static void LOCAL_TEE(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
+        if (valType(ins.operand(1), ctx).equals(ValType.V128)) {
+            LOCAL_SET(ctx, ins, asm);
+            LOCAL_GET(ctx, ins, asm);
+            return;
+        }
         if (slotCount(valType(ins.operand(1), ctx)) == 1) {
             asm.dup();
         } else {
@@ -474,6 +478,11 @@ final class Emitters {
         if (globalType.isObjectRef()) {
             // GC refs: returns Object directly
             emitInvokeStatic(asm, ShadedRefs.READ_GLOBAL_REF);
+        } else if (globalType.equals(ValType.V128)) {
+            emitInvokeStatic(asm, ShadedRefs.READ_GLOBAL);
+            asm.iconst(globalIndex);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.READ_GLOBAL_HIGH);
         } else {
             // Numeric types and non-GC refs (funcref, externref, exnref)
             emitInvokeStatic(asm, ShadedRefs.READ_GLOBAL);
@@ -490,6 +499,10 @@ final class Emitters {
             asm.iconst(globalIndex);
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
             emitInvokeStatic(asm, ShadedRefs.WRITE_GLOBAL_REF);
+        } else if (globalType.equals(ValType.V128)) {
+            asm.iconst(globalIndex);
+            asm.load(ctx.instanceSlot(), OBJECT_TYPE);
+            emitInvokeStatic(asm, ShadedRefs.WRITE_GLOBAL_V128);
         } else {
             emitJvmToLong(asm, globalType);
             asm.iconst(globalIndex);
@@ -1196,7 +1209,7 @@ final class Emitters {
         emitInvokeStatic(asm, ShadedRefs.MEMORY_ATOMIC_FENCE);
     }
 
-    private static void emitMemoryForIndex(
+    static void emitMemoryForIndex(
             Context ctx, CompilerInstruction ins, InstructionAdapter asm, int operandIdx) {
         int memIdx = (int) ins.operand(operandIdx);
         if (memIdx == 0) {
@@ -1300,7 +1313,7 @@ final class Emitters {
         FunctionType type = ctx.getType();
         if (type.returns().isEmpty()) {
             asm.areturn(getType(void.class));
-        } else if (type.returns().size() == 1) {
+        } else if (!boxesResults(type.returns())) {
             Object defaultVal = CompilerUtil.defaultValue(type.returns().get(0));
             if (defaultVal == null) {
                 // GC ref types default to null (Object)
@@ -1331,10 +1344,10 @@ final class Emitters {
         List<ValType> returns = functionType.returns();
         boolean hasObjectRefReturns = functionType.hasObjectRefReturns();
 
-        if (returns.size() == 1) {
-            emitPop(asm, returns.get(0));
-        } else if (returns.size() > 1) {
+        if (boxesResults(returns)) {
             asm.pop();
+        } else if (returns.size() == 1) {
+            emitPop(asm, returns.get(0));
         }
 
         if (hasObjectRefReturns) {
@@ -1344,7 +1357,7 @@ final class Emitters {
 
             if (returns.isEmpty()) {
                 asm.pop();
-            } else if (returns.size() == 1) {
+            } else if (!boxesResults(returns)) {
                 // Single Object return: extract from CallResult.refResult(0)
                 asm.iconst(0);
                 asm.invokevirtual(
@@ -1357,39 +1370,31 @@ final class Emitters {
                 int crSlot = ctx.tempSlot();
                 asm.store(crSlot, OBJECT_TYPE);
 
-                asm.iconst(returns.size());
+                asm.iconst(abiEntries(returns));
                 asm.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
 
                 int slot = 0;
-                for (int i = 0; i < returns.size(); i++) {
-                    asm.dup();
-                    asm.iconst(i);
-                    ValType retType = returns.get(i);
-                    if (retType.isObjectRef()) {
+                for (ValType retType : returns) {
+                    for (int word = 0; word < abiEntries(retType); word++) {
+                        asm.dup();
+                        asm.iconst(slot);
                         asm.load(crSlot, OBJECT_TYPE);
                         asm.iconst(slot);
-                        asm.invokevirtual(
-                                "run/endive/runtime/CallResult",
-                                "refResult",
-                                "(I)Ljava/lang/Object;",
-                                false);
-                        slot++;
-                    } else if (retType.equals(ValType.V128)) {
-                        asm.load(crSlot, OBJECT_TYPE);
-                        asm.iconst(slot);
-                        asm.invokevirtual(
-                                "run/endive/runtime/CallResult", "longResult", "(I)J", false);
-                        asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
-                        slot += 2;
-                    } else {
-                        asm.load(crSlot, OBJECT_TYPE);
-                        asm.iconst(slot);
-                        asm.invokevirtual(
-                                "run/endive/runtime/CallResult", "longResult", "(I)J", false);
-                        asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+                        if (retType.isObjectRef()) {
+                            asm.invokevirtual(
+                                    "run/endive/runtime/CallResult",
+                                    "refResult",
+                                    "(I)Ljava/lang/Object;",
+                                    false);
+                        } else {
+                            asm.invokevirtual(
+                                    "run/endive/runtime/CallResult", "longResult", "(I)J", false);
+                            asm.invokestatic(
+                                    "java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
+                        }
+                        asm.astore(OBJECT_TYPE);
                         slot++;
                     }
-                    asm.astore(OBJECT_TYPE);
                 }
                 // Object[] left on stack — caller's emitUnboxResult will handle it
             }
@@ -1400,7 +1405,7 @@ final class Emitters {
 
             if (returns.isEmpty()) {
                 asm.pop();
-            } else if (returns.size() == 1) {
+            } else if (!boxesResults(returns)) {
                 asm.iconst(0);
                 asm.aload(LONG_TYPE);
                 emitLongToJvm(asm, returns.get(0));
@@ -1421,29 +1426,30 @@ final class Emitters {
         boolean hasObjectRefs = types.stream().anyMatch(ValType::isObjectRef);
         asm.store(tempSlot, OBJECT_TYPE);
 
+        int index = 0;
         if (hasObjectRefs) {
             // Object[] on stack: numerics are boxed as Long, refs are Object
-            for (int i = 0; i < types.size(); i++) {
-                ValType type = types.get(i);
-                asm.load(tempSlot, OBJECT_TYPE);
-                asm.iconst(i);
-                asm.aload(OBJECT_TYPE); // AALOAD from Object[]
-                if (type.isObjectRef()) {
-                    // Already the right type (Object)
-                } else {
-                    // Unbox Long -> long -> JVM type
-                    asm.checkcast(org.objectweb.asm.Type.getType(Long.class));
-                    asm.invokevirtual("java/lang/Long", "longValue", "()J", false);
-                    emitLongToJvm(asm, type);
+            for (ValType type : types) {
+                for (int word = 0; word < abiEntries(type); word++) {
+                    asm.load(tempSlot, OBJECT_TYPE);
+                    asm.iconst(index + word);
+                    asm.aload(OBJECT_TYPE); // AALOAD from Object[]
+                    if (!type.isObjectRef()) {
+                        // Unbox Long -> long -> JVM type
+                        asm.checkcast(org.objectweb.asm.Type.getType(Long.class));
+                        asm.invokevirtual("java/lang/Long", "longValue", "()J", false);
+                        if (!type.equals(ValType.V128)) {
+                            emitLongToJvm(asm, type);
+                        }
+                    }
                 }
+                index += abiEntries(type);
             }
         } else {
             // long[] on stack: standard path
-            for (int i = 0; i < types.size(); i++) {
-                asm.load(tempSlot, OBJECT_TYPE);
-                asm.iconst(i);
-                asm.aload(LONG_TYPE);
-                emitLongToJvm(asm, types.get(i));
+            for (ValType type : types) {
+                emitLoadAbiValue(asm, type, () -> asm.load(tempSlot, OBJECT_TYPE), index);
+                index += abiEntries(type);
             }
         }
     }
@@ -1489,7 +1495,7 @@ final class Emitters {
         var type = ctx.tagFunctionType(tagNumber);
 
         if (type.hasObjectRefParams()) {
-            emitBoxFieldsForStruct(ctx, asm, type.params());
+            emitBoxArguments(ctx, asm, type, ctx.tempSlot());
             asm.iconst(tagNumber);
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
             emitInvokeStatic(asm, ShadedRefs.CREATE_WASM_EXCEPTION_GC);
@@ -1531,7 +1537,7 @@ final class Emitters {
         int tempSlot = ctx.tempSlot();
         for (int i = totalCount - 1; i >= belowCount; i--) {
             var type = valType(ins.operand(i + 2), ctx);
-            asm.store(tempSlot, asmType(type));
+            emitStoreValue(asm, tempSlot, type);
             tempSlot += slotCount(type);
         }
 
@@ -1547,20 +1553,20 @@ final class Emitters {
         // Pop in reverse (top-of-below first) and store to pre-computed slots
         for (int i = belowCount - 1; i >= 0; i--) {
             var type = valType(ins.operand(i + 2), ctx);
-            asm.store(belowSlots[i], asmType(type));
+            emitStoreValue(asm, belowSlots[i], type);
         }
 
         // Restore below-try values (bottom to top)
         for (int i = 0; i < belowCount; i++) {
             var type = valType(ins.operand(i + 2), ctx);
-            asm.load(belowSlots[i], asmType(type));
+            emitLoadValue(asm, belowSlots[i], type);
         }
 
         // Restore above-try values (bottom to top)
         tempSlot = ctx.tempSlot();
         for (int i = belowCount; i < totalCount; i++) {
             var type = valType(ins.operand(i + 2), ctx);
-            asm.load(tempSlot, asmType(type));
+            emitLoadValue(asm, tempSlot, type);
             tempSlot += slotCount(type);
         }
     }
@@ -1575,7 +1581,7 @@ final class Emitters {
         // Load below-try values (bottom to top)
         for (int i = 1; i < ins.operandCount(); i++) {
             var type = valType(ins.operand(i), ctx);
-            asm.load(saveSlot, asmType(type));
+            emitLoadValue(asm, saveSlot, type);
             saveSlot += slotCount(type);
         }
     }
@@ -1610,18 +1616,16 @@ final class Emitters {
             }
 
             // Unbox each argument
-            for (int i = 0; i < tagFuncType.params().size(); i++) {
-                var param = tagFuncType.params().get(i);
+            int index = 0;
+            for (var param : tagFuncType.params()) {
                 if (param.isObjectRef()) {
                     asm.load(refArraySlot, OBJECT_TYPE);
-                    asm.iconst(i);
+                    asm.iconst(index);
                     asm.aload(OBJECT_TYPE);
                 } else {
-                    asm.load(longArraySlot, OBJECT_TYPE);
-                    asm.iconst(i);
-                    asm.aload(LONG_TYPE);
-                    emitLongToJvm(asm, param);
+                    emitLoadAbiValue(asm, param, () -> asm.load(longArraySlot, OBJECT_TYPE), index);
                 }
+                index += abiEntries(param);
             }
         }
     }
@@ -1681,7 +1685,7 @@ final class Emitters {
             emitTailCallCheck(ctx, asm, functionType);
         }
 
-        if (functionType.returns().size() > 1) {
+        if (boxesResults(functionType.returns())) {
             emitUnboxResult(asm, ctx, functionType.returns());
         }
     }

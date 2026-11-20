@@ -10,40 +10,58 @@ import static run.endive.wasm.types.Value.i8ToVec;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
+import java.util.function.Function;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import run.endive.compiler.MachineFactoryCompiler;
 import run.endive.corpus.CorpusResources;
 import run.endive.runtime.Instance;
 import run.endive.runtime.InterpreterMachine;
+import run.endive.runtime.Machine;
 import run.endive.runtime.WasmRuntimeException;
 import run.endive.wasm.Parser;
 
 public class BasicSimdTest {
 
-    private static Instance instance(String wasm) {
+    private static Stream<Arguments> machines() {
+        return Stream.of(
+                Arguments.of("interpreter", (Function<Instance, Machine>) InterpreterMachine::new),
+                Arguments.of(
+                        "compiler", (Function<Instance, Machine>) MachineFactoryCompiler::compile));
+    }
+
+    private static Instance instance(String wasm, Function<Instance, Machine> machine) {
         return Instance.builder(Parser.parse(CorpusResources.getResource(wasm)))
-                .withMachineFactory(InterpreterMachine::new)
+                .withMachineFactory(machine)
                 .build();
     }
 
-    @Test
-    public void shouldRunBasicExample() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("machines")
+    public void shouldRunBasicExample(String engine, Function<Instance, Machine> machine) {
         // from: https://blog.dkwr.de/development/wasm-simd-operations/
-        var instance = instance("compiled/simd-example.wat.wasm");
+        var instance = instance("compiled/simd-example.wat.wasm", machine);
         assertEquals(6L, instance.export("main").apply()[0]);
     }
 
-    @Test
-    public void shouldRoundTripV128Locals() {
-        var instance = instance("compiled/simd-locals.wat.wasm");
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("machines")
+    public void shouldRoundTripV128Locals(String engine, Function<Instance, Machine> machine) {
+        var instance = instance("compiled/simd-locals.wat.wasm", machine);
         assertEquals(10L, instance.export("local_roundtrip").apply()[0]);
         assertEquals(7L, instance.export("local_roundtrip_lane0").apply()[0]);
         assertEquals(10L, instance.export("local_tee").apply()[0]);
         assertEquals(7L, instance.export("local_tee_get").apply()[0]);
     }
 
-    @Test
-    public void shouldTrapOnStoreEffectiveAddressOverflow() {
-        var instance = instance("compiled/simd-store-offset-wrap.wat.wasm");
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("machines")
+    public void shouldTrapOnStoreEffectiveAddressOverflow(
+            String engine, Function<Instance, Machine> machine) {
+        var instance = instance("compiled/simd-store-offset-wrap.wat.wasm", machine);
         var memory = instance.memory();
 
         for (var name : List.of("v128_store", "v128_store8_lane")) {
@@ -58,9 +76,11 @@ public class BasicSimdTest {
         assertArrayEquals(new byte[16], memory.readBytes(0, 16));
     }
 
-    @Test
-    public void shouldPairLanesWithDistinctValues() {
-        var instance = instance("compiled/simd-mixed-lanes.wat.wasm");
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("machines")
+    public void shouldPairLanesWithDistinctValues(
+            String engine, Function<Instance, Machine> machine) {
+        var instance = instance("compiled/simd-mixed-lanes.wat.wasm", machine);
 
         assertArrayEquals(
                 i32ToVec(new long[] {50, 250, 610, -150}),
@@ -87,9 +107,11 @@ public class BasicSimdTest {
                 apply(instance, "i32x4.extadd_pairwise_i16x8_u", shorts));
     }
 
-    @Test
-    public void shouldSelectExtmulHalvesWithDistinctValues() {
-        var instance = instance("compiled/simd-mixed-lanes.wat.wasm");
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("machines")
+    public void shouldSelectExtmulHalvesWithDistinctValues(
+            String engine, Function<Instance, Machine> machine) {
+        var instance = instance("compiled/simd-mixed-lanes.wat.wasm", machine);
 
         var bytesA = i8ToVec(new long[] {1, 2, 3, 4, 5, 6, 7, -8, 9, 10, 11, 12, 13, 14, 15, -16});
         var bytesB = i8ToVec(new long[] {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17});
@@ -118,9 +140,11 @@ public class BasicSimdTest {
                 apply(instance, "i64x2.extmul_high_i32x4_u", intsA, intsB));
     }
 
-    @Test
-    public void shouldBoundsCheckWholeAccessAtEndOfMemory() {
-        var instance = instance("compiled/simd-memory-bounds.wat.wasm");
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("machines")
+    public void shouldBoundsCheckWholeAccessAtEndOfMemory(
+            String engine, Function<Instance, Machine> machine) {
+        var instance = instance("compiled/simd-memory-bounds.wat.wasm", machine);
         var memory = instance.memory();
         int memorySize = 65536;
         // export suffix -> access width in bytes, narrowest first
@@ -159,10 +183,7 @@ public class BasicSimdTest {
     }
 
     private static long[] apply(Instance instance, String name, long[]... vectors) {
-        var args = ArgsAdapter.builder();
-        for (var vector : vectors) {
-            args.add(vector);
-        }
-        return instance.export(name).apply(args.build());
+        var args = Stream.of(vectors).flatMapToLong(LongStream::of).toArray();
+        return instance.export(name).apply(args);
     }
 }

@@ -90,7 +90,8 @@ cut, the usual interruption checks on back edges are enough.
 Used when the direct split finds no plan. Chunks no longer call each other. Each chunk returns to a
 driver loop in the function's method, which calls the next chunk. This allows loops between chunks.
 
-The locals live in a `long[]` frame passed to every chunk. With L the number of locals:
+The locals live in a `long[]` frame passed to every chunk. With L the number of frame entries the
+locals take (one each, two for a `v128`, low word first):
 
 | Frame index      | Content                                            |
 |------------------|----------------------------------------------------|

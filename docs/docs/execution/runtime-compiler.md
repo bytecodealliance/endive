@@ -12,7 +12,7 @@ Use the [build-time compiler](./build-time-compiler.md) to move that work into y
 The compiler generates JVM bytecode without a separate verification pass. Prefer the interpreter for untrusted modules, and bound heap and time when compiling untrusted input. See [Security Model](/docs/security/overview).
 :::
 
-Modules that use SIMD (`v128`) instructions cannot be compiled and must run in the interpreter.
+Modules that use SIMD (`v128`) instructions compile too: see [SIMD](index.md#simd) to check whether the same module built without SIMD runs faster.
 
 ## Usage
 

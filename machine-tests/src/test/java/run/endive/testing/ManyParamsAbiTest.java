@@ -1,5 +1,6 @@
 package run.endive.testing;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -55,13 +56,13 @@ public class ManyParamsAbiTest {
                                                 .compile()));
     }
 
-    // the callees in these modules, boxed or just below the threshold
+    // the callees in these modules, boxed or just below the threshold, in i32s or v128s
     private static Set<Integer> manyParams(WasmModule module) {
         int imports = module.importSection().count(ExternalType.FUNCTION);
         var functions = new HashSet<Integer>();
         for (int i = 0; i < module.functionSection().functionCount(); i++) {
             var type = module.functionSection().getFunctionType(i, module.typeSection());
-            if (type.params().size() > 100) {
+            if (type.params().size() > 100 || type.params().contains(ValType.V128)) {
                 functions.add(imports + i);
             }
         }
@@ -253,6 +254,19 @@ public class ManyParamsAbiTest {
         for (String type : List.of("m252", "m253")) {
             assertEquals(42L, instance.export("direct_" + type).apply()[0], "direct_" + type);
             assertEquals(42L, instance.export("indirect_" + type).apply()[0], "indirect_" + type);
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("machineImplementations")
+    public void v128AroundTheBoxingThreshold(
+            String name, Function<WasmModule, Function<Instance, Machine>> machine) {
+        var instance = instance("many_params_v128", machine);
+        for (int n = 62; n <= 63; n++) {
+            for (String call : List.of("direct", "indirect", "call_ref", "tail")) {
+                var export = call + "_" + n;
+                assertArrayEquals(new long[] {41, 42}, instance.export(export).apply(), export);
+            }
         }
     }
 

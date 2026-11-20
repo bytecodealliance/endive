@@ -16,7 +16,7 @@ Compared to the [runtime compiler](runtime-compiler.md):
 - no reflection and no ASM at runtime, so it works with `native-image`
 - the module ships as a self-contained jar that needs only `run.endive:runtime` at runtime
 
-Modules that use SIMD (`v128`) instructions cannot be compiled and must run in the interpreter.
+Modules that use SIMD (`v128`) instructions compile too: see [SIMD](index.md#simd) to check whether the same module built without SIMD runs faster.
 
 ## Maven
 

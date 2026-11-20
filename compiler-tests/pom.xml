@@ -279,6 +279,64 @@
             <wast>ref_null.wast</wast>
             <wast>return.wast</wast>
             <wast>select.wast</wast>
+            <wast>simd_address.wast</wast>
+            <wast>simd_align.wast</wast>
+            <wast>simd_bit_shift.wast</wast>
+            <wast>simd_bitwise.wast</wast>
+            <wast>simd_boolean.wast</wast>
+            <wast>simd_const.wast</wast>
+            <wast>simd_conversions.wast</wast>
+            <wast>simd_f32x4.wast</wast>
+            <wast>simd_f32x4_arith.wast</wast>
+            <wast>simd_f32x4_cmp.wast</wast>
+            <wast>simd_f32x4_pmin_pmax.wast</wast>
+            <wast>simd_f32x4_rounding.wast</wast>
+            <wast>simd_f64x2.wast</wast>
+            <wast>simd_f64x2_arith.wast</wast>
+            <wast>simd_f64x2_cmp.wast</wast>
+            <wast>simd_f64x2_pmin_pmax.wast</wast>
+            <wast>simd_f64x2_rounding.wast</wast>
+            <wast>simd_i16x8_arith.wast</wast>
+            <wast>simd_i16x8_arith2.wast</wast>
+            <wast>simd_i16x8_cmp.wast</wast>
+            <wast>simd_i16x8_extadd_pairwise_i8x16.wast</wast>
+            <wast>simd_i16x8_extmul_i8x16.wast</wast>
+            <wast>simd_i16x8_q15mulr_sat_s.wast</wast>
+            <wast>simd_i16x8_sat_arith.wast</wast>
+            <wast>simd_i32x4_arith.wast</wast>
+            <wast>simd_i32x4_arith2.wast</wast>
+            <wast>simd_i32x4_cmp.wast</wast>
+            <wast>simd_i32x4_dot_i16x8.wast</wast>
+            <wast>simd_i32x4_extadd_pairwise_i16x8.wast</wast>
+            <wast>simd_i32x4_extmul_i16x8.wast</wast>
+            <wast>simd_i32x4_trunc_sat_f32x4.wast</wast>
+            <wast>simd_i32x4_trunc_sat_f64x2.wast</wast>
+            <wast>simd_i64x2_arith.wast</wast>
+            <wast>simd_i64x2_arith2.wast</wast>
+            <wast>simd_i64x2_cmp.wast</wast>
+            <wast>simd_i64x2_extmul_i32x4.wast</wast>
+            <wast>simd_i8x16_arith.wast</wast>
+            <wast>simd_i8x16_arith2.wast</wast>
+            <wast>simd_i8x16_cmp.wast</wast>
+            <wast>simd_i8x16_sat_arith.wast</wast>
+            <wast>simd_int_to_int_extend.wast</wast>
+            <wast>simd_lane.wast</wast>
+            <wast>simd_linking.wast</wast>
+            <wast>simd_load.wast</wast>
+            <wast>simd_load16_lane.wast</wast>
+            <wast>simd_load32_lane.wast</wast>
+            <wast>simd_load64_lane.wast</wast>
+            <wast>simd_load8_lane.wast</wast>
+            <wast>simd_load_extend.wast</wast>
+            <wast>simd_load_splat.wast</wast>
+            <wast>simd_load_zero.wast</wast>
+            <wast>simd_select.wast</wast>
+            <wast>simd_splat.wast</wast>
+            <wast>simd_store.wast</wast>
+            <wast>simd_store16_lane.wast</wast>
+            <wast>simd_store32_lane.wast</wast>
+            <wast>simd_store64_lane.wast</wast>
+            <wast>simd_store8_lane.wast</wast>
             <wast>skip-stack-guard-page.wast</wast>
             <wast>stack.wast</wast>
             <wast>start.wast</wast>
@@ -387,64 +445,6 @@
           <excludedWasts>
             <!-- obsolete-keywords is only stressing the wat parser -->
             <wast>obsolete-keywords.wast</wast>
-            <wast>simd_address.wast</wast>
-            <wast>simd_align.wast</wast>
-            <wast>simd_bit_shift.wast</wast>
-            <wast>simd_bitwise.wast</wast>
-            <wast>simd_boolean.wast</wast>
-            <wast>simd_const.wast</wast>
-            <wast>simd_conversions.wast</wast>
-            <wast>simd_f32x4.wast</wast>
-            <wast>simd_f32x4_arith.wast</wast>
-            <wast>simd_f32x4_cmp.wast</wast>
-            <wast>simd_f32x4_pmin_pmax.wast</wast>
-            <wast>simd_f32x4_rounding.wast</wast>
-            <wast>simd_f64x2.wast</wast>
-            <wast>simd_f64x2_arith.wast</wast>
-            <wast>simd_f64x2_cmp.wast</wast>
-            <wast>simd_f64x2_pmin_pmax.wast</wast>
-            <wast>simd_f64x2_rounding.wast</wast>
-            <wast>simd_i16x8_arith.wast</wast>
-            <wast>simd_i16x8_arith2.wast</wast>
-            <wast>simd_i16x8_cmp.wast</wast>
-            <wast>simd_i16x8_extadd_pairwise_i8x16.wast</wast>
-            <wast>simd_i16x8_extmul_i8x16.wast</wast>
-            <wast>simd_i16x8_q15mulr_sat_s.wast</wast>
-            <wast>simd_i16x8_sat_arith.wast</wast>
-            <wast>simd_i32x4_arith.wast</wast>
-            <wast>simd_i32x4_arith2.wast</wast>
-            <wast>simd_i32x4_cmp.wast</wast>
-            <wast>simd_i32x4_dot_i16x8.wast</wast>
-            <wast>simd_i32x4_extadd_pairwise_i16x8.wast</wast>
-            <wast>simd_i32x4_extmul_i16x8.wast</wast>
-            <wast>simd_i32x4_trunc_sat_f32x4.wast</wast>
-            <wast>simd_i32x4_trunc_sat_f64x2.wast</wast>
-            <wast>simd_i64x2_arith.wast</wast>
-            <wast>simd_i64x2_arith2.wast</wast>
-            <wast>simd_i64x2_cmp.wast</wast>
-            <wast>simd_i64x2_extmul_i32x4.wast</wast>
-            <wast>simd_i8x16_arith.wast</wast>
-            <wast>simd_i8x16_arith2.wast</wast>
-            <wast>simd_i8x16_cmp.wast</wast>
-            <wast>simd_i8x16_sat_arith.wast</wast>
-            <wast>simd_int_to_int_extend.wast</wast>
-            <wast>simd_lane.wast</wast>
-            <wast>simd_linking.wast</wast>
-            <wast>simd_load.wast</wast>
-            <wast>simd_load16_lane.wast</wast>
-            <wast>simd_load32_lane.wast</wast>
-            <wast>simd_load64_lane.wast</wast>
-            <wast>simd_load8_lane.wast</wast>
-            <wast>simd_load_extend.wast</wast>
-            <wast>simd_load_splat.wast</wast>
-            <wast>simd_load_zero.wast</wast>
-            <wast>simd_select.wast</wast>
-            <wast>simd_splat.wast</wast>
-            <wast>simd_store.wast</wast>
-            <wast>simd_store16_lane.wast</wast>
-            <wast>simd_store32_lane.wast</wast>
-            <wast>simd_store64_lane.wast</wast>
-            <wast>simd_store8_lane.wast</wast>
           </excludedWasts>
         </configuration>
         <executions>

@@ -372,23 +372,7 @@ public final class MachinesTest {
                                 .withMachineFactory(MachineFactoryCompiler::compile)));
     }
 
-    private static Stream<Arguments> machineImplementations() {
-        return Stream.of(
-                Arguments.of(
-                        "interpreter",
-                        (Function<Instance.Builder, Instance.Builder>)
-                                (b) -> b.withMachineFactory(InterpreterMachine::new)),
-                Arguments.of(
-                        "compiler",
-                        (Function<Instance.Builder, Instance.Builder>)
-                                (b) -> b.withMachineFactory(MachineFactoryCompiler::compile)));
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("machineImplementations")
-    public void shouldRunDartWasm(
-            String name, Function<Instance.Builder, Instance.Builder> machine) {
-        var module = loadModule("compiled/hello-world.dart.wasm");
+    private String runDartWasm(Instance.Builder instanceBuilder) {
         var stdout = new StringBuilder();
         var string =
                 ValType.builder()
@@ -496,7 +480,7 @@ public final class MachinesTest {
                                                 List.of(ValType.ExternRef), List.of(string)),
                                         unused))
                         .build();
-        var instance = machine.apply(Instance.builder(module)).withImportValues(imports).build();
+        var instance = instanceBuilder.withImportValues(imports).build();
 
         var argsType = instance.exportType("$invokeMain").params().get(0).typeIdx();
         instance.export("$invokeMain")
@@ -505,7 +489,25 @@ public final class MachinesTest {
                         new Object[] {
                             WasmArray.builder().typeIdx(argsType).elements(new long[0]).build()
                         });
-        assertEquals("Hello from Dart!", stdout.toString());
+        return stdout.toString();
+    }
+
+    @Test
+    public void shouldRunDartWasmInterpreted() {
+        var module = loadModule("compiled/hello-world.dart.wasm");
+
+        assertEquals("Hello from Dart!", runDartWasm(Instance.builder(module)));
+    }
+
+    @Test
+    public void shouldRunDartWasmCompiled() {
+        var module = loadModule("compiled/hello-world.dart.wasm");
+
+        assertEquals(
+                "Hello from Dart!",
+                runDartWasm(
+                        Instance.builder(module)
+                                .withMachineFactory(MachineFactoryCompiler::compile)));
     }
 
     @Test

@@ -52,7 +52,7 @@
     <maven.compiler.failOnWarning>true</maven.compiler.failOnWarning>
     <maven.dependency.failOnWarning>true</maven.dependency.failOnWarning>
 
-    <approvaltests.version>31.0.0</approvaltests.version>
+    <approvaltests.version>31.1.0</approvaltests.version>
     <asm.version>9.11.1</asm.version>
     <!--
       OCI tag of the prebuilt cranelift_bridge.wasm that redline/bridge compiles

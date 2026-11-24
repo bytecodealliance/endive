@@ -372,6 +372,144 @@ public final class MachinesTest {
                                 .withMachineFactory(MachineFactoryCompiler::compile)));
     }
 
+    private String runDartWasm(Instance.Builder instanceBuilder) {
+        var stdout = new StringBuilder();
+        var string =
+                ValType.builder()
+                        .withOpcode(ValType.ID.Ref)
+                        .withTypeIdx(ValType.TypeIdxCode.EXTERN.code())
+                        .build();
+        var bytes = ValType.builder().withOpcode(ValType.ID.Ref).withTypeIdx(2).build();
+
+        var print =
+                new HostFunction(
+                        "dart",
+                        "print",
+                        FunctionType.of(List.of(ValType.ExternRef), List.of()),
+                        new WasmFunctionHandle() {
+                            @Override
+                            public long[] apply(Instance instance, long... args) {
+                                throw new UnsupportedOperationException();
+                            }
+
+                            @Override
+                            public CallResult applyWithRefs(
+                                    Instance instance, long[] args, Object[] refArgs) {
+                                stdout.append(refArgs[0]);
+                                return CallResult.of(null, null);
+                            }
+                        });
+        var stringFromAsciiBytes =
+                new HostFunction(
+                        "dart",
+                        "stringFromAsciiBytes",
+                        FunctionType.of(List.of(bytes, ValType.I32, ValType.I32), List.of(string)),
+                        new WasmFunctionHandle() {
+                            @Override
+                            public long[] apply(Instance instance, long... args) {
+                                throw new UnsupportedOperationException();
+                            }
+
+                            @Override
+                            public CallResult applyWithRefs(
+                                    Instance instance, long[] args, Object[] refArgs) {
+                                var chars = ((WasmArray) refArgs[0]).elements();
+                                var result = new StringBuilder();
+                                for (int i = 0; i < args[2]; i++) {
+                                    result.append((char) chars[(int) args[1] + i]);
+                                }
+                                return CallResult.of(null, new Object[] {result.toString()});
+                            }
+                        });
+        // imported by the hello world, but never called
+        WasmFunctionHandle unused =
+                (instance, args) -> {
+                    throw new UnsupportedOperationException();
+                };
+
+        var imports =
+                ImportValues.builder()
+                        .addFunction(
+                                print,
+                                stringFromAsciiBytes,
+                                new HostFunction(
+                                        "dart",
+                                        "i64ToString",
+                                        FunctionType.of(
+                                                List.of(ValType.I64, ValType.I32), List.of(string)),
+                                        unused),
+                                new HostFunction(
+                                        "dart",
+                                        "stringBufferCreate",
+                                        FunctionType.of(List.of(), List.of(string)),
+                                        unused),
+                                new HostFunction(
+                                        "dart",
+                                        "stringLength",
+                                        FunctionType.of(
+                                                List.of(ValType.ExternRef), List.of(ValType.I32)),
+                                        unused),
+                                new HostFunction(
+                                        "dart",
+                                        "stringBufferWriteString",
+                                        FunctionType.of(
+                                                List.of(ValType.ExternRef, ValType.ExternRef),
+                                                List.of()),
+                                        unused),
+                                new HostFunction(
+                                        "dart",
+                                        "stringBufferToString",
+                                        FunctionType.of(
+                                                List.of(ValType.ExternRef), List.of(string)),
+                                        unused),
+                                new HostFunction(
+                                        "dart",
+                                        "stackTraceGetCurrent",
+                                        FunctionType.of(List.of(), List.of(string)),
+                                        unused),
+                                new HostFunction(
+                                        "dart",
+                                        "stackTraceToString",
+                                        FunctionType.of(
+                                                List.of(ValType.ExternRef), List.of(string)),
+                                        unused),
+                                new HostFunction(
+                                        "dart",
+                                        "jsonEncodeString",
+                                        FunctionType.of(
+                                                List.of(ValType.ExternRef), List.of(string)),
+                                        unused))
+                        .build();
+        var instance = instanceBuilder.withImportValues(imports).build();
+
+        var argsType = instance.exportType("$invokeMain").params().get(0).typeIdx();
+        instance.export("$invokeMain")
+                .applyWithRefs(
+                        new long[1],
+                        new Object[] {
+                            WasmArray.builder().typeIdx(argsType).elements(new long[0]).build()
+                        });
+        return stdout.toString();
+    }
+
+    @Test
+    public void shouldRunDartWasmInterpreted() {
+        var module = loadModule("compiled/hello-world.dart.wasm");
+
+        assertEquals("Hello from Dart!", runDartWasm(Instance.builder(module)));
+    }
+
+    @Test
+    public void shouldRunDartWasmCompiled() {
+        var module = loadModule("compiled/hello-world.dart.wasm");
+
+        assertEquals(
+                "Hello from Dart!",
+                runDartWasm(
+                        Instance.builder(module)
+                                .withMachineFactory(MachineFactoryCompiler::compile)));
+    }
+
     @Test
     public void shouldCallIndirectInterpreterToAot() {
         var store = new Store();

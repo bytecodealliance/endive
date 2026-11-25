@@ -20,6 +20,7 @@ import run.endive.wasm.types.Value;
  * on accident, as this is not allowed in the spec. You can only jump to instructions
  * within the function you are in and only specific places.
  */
+@SuppressWarnings("AvoidCommonTypeNames")
 public class StackFrame {
     private final List<AnnotatedInstruction> code;
     private AnnotatedInstruction currentInstruction;

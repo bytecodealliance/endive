@@ -168,12 +168,7 @@ public class InterpreterFallbackTest {
                         List.of("InterpreterMachine.CALL_INDIRECT", "Test3MachineFuncGroup_0.func"),
                         hostStackTrace));
 
-        Approvals.verify(
-                stackTrace,
-                new Options()
-                        .forFile()
-                        .withBaseName(
-                                "InterpreterFallbackTest.testSilentInterpreterFallback-indirect"));
+        Approvals.verify(stackTrace, new Options().forFile().withAdditionalInformation("indirect"));
     }
 
     private boolean containsInOrder(List<String> expected, List<String> actual) {

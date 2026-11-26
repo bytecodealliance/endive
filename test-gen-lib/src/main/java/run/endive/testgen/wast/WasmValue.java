@@ -3,7 +3,6 @@ package run.endive.testgen.wast;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.javaparser.ast.expr.NameExpr;
-import java.math.BigInteger;
 
 public class WasmValue {
 
@@ -294,9 +293,8 @@ public class WasmValue {
         return Integer.toUnsignedString((int) longValue) + "L";
     }
 
-    // i64 lanes come as signed or unsigned decimal
     public String longLaneValue(String v) {
-        return new BigInteger(v).longValue() + "L";
+        return Long.parseLong(v) + "L";
     }
 
     /**

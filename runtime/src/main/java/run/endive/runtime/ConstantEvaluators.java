@@ -9,7 +9,6 @@ import run.endive.wasm.InvalidException;
 import run.endive.wasm.MalformedException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.Instruction;
-import run.endive.wasm.types.ValType;
 import run.endive.wasm.types.Value;
 
 public final class ConstantEvaluators {
@@ -125,7 +124,7 @@ public final class ConstantEvaluators {
                         if (global == null) {
                             throw new InvalidException("unknown global");
                         }
-                        if (global.getType().equals(ValType.V128)) {
+                        if (global.getType().isV128()) {
                             stack.push(
                                     new ConstantResult(
                                             new long[] {

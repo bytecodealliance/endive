@@ -1,0 +1,23 @@
+;; one v128 op: run(a0, a1, b0, b1, c0, c1, count) -> the two words of its result
+(module
+  (func (export "run")
+    (param $a0 i64) (param $a1 i64) (param $b0 i64) (param $b1 i64) (param $c0 i64) (param $c1 i64)
+    (param $s i32)
+    (result i64 i64)
+    (local $a v128) (local $b v128) (local $c v128) (local $r v128)
+    (local.set $a (i64x2.replace_lane 1 (i64x2.splat (local.get $a0)) (local.get $a1)))
+    (local.set $b (i64x2.replace_lane 1 (i64x2.splat (local.get $b0)) (local.get $b1)))
+    (local.set $c (i64x2.replace_lane 1 (i64x2.splat (local.get $c0)) (local.get $c1)))
+#if ($kind == "binary")
+    (local.set $r ($op (local.get $a) (local.get $b)))
+#elseif ($kind == "unary")
+    (local.set $r ($op (local.get $a)))
+#elseif ($kind == "ternary")
+    (local.set $r ($op (local.get $a) (local.get $b) (local.get $c)))
+#elseif ($kind == "shift")
+    (local.set $r ($op (local.get $a) (local.get $s)))
+#elseif ($kind == "test")
+    (local.set $r (i32x4.splat ($op (local.get $a))))
+#end
+    (i64x2.extract_lane 0 (local.get $r))
+    (i64x2.extract_lane 1 (local.get $r))))

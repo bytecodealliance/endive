@@ -9,14 +9,18 @@ import static run.endive.compiler.internal.Compiler.emitFunction;
 import static run.endive.compiler.internal.Compiler.emitInstruction;
 import static run.endive.compiler.internal.Compiler.emitLocalsDefaultInit;
 import static run.endive.compiler.internal.CompilerUtil.MAX_METHOD_PARAMETER_SLOTS;
-import static run.endive.compiler.internal.CompilerUtil.asmType;
+import static run.endive.compiler.internal.CompilerUtil.abiEntries;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeStatic;
 import static run.endive.compiler.internal.CompilerUtil.emitJvmToLong;
+import static run.endive.compiler.internal.CompilerUtil.emitLoadAbiValue;
+import static run.endive.compiler.internal.CompilerUtil.emitLoadValue;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
+import static run.endive.compiler.internal.CompilerUtil.emitStoreAbiValue;
+import static run.endive.compiler.internal.CompilerUtil.emitStoreValue;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.jvmParameterTypes;
 import static run.endive.compiler.internal.CompilerUtil.jvmReturnType;
-import static run.endive.compiler.internal.CompilerUtil.jvmType;
+import static run.endive.compiler.internal.CompilerUtil.jvmTypes;
 import static run.endive.compiler.internal.CompilerUtil.localType;
 import static run.endive.compiler.internal.CompilerUtil.methodTypeFor;
 import static run.endive.compiler.internal.CompilerUtil.slotCount;
@@ -103,7 +107,8 @@ final class MethodSplitter {
     private final FunctionBody body;
     private final List<CompilerInstruction> instructions;
     private final int totalLocals;
-    // trampoline frame: locals, then the PC, then the spilled operand stack
+    // trampoline frame: the locals (a v128 takes two), the PC, then the spilled operand stack
+    private final int[] frameIndex;
     private final int pcIndex;
     private final int spillBase;
     private final Type returnType;
@@ -122,8 +127,14 @@ final class MethodSplitter {
         this.body = ctx.getBody();
         this.instructions = instructions;
         this.totalLocals = type.params().size() + body.localTypes().size();
-        this.pcIndex = totalLocals;
-        this.spillBase = totalLocals + 1;
+        this.frameIndex = new int[totalLocals];
+        int index = 0;
+        for (int i = 0; i < totalLocals; i++) {
+            frameIndex[i] = index;
+            index += abiEntries(localType(type, body, i));
+        }
+        this.pcIndex = index;
+        this.spillBase = index + 1;
         this.returnType = getType(jvmReturnType(type));
         this.funcName = ctx.methodNameForFunc(ctx.getId());
         this.chunkClass = ctx.classNameForFuncGroup(ctx.internalClassName(), ctx.getId());
@@ -668,21 +679,19 @@ final class MethodSplitter {
         var params = new ArrayList<Class<?>>(List.of(jvmParameterTypes(type)));
         params.add(Memory.class);
         params.add(Instance.class);
-        for (ValType local : body.localTypes()) {
-            params.add(jvmType(local));
-        }
+        params.addAll(List.of(jvmTypes(body.localTypes())));
         return methodType(jvmReturnType(type), params.toArray(new Class<?>[0]));
     }
 
     private void emitDirectChunkCall(int chunk, MethodType chunkType, InstructionAdapter asm) {
         int paramCount = type.params().size();
         for (int i = 0; i < paramCount; i++) {
-            asm.load(ctx.localSlotIndex(i), asmType(localType(type, body, i)));
+            emitLoadValue(asm, ctx.localSlotIndex(i), localType(type, body, i));
         }
         asm.load(ctx.memorySlot(), OBJECT_TYPE);
         asm.load(ctx.instanceSlot(), OBJECT_TYPE);
         for (int i = paramCount; i < totalLocals; i++) {
-            asm.load(ctx.localSlotIndex(i), asmType(localType(type, body, i)));
+            emitLoadValue(asm, ctx.localSlotIndex(i), localType(type, body, i));
         }
         asm.invokestatic(chunkClass, chunkName(chunk), chunkType.toMethodDescriptorString(), false);
         asm.areturn(returnType);
@@ -708,12 +717,7 @@ final class MethodSplitter {
         asm.newarray(LONG_TYPE);
         asm.store(frame, LONG_ARRAY_TYPE);
         for (int i = 0; i < type.params().size(); i++) {
-            var localType = localType(type, body, i);
-            asm.load(frame, LONG_ARRAY_TYPE);
-            asm.iconst(i);
-            asm.load(entryCtx.localSlotIndex(i), asmType(localType));
-            emitJvmToLong(asm, localType);
-            asm.astore(LONG_TYPE);
+            emitLocalToFrame(asm, frame, i, entryCtx.localSlotIndex(i));
         }
 
         Label loop = new Label();
@@ -778,11 +782,8 @@ final class MethodSplitter {
         for (int i = 0; i < totalLocals; i++) {
             if (touched[i]) {
                 var localType = localType(type, body, i);
-                asm.load(0, LONG_ARRAY_TYPE);
-                asm.iconst(i);
-                asm.aload(LONG_TYPE);
-                emitLongToJvm(asm, localType);
-                asm.store(ctx.localSlotIndex(i), asmType(localType));
+                emitLoadAbiValue(asm, localType, () -> asm.load(0, LONG_ARRAY_TYPE), frameIndex[i]);
+                emitStoreValue(asm, ctx.localSlotIndex(i), localType);
             }
         }
         ValType[] stack = plan.entryStacks[chunk];
@@ -807,12 +808,7 @@ final class MethodSplitter {
         asm.mark(exit);
         for (int i = 0; i < totalLocals; i++) {
             if (written[i]) {
-                var localType = localType(type, body, i);
-                asm.load(0, LONG_ARRAY_TYPE);
-                asm.iconst(i);
-                asm.load(ctx.localSlotIndex(i), asmType(localType));
-                emitJvmToLong(asm, localType);
-                asm.astore(LONG_TYPE);
+                emitLocalToFrame(asm, 0, i, ctx.localSlotIndex(i));
             }
         }
         asm.load(0, LONG_ARRAY_TYPE);
@@ -821,6 +817,13 @@ final class MethodSplitter {
         asm.visitInsn(Opcodes.I2L);
         asm.astore(LONG_TYPE);
         emitDefaultReturn(ctx, asm);
+    }
+
+    // [] -> [], local i from its JVM slot into the frame in frameSlot
+    private void emitLocalToFrame(InstructionAdapter asm, int frameSlot, int i, int slot) {
+        asm.load(frameSlot, LONG_ARRAY_TYPE);
+        emitStoreAbiValue(asm, localType(type, body, i), slot, frameIndex[i]);
+        asm.pop();
     }
 
     // Like emitInstruction, but a branch to another chunk becomes a transition.

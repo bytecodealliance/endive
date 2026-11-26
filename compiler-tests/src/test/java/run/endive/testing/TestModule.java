@@ -39,7 +39,11 @@ public class TestModule {
                     + "unknown label "
                     + "alignment "
                     + "multiple start sections "
-                    + "duplicate field";
+                    + "duplicate field "
+                    + "wrong number of lane literals "
+                    + "alignment must be a power of two "
+                    + "invalid lane length "
+                    + "malformed lane index";
 
     public static TestModule of(String classpath) {
         try (var is = CorpusResources.getResource(classpath.substring(1))) {

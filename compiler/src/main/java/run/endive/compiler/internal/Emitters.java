@@ -25,6 +25,7 @@ import static run.endive.compiler.internal.CompilerUtil.emitLoadValue;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
 import static run.endive.compiler.internal.CompilerUtil.emitPop;
 import static run.endive.compiler.internal.CompilerUtil.emitStoreValue;
+import static run.endive.compiler.internal.CompilerUtil.emitUnboxAbiEntry;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyResults;
 import static run.endive.compiler.internal.CompilerUtil.jvmReturnType;
@@ -195,7 +196,7 @@ final class Emitters {
     public static void SELECT(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
         var type = valType(ins.operand(0), ctx);
         var endLabel = new Label();
-        if (type.equals(ValType.V128)) {
+        if (type.isV128()) {
             int t = ctx.tempSlot();
             asm.store(t + 8, INT_TYPE);
             V128Emitter.store(asm, t + 4);
@@ -454,7 +455,7 @@ final class Emitters {
     }
 
     public static void LOCAL_TEE(Context ctx, CompilerInstruction ins, InstructionAdapter asm) {
-        if (valType(ins.operand(1), ctx).equals(ValType.V128)) {
+        if (valType(ins.operand(1), ctx).isV128()) {
             LOCAL_SET(ctx, ins, asm);
             LOCAL_GET(ctx, ins, asm);
             return;
@@ -478,7 +479,7 @@ final class Emitters {
         if (globalType.isObjectRef()) {
             // GC refs: returns Object directly
             emitInvokeStatic(asm, ShadedRefs.READ_GLOBAL_REF);
-        } else if (globalType.equals(ValType.V128)) {
+        } else if (globalType.isV128()) {
             emitInvokeStatic(asm, ShadedRefs.READ_GLOBAL);
             asm.iconst(globalIndex);
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
@@ -499,7 +500,7 @@ final class Emitters {
             asm.iconst(globalIndex);
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
             emitInvokeStatic(asm, ShadedRefs.WRITE_GLOBAL_REF);
-        } else if (globalType.equals(ValType.V128)) {
+        } else if (globalType.isV128()) {
             asm.iconst(globalIndex);
             asm.load(ctx.instanceSlot(), OBJECT_TYPE);
             emitInvokeStatic(asm, ShadedRefs.WRITE_GLOBAL_V128);
@@ -1430,17 +1431,16 @@ final class Emitters {
         if (hasObjectRefs) {
             // Object[] on stack: numerics are boxed as Long, refs are Object
             for (ValType type : types) {
-                for (int word = 0; word < abiEntries(type); word++) {
+                if (type.isObjectRef()) {
                     asm.load(tempSlot, OBJECT_TYPE);
-                    asm.iconst(index + word);
-                    asm.aload(OBJECT_TYPE); // AALOAD from Object[]
-                    if (!type.isObjectRef()) {
-                        // Unbox Long -> long -> JVM type
-                        asm.checkcast(org.objectweb.asm.Type.getType(Long.class));
-                        asm.invokevirtual("java/lang/Long", "longValue", "()J", false);
-                        if (!type.equals(ValType.V128)) {
-                            emitLongToJvm(asm, type);
-                        }
+                    asm.iconst(index);
+                    asm.aload(OBJECT_TYPE);
+                } else {
+                    for (int word = 0; word < abiEntries(type); word++) {
+                        emitUnboxAbiEntry(asm, tempSlot, index + word);
+                    }
+                    if (!type.isV128()) {
+                        emitLongToJvm(asm, type);
                     }
                 }
                 index += abiEntries(type);

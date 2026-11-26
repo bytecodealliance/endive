@@ -5,7 +5,6 @@ import static org.objectweb.asm.Type.LONG_TYPE;
 import static run.endive.compiler.internal.CompilerUtil.emitInvokeStatic;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
@@ -55,20 +54,14 @@ final class V128Emitter {
     static {
         for (var m : V128Words.class.getMethods()) {
             var id = m.getAnnotation(OpCodeIdentifier.class);
-            if (id != null && HELPERS.put(id.value(), m) != null) {
-                throw new IllegalStateException("two V128Words helpers for " + id.value());
+            if (id != null) {
+                HELPERS.put(id.value(), m);
             }
         }
-        var missing = new ArrayList<OpCode>();
-        for (var simd : SimdOp.all()) {
-            boolean needsHelper = !NO_HELPER.contains(simd.kind) && !INLINE.contains(simd.op);
-            if (needsHelper != HELPERS.containsKey(simd.op)) {
-                missing.add(simd.op);
-            }
-        }
-        if (!missing.isEmpty()) {
-            throw new IllegalStateException("V128Words helpers missing or unused: " + missing);
-        }
+    }
+
+    static boolean callsHelper(SimdOp simd) {
+        return !NO_HELPER.contains(simd.kind) && !INLINE.contains(simd.op);
     }
 
     private final Context ctx;

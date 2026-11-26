@@ -38,6 +38,7 @@ import static run.endive.compiler.internal.CompilerUtil.emitLoadAbiValue;
 import static run.endive.compiler.internal.CompilerUtil.emitLoadArguments;
 import static run.endive.compiler.internal.CompilerUtil.emitLongToJvm;
 import static run.endive.compiler.internal.CompilerUtil.emitStoreValue;
+import static run.endive.compiler.internal.CompilerUtil.emitUnboxAbiEntry;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyParameters;
 import static run.endive.compiler.internal.CompilerUtil.hasTooManyResults;
 import static run.endive.compiler.internal.CompilerUtil.internalClassName;
@@ -1553,11 +1554,7 @@ public final class Compiler {
                 if (retType.isObjectRef()) {
                     asm.lconst(0L);
                 } else {
-                    asm.load(objArraySlot, OBJECT_TYPE);
-                    asm.iconst(i);
-                    asm.aload(OBJECT_TYPE); // get from Object[]
-                    asm.checkcast(Type.getType(Long.class));
-                    asm.invokevirtual("java/lang/Long", "longValue", "()J", false);
+                    emitUnboxAbiEntry(asm, objArraySlot, i);
                 }
                 asm.astore(LONG_TYPE);
             }
@@ -1620,11 +1617,7 @@ public final class Compiler {
                 if (!retType.isObjectRef()) {
                     asm.dup();
                     asm.iconst(i);
-                    asm.load(objArraySlot, OBJECT_TYPE);
-                    asm.iconst(i);
-                    asm.aload(OBJECT_TYPE);
-                    asm.checkcast(Type.getType(Long.class));
-                    asm.invokevirtual("java/lang/Long", "longValue", "()J", false);
+                    emitUnboxAbiEntry(asm, objArraySlot, i);
                     asm.astore(LONG_TYPE);
                 }
             }
@@ -2143,7 +2136,7 @@ public final class Compiler {
         int localsEnd = type.params().size() + body.localTypes().size();
         for (int i = type.params().size(); i < localsEnd; i++) {
             var localType = localType(type, body, i);
-            if (localType.equals(ValType.V128)) {
+            if (localType.isV128()) {
                 V128Emitter.zero(asm);
                 emitStoreValue(asm, ctx.localSlotIndex(i), localType);
                 continue;

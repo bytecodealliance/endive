@@ -75,7 +75,7 @@ public class StackFrame {
         int j = 0;
         for (ValType type : localTypes) {
             var idx = j + sizeOf(argsTypes);
-            if (!type.equals(ValType.V128)) {
+            if (!type.isV128()) {
                 if (type.isReference()) {
                     locals[idx] = Value.REF_NULL_VALUE;
                 } else {
@@ -93,7 +93,7 @@ public class StackFrame {
         j = 0;
         for (int i = 0; i < this.localTypes.length; i++) {
             this.localIdx[i] = j;
-            if (!localType(i).equals(ValType.V128)) {
+            if (!localType(i).isV128()) {
                 j += 1;
             } else {
                 j += 2;

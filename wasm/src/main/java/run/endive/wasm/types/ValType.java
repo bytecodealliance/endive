@@ -304,6 +304,10 @@ public final class ValType {
         return builder().fromId(valTypeId).isObjectRef(typeSection);
     }
 
+    public boolean isV128() {
+        return opcode() == ID.V128;
+    }
+
     private boolean computeIsExnRef() {
         int op = opcode();
         if (op != ID.Ref && op != ID.RefNull) {

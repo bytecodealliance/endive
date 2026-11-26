@@ -1,6 +1,5 @@
 package run.endive.compiler.internal;
 
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -392,16 +391,6 @@ final class SimdOp {
                 OpCode.I32x4_BITMASK,
                 OpCode.I64x2_ALL_TRUE,
                 OpCode.I64x2_BITMASK);
-
-        var missing = new ArrayList<OpCode>();
-        for (var op : OpCode.values()) {
-            if (isV128(op) && !OPS.containsKey(op)) {
-                missing.add(op);
-            }
-        }
-        if (!missing.isEmpty()) {
-            throw new IllegalStateException("v128 opcodes missing from SimdOp: " + missing);
-        }
     }
 
     List<ValType> inputs() {

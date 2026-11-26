@@ -192,7 +192,7 @@ final class CompilerUtil {
 
     // [] -> [value] from a local
     public static void emitLoadValue(InstructionAdapter asm, int slot, ValType type) {
-        if (type.equals(ValType.V128)) {
+        if (type.isV128()) {
             V128Emitter.load(asm, slot);
         } else {
             asm.load(slot, asmType(type));
@@ -201,7 +201,7 @@ final class CompilerUtil {
 
     // [value] -> [], into a local
     public static void emitStoreValue(InstructionAdapter asm, int slot, ValType type) {
-        if (type.equals(ValType.V128)) {
+        if (type.isV128()) {
             V128Emitter.store(asm, slot);
         } else {
             asm.store(slot, asmType(type));
@@ -210,7 +210,7 @@ final class CompilerUtil {
 
     // entries a value takes in the long[] and Object[] of the call ABI: a v128 two, low word first
     public static int abiEntries(ValType type) {
-        return type.equals(ValType.V128) ? 2 : 1;
+        return type.isV128() ? 2 : 1;
     }
 
     public static int abiEntries(List<ValType> types) {
@@ -220,11 +220,7 @@ final class CompilerUtil {
     // the type of each entry the values take in the call ABI: a v128 is two i64
     public static List<ValType> abiEntryTypes(List<ValType> types) {
         return types.stream()
-                .flatMap(
-                        t ->
-                                t.equals(ValType.V128)
-                                        ? Stream.of(ValType.I64, ValType.I64)
-                                        : Stream.of(t))
+                .flatMap(t -> t.isV128() ? Stream.of(ValType.I64, ValType.I64) : Stream.of(t))
                 .collect(Collectors.toList());
     }
 
@@ -236,9 +232,18 @@ final class CompilerUtil {
             asm.iconst(index + word);
             asm.aload(LONG_TYPE);
         }
-        if (!type.equals(ValType.V128)) {
+        if (!type.isV128()) {
             emitLongToJvm(asm, type);
         }
+    }
+
+    // [] -> [long] unboxed from index of the Object[] in the local at slot
+    public static void emitUnboxAbiEntry(InstructionAdapter asm, int slot, int index) {
+        asm.load(slot, OBJECT_TYPE);
+        asm.iconst(index);
+        asm.aload(OBJECT_TYPE);
+        asm.checkcast(Type.getType(Long.class));
+        asm.invokevirtual("java/lang/Long", "longValue", "()J", false);
     }
 
     // [long[]] -> [long[]], the value in the local at slot stored from index; object refs become 0
@@ -247,7 +252,7 @@ final class CompilerUtil {
         for (int word = 0; word < abiEntries(type); word++) {
             asm.dup();
             asm.iconst(index + word);
-            if (type.equals(ValType.V128)) {
+            if (type.isV128()) {
                 asm.load(slot + 2 * word, LONG_TYPE);
             } else if (type.isObjectRef()) {
                 asm.lconst(0L);
@@ -328,7 +333,7 @@ final class CompilerUtil {
         int slot = 0;
         for (ValType param : type.params()) {
             for (int word = 0; word < abiEntries(param); word++) {
-                Type jvm = param.equals(ValType.V128) ? LONG_TYPE : asmType(param);
+                Type jvm = param.isV128() ? LONG_TYPE : asmType(param);
                 asm.visitVarInsn(jvm.getOpcode(Opcodes.ILOAD), slot + 2 * word);
             }
             slot += slotCount(param);
@@ -380,13 +385,13 @@ final class CompilerUtil {
             for (int word = 0; word < abiEntries(valType); word++) {
                 asm.dup();
                 asm.iconst(index + word);
-                if (valType.equals(ValType.V128)) {
+                if (valType.isV128()) {
                     asm.load(slot + 2 * word, LONG_TYPE);
                 } else {
                     asm.load(slot, asmType(valType));
                 }
                 if (!valType.isObjectRef()) {
-                    if (!valType.equals(ValType.V128)) {
+                    if (!valType.isV128()) {
                         emitJvmToLong(asm, valType);
                     }
                     asm.invokestatic("java/lang/Long", "valueOf", "(J)Ljava/lang/Long;", false);
@@ -402,10 +407,7 @@ final class CompilerUtil {
     public static Class<?>[] jvmTypes(List<ValType> types) {
         return types.stream()
                 .flatMap(
-                        t ->
-                                t.equals(ValType.V128)
-                                        ? Stream.of(long.class, long.class)
-                                        : Stream.of(jvmType(t)))
+                        t -> t.isV128() ? Stream.of(long.class, long.class) : Stream.of(jvmType(t)))
                 .toArray(Class[]::new);
     }
 
@@ -474,7 +476,7 @@ final class CompilerUtil {
     }
 
     public static void emitPop(MethodVisitor asm, ValType type) {
-        if (type.equals(ValType.V128)) {
+        if (type.isV128()) {
             asm.visitInsn(Opcodes.POP2);
             asm.visitInsn(Opcodes.POP2);
         } else if (type.isObjectRef()) {

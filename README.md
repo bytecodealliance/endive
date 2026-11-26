@@ -74,7 +74,7 @@ If you have an interest in working on any of these please reach out in Zulip!
 * [x] Decoupled interpreter and compiler "engines"
 * [x] Build-time compiler passes all the same specs as interpreter
 * [x] WASIp1 Support (including test gen)
-* [x] SIMD Support
+* [x] SIMD Support (interpreter and compiler; compare with a build without SIMD, see [SIMD](https://endive.run/docs/execution#simd))
 * [x] Tail Call (interpreter and compiler)
 * [x] Compiler out of experimental
 * [x] Exception Handling

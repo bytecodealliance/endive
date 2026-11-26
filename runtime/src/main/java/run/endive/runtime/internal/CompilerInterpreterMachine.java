@@ -11,7 +11,6 @@ import run.endive.runtime.StackFrame;
 import run.endive.runtime.WasmException;
 import run.endive.wasm.WasmEngineException;
 import run.endive.wasm.types.FunctionType;
-import run.endive.wasm.types.ValType;
 
 /**
  * This class is used by compiler generated classes. It MUST remain backwards compatible
@@ -87,7 +86,7 @@ public class CompilerInterpreterMachine extends InterpreterMachine {
                         if (retType.isObjectRef()) {
                             stack.pushRef(cr.refResult(slot));
                             slot++;
-                        } else if (retType.equals(ValType.V128)) {
+                        } else if (retType.isV128()) {
                             stack.push(cr.longResult(slot));
                             stack.push(cr.longResult(slot + 1));
                             slot += 2;

@@ -93,7 +93,7 @@ public class InterpreterMachine implements Machine {
                     long val = args[slot];
                     refArgs[slot] = (val == REF_NULL_VALUE) ? null : new WasmExternRef(val);
                 }
-                slot += param.equals(ValType.V128) ? 2 : 1;
+                slot += param.isV128() ? 2 : 1;
             }
         }
 
@@ -137,7 +137,7 @@ public class InterpreterMachine implements Machine {
                         if (retType.isObjectRef()) {
                             stack.pushRef(cr.refResult(slot));
                             slot++;
-                        } else if (retType.equals(ValType.V128)) {
+                        } else if (retType.isV128()) {
                             stack.push(cr.longResult(slot));
                             stack.push(cr.longResult(slot + 1));
                             slot += 2;
@@ -189,7 +189,7 @@ public class InterpreterMachine implements Machine {
                 // Object should use callWithRefs(). For the long[] path, return 0
                 // (non-null indicator) or REF_NULL_VALUE.
                 results[slot] = (ref == null) ? Value.REF_NULL_VALUE : 0;
-            } else if (retType.equals(ValType.V128)) {
+            } else if (retType.isV128()) {
                 slot -= 2;
                 results[slot + 1] = stack.pop();
                 results[slot] = stack.pop();
@@ -233,7 +233,7 @@ public class InterpreterMachine implements Machine {
                     refResults = new Object[totalResults];
                 }
                 refResults[slot] = ref;
-            } else if (retType.equals(ValType.V128)) {
+            } else if (retType.isV128()) {
                 slot -= 2;
                 longResults[slot + 1] = stack.pop();
                 longResults[slot] = stack.pop();
@@ -2319,7 +2319,7 @@ public class InterpreterMachine implements Machine {
         var globalType = instance.global(id).getType();
         if (globalType.isObjectRef()) {
             instance.global(id).setRefValue(stack.popRef());
-        } else if (globalType.equals(ValType.V128)) {
+        } else if (globalType.isV128()) {
             var high = stack.pop();
             var low = stack.pop();
             instance.global(id).setValueLow(low);
@@ -2337,7 +2337,7 @@ public class InterpreterMachine implements Machine {
             stack.pushRef(instance.global(idx).getRefValue());
         } else {
             stack.push(instance.global(idx).getValueLow());
-            if (globalType.equals(ValType.V128)) {
+            if (globalType.isV128()) {
                 stack.push(instance.global(idx).getValueHigh());
             }
         }
@@ -2429,7 +2429,7 @@ public class InterpreterMachine implements Machine {
         var localType = currentStackFrame.localType(idx);
         if (localType.isObjectRef()) {
             stack.pushRef(currentStackFrame.localRef(i));
-        } else if (localType.equals(ValType.V128)) {
+        } else if (localType.isV128()) {
             stack.push(currentStackFrame.local(i));
             stack.push(currentStackFrame.local(i + 1));
         } else {
@@ -2443,7 +2443,7 @@ public class InterpreterMachine implements Machine {
         var localType = currentStackFrame.localType(idx);
         if (localType.isObjectRef()) {
             currentStackFrame.setLocalRef(i, stack.popRef());
-        } else if (localType.equals(ValType.V128)) {
+        } else if (localType.isV128()) {
             currentStackFrame.setLocal(i + 1, stack.pop());
             currentStackFrame.setLocal(i, stack.pop());
         } else {
@@ -2458,7 +2458,7 @@ public class InterpreterMachine implements Machine {
         var localType = currentStackFrame.localType(idx);
         if (localType.isObjectRef()) {
             currentStackFrame.setLocalRef(i, stack.peekRef());
-        } else if (localType.equals(ValType.V128)) {
+        } else if (localType.isV128()) {
             var high = stack.pop();
             currentStackFrame.setLocal(i + 1, high);
             currentStackFrame.setLocal(i, stack.peek());
@@ -3240,7 +3240,7 @@ public class InterpreterMachine implements Machine {
         int idx = size;
         for (int i = params.size() - 1; i >= 0; i--) {
             var p = params.get(i);
-            if (p.equals(ValType.V128)) {
+            if (p.isV128()) {
                 idx -= 2;
                 args[idx + 1] = stack.pop();
                 args[idx] = stack.pop();
@@ -3814,7 +3814,7 @@ public class InterpreterMachine implements Machine {
             if (retType.isObjectRef()) {
                 stack.pushRef(cr.refResult(slot));
                 slot++;
-            } else if (retType.equals(ValType.V128)) {
+            } else if (retType.isV128()) {
                 stack.push(cr.longResult(slot));
                 stack.push(cr.longResult(slot + 1));
                 slot += 2;
@@ -3836,7 +3836,7 @@ public class InterpreterMachine implements Machine {
                 // This position is a ref (even if the value is null)
                 stack.pushRef(refArgs != null && slot < refArgs.length ? refArgs[slot] : null);
                 slot++;
-            } else if (p.equals(ValType.V128)) {
+            } else if (p.isV128()) {
                 stack.push(exception.args()[slot]);
                 stack.push(exception.args()[slot + 1]);
                 slot += 2;

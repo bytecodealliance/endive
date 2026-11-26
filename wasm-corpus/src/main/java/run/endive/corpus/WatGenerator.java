@@ -97,6 +97,20 @@ public final class WatGenerator {
                         "inLoop", inLoop));
     }
 
+    public static String simdSplit(boolean inLoop) {
+        return render(
+                "/run/endive/corpus/simd_split.wat",
+                Map.of(
+                        "blocks", range(8, i -> i),
+                        "statements", range(100, i -> i),
+                        "inLoop", inLoop));
+    }
+
+    /** One v128 op of the kind binary, unary, ternary, shift or test: run(a0, a1, ..., count). */
+    public static String simdOp(String op, String kind) {
+        return render("/run/endive/corpus/simd_op.wat", Map.of("op", op, "kind", kind));
+    }
+
     private static List<Long> range(int count, LongUnaryOperator value) {
         var values = new ArrayList<Long>();
         for (int i = 0; i < count; i++) {

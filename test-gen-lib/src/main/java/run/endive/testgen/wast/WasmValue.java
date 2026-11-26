@@ -91,7 +91,7 @@ public class WasmValue {
                                 sb.append(intLaneValue(v));
                                 break;
                             case I64:
-                                sb.append("Long.parseLong(\"" + v + "\")");
+                                sb.append(longLaneValue(v));
                                 break;
                             case F32:
                                 switch (v) {
@@ -265,7 +265,7 @@ public class WasmValue {
                                 sb.append(intLaneValue(v));
                                 break;
                             case I64:
-                                sb.append("Long.parseLong(\"" + v + "\")");
+                                sb.append(longLaneValue(v));
                                 break;
                             case F32:
                                 sb.append("Integer.parseUnsignedInt(\"" + v + "\")");
@@ -291,6 +291,10 @@ public class WasmValue {
     public String intLaneValue(String v) {
         var longValue = Long.parseLong(v);
         return Integer.toUnsignedString((int) longValue) + "L";
+    }
+
+    public String longLaneValue(String v) {
+        return Long.parseLong(v) + "L";
     }
 
     /**
@@ -449,7 +453,7 @@ public class WasmValue {
                             sb.append(intLaneValue(v));
                             break;
                         case I64:
-                            sb.append("Long.parseLong(\"" + v + "\")");
+                            sb.append(longLaneValue(v));
                             break;
                         case F32:
                             sb.append("Integer.parseUnsignedInt(\"" + v + "\")");

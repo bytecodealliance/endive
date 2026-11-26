@@ -24,7 +24,10 @@ final class EmitterMap {
                 .intrinsic(CompilerOpCode.RETURN, Emitters::RETURN, TempSlotCalculators::returnOp)
                 .intrinsic(CompilerOpCode.DROP, Emitters::DROP)
                 .intrinsic(CompilerOpCode.ELEM_DROP, Emitters::ELEM_DROP)
-                .intrinsic(CompilerOpCode.SELECT, Emitters::SELECT)
+                .intrinsic(CompilerOpCode.SELECT, Emitters::SELECT, TempSlotCalculators::select)
+
+                // ====== SIMD ======
+                .intrinsic(CompilerOpCode.V128_OP, V128Emitter::emit, TempSlotCalculators::v128Op)
 
                 // ====== Control Flow ======
                 .intrinsic(CompilerOpCode.CALL, Emitters::CALL, TempSlotCalculators::call)

@@ -510,6 +510,16 @@ public final class Shaded {
         instance.global(index).setValue(value);
     }
 
+    public static long readGlobalHigh(int index, Instance instance) {
+        return instance.global(index).getValueHigh();
+    }
+
+    public static void writeGlobalV128(long low, long high, int index, Instance instance) {
+        var global = instance.global(index);
+        global.setValueLow(low);
+        global.setValueHigh(high);
+    }
+
     public static void writeGlobalRef(Object value, int index, Instance instance) {
         instance.global(index).setRefValue(value);
     }

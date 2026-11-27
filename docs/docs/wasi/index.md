@@ -26,7 +26,7 @@ access to the corresponding _host_ resources, but they will be mediated by the W
 which can be configured to limit their surface.
 
 :::warning[Security Consideration]
-Guest paths, including `..` and symbolic links, are resolved inside the mapped directories. Changes made to those directories by other processes while the guest runs are not guarded against, so for untrusted guests prefer a virtual file system (for example [ZeroFs](https://github.com/roastedroot/zerofs) or [Jimfs](https://github.com/google/jimfs)) holding a copy of the data they need. See [Security Best Practices](/docs/security/best-practices).
+Guest paths, including `..` and symbolic links, are resolved inside the mapped directories. Concurrent changes to those directories (from other instances, threads or processes) are not supported: for untrusted guests use a virtual file system (for example [ZeroFs](https://github.com/roastedroot/zerofs) or [Jimfs](https://github.com/google/jimfs)) holding a copy of the data they need. See [Security Best Practices](/docs/security/best-practices).
 :::
 
 Add the dependency to your build:

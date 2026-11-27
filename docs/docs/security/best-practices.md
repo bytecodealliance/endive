@@ -38,7 +38,7 @@ WasmFunctionHandle readMemory = (Instance instance, long... args) -> {
 ## WASI Sandboxing
 
 :::warning[Security Consideration]
-WASI resolves guest paths, including `..` and symbolic links, inside the pre-opened directories. Changes made to those directories by other processes while the guest runs are not guarded against.
+WASI resolves guest paths, including `..` and symbolic links, inside the pre-opened directories. Concurrent changes to those directories (from other instances, threads or processes) are not supported.
 :::
 
 **Use a virtual filesystem:**
